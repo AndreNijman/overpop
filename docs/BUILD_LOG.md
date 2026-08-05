@@ -11,3 +11,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:24:38` **start** P0.4 — README.md with explicit scope + non-affiliation disclaimer
 - `2026-08-05 11:24:38` **done** P0.4 — README.md with explicit scope + non-affiliation disclaimer (`dae9e30`)
 - `2026-08-05 11:25:01` **start** P1.10 — Headless verification harness
+- `2026-08-05 11:27:26` **done** P1.10 — Headless verification harness (`e1a170c`)
+- `2026-08-05 11:27:27` **start** P1.1 — Seeded RNG + math/geometry helpers

@@ -115,9 +115,10 @@
           "verify": [
             "node tools/harness.mjs --suite rng"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "sfc32 or mulberry32. Determinism is the foundation of the whole verification story."
+          "note": "sfc32 or mulberry32. Determinism is the foundation of the whole verification story.",
+          "started": "2026-08-05 11:27:27"
         },
         {
           "id": "P1.2",
@@ -271,10 +272,11 @@
             "node tools/harness.mjs --list",
             "node tools/harness.mjs --suite loader"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "e1a170c",
           "note": "Loads the classic-script browser bundle into a Node sandbox so the same code is tested. Suites + seeded round playthroughs + determinism checksums.",
-          "started": "2026-08-05 11:25:01"
+          "started": "2026-08-05 11:25:01",
+          "finished": "2026-08-05 11:27:26"
         }
       ]
     },
