@@ -191,10 +191,11 @@
           "verify": [
             "node tools/harness.mjs --suite projectiles"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "237f9a1",
           "note": "A projectile must never hit the same balloon twice; pierce counts DISTINCT balloons. Swept collision, not per-frame AABB.",
-          "started": "2026-08-05 11:44:39"
+          "started": "2026-08-05 11:44:39",
+          "finished": "2026-08-05 11:49:52"
         },
         {
           "id": "P1.6",
@@ -208,9 +209,10 @@
           "verify": [
             "node tools/harness.mjs --suite targeting"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "First/Last/Close/Strong + tower-specific extras. Camo detection gating. Line-of-sight for blocked maps."
+          "note": "First/Last/Close/Strong + tower-specific extras. Camo detection gating. Line-of-sight for blocked maps.",
+          "started": "2026-08-05 11:50:16"
         },
         {
           "id": "P1.7",

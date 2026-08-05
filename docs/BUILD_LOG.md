@@ -21,3 +21,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:40:30` **start** P1.4 — Damage-type x immunity matrix (data-driven)
 - `2026-08-05 11:44:39` **done** P1.4 — Damage-type x immunity matrix (data-driven) (`81b2b97`)
 - `2026-08-05 11:44:39` **start** P1.5 — Projectiles — per-projectile hit sets, pierce, pooling
+- `2026-08-05 11:49:52` **done** P1.5 — Projectiles — per-projectile hit sets, pierce, pooling (`237f9a1`)
+- `2026-08-05 11:50:16` **start** P1.6 — Targeting priorities, camo gating and line of sight
