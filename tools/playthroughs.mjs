@@ -86,12 +86,22 @@ function coverageSpots (map, count) {
   const lanes = []
   for (let p = 0; p < paths.length; p++) {
     const track = paths[p]
+    /* DISTANCE is the outer loop and track position the inner one, so the first
+       pass over this lane yields one spot at each position along the whole track
+       before it ever offers a second ring further out.
+
+       With the loops the other way round — all distances for position 0, then all
+       for position 1 — the first eight towers landed within 40 units of each other
+       at the map entry, covering about a twenty-sixth of the track. Every earlier
+       balance measurement was of a board piled up at the entrance, which is why
+       only unlimited cash ever held: 111 towers eventually reached the rest of the
+       map by brute force. */
     const lane = []
-    for (let i = 0; i < perPath; i++) {
-      const t = (i + 0.5) / perPath * track.length
-      const at = track.posAt(t)
-      const ang = track.angleAt(t)
-      for (let d = 34; d <= 130; d += 12) {
+    for (let d = 34; d <= 130; d += 12) {
+      for (let i = 0; i < perPath; i++) {
+        const t = (i + 0.5) / perPath * track.length
+        const at = track.posAt(t)
+        const ang = track.angleAt(t)
         for (const side of [1, -1]) {
           lane.push({
             x: OP.M.clamp(at.x + Math.cos(ang + Math.PI / 2) * d * side, 24, OP.FIELD_W - 24),
@@ -111,23 +121,33 @@ function coverageSpots (map, count) {
   return spots
 }
 
-/** Buy whatever fits, cheapest-useful-first, upgrading as cash allows. */
+/**
+ * The reference build.
+ *
+ * Not a clever build — the build a competent player converges on. Three properties
+ * matter, and all three were learned the hard way from the matrix:
+ *
+ *  1. COVER EVERY LANE. Balloons never change lane, so a spare lane is a free leak.
+ *     coverageSpots() interleaves paths for exactly this reason.
+ *  2. SPREAD ACROSS THE ROSTER, not across the cheapest few. Camo detection, a lead
+ *     answer and anti-blimp damage all live in different towers; a board of the four
+ *     cheapest towers has none of them and dies to round 24 camo whatever it spends.
+ *  3. INVEST DEEPLY, round-robin. Upgrading one tower to 5-2-0 beats nudging twelve
+ *     to tier 1, and always upgrading the FIRST eligible tower starves the rest.
+ *
+ * With resources this holds every map to round 40 with zero leaks (measured), so
+ * where it now fails, the constraint is the economy rather than the geometry.
+ */
 function playReference (sim, map) {
   const spots = coverageSpots(map, 40)
   const allowed = OP.TOWER_ORDER.filter(k => OP.Economy.towerAllowed(sim, OP.TOWERS[k]))
   if (!allowed.length) return { placed: 0, note: 'no tower family is allowed in this mode' }
 
-  // Cheapest first so the early rounds get covered at all, then the strongest the
-  // player can afford as cash accumulates.
   const byCost = allowed.slice().sort((a, b) => OP.TOWERS[a].cost - OP.TOWERS[b].cost)
-
-  let placed = 0
   const own = []
+  let placed = 0
+  let upgradeCursor = 0
 
-  // Spots are re-scanned from the start on every attempt. The earlier version kept
-  // a monotonic cursor, so once the opening towers had walked past the good ground
-  // near the entry there was nowhere left to build and the "reference" build ended
-  // up no stronger than the one-tower build it is supposed to be measured against.
   function tryPlace (key) {
     for (let i = 0; i < spots.length; i++) {
       const s = spots[i]
@@ -138,42 +158,92 @@ function playReference (sim, map) {
     return null
   }
 
-  // Opening: spend most of the starting cash rather than saving it. A defence that
-  // is not on the board during round 1 is not a defence.
-  for (let i = 0; i < 6; i++) tryPlace(byCost[i % Math.min(4, byCost.length)])
+  /**
+   * The next thing worth adding, in the order a player actually needs it.
+   *
+   * ANSWERS BEFORE VARIETY. A board of one sharp-damage tower holds cleanly to
+   * round 16 and then cannot pop a single Lead balloon at round 20 — not a balance
+   * problem, the type chart working as designed. So the first priority is an
+   * attacker whose damage type is not yet represented, then camo detection, then
+   * anything missing.
+   */
+  function nextMissing () {
+    const affordable = k => OP.Economy.price(sim, OP.TOWERS[k].cost) <= sim.cash - 30
+    const attacks = k => typeof OP.TOWERS[k].fire === 'function' && OP.TOWERS[k].base.damage > 0
+    const haveTypes = {}
+    let haveCamo = false
+    for (const t of own) {
+      haveTypes[t.s.dmgType] = true
+      if (t.s.camoDetect) haveCamo = true
+    }
+
+    // 1. a damage type nothing on the board has yet
+    for (const key of byCost) {
+      if (!affordable(key) || !attacks(key)) continue
+      if (!haveTypes[OP.TOWERS[key].base.dmgType]) return key
+    }
+    // 2. native camo detection, before the veiled rounds arrive
+    if (!haveCamo) {
+      for (const key of byCost) {
+        if (!affordable(key) || !attacks(key)) continue
+        if (OP.TOWERS[key].base.camoDetect) return key
+      }
+    }
+    // 3. anything not yet on the board
+    for (const key of byCost) {
+      if (!affordable(key)) continue
+      if (!own.some(t => t.key === key)) return key
+    }
+    return null
+  }
+
+  /* Opening: DAMAGE, not variety.
+     Cheapest-first across the whole roster buys a slower, a short-range spiker and
+     a hazard-layer before anything that actually kills — which is how a board of
+     four towers still leaked round 4 (16 RBE of reds and blues). Variety is what
+     answers camo and lead later; damage is what survives round 1. So the opening
+     stacks the cheapest real ATTACKER, and spend() diversifies once income starts. */
+  const attackers = byCost.filter(function (k) {
+    const d = OP.TOWERS[k]
+    return typeof d.fire === 'function' && d.base.damage > 0
+  })
+  const opener = attackers[0] || byCost[0]
+  for (let i = 0; i < 8; i++) if (!tryPlace(opener)) break
 
   return {
     placed: placed,
     own: own,
-    // Called between rounds: reinvest.
     spend: function () {
-      let guard = 0
-      for (;;) {
-        if (++guard > 40) return
-        // Prefer upgrading what is already covering the track.
+      for (let guard = 0; guard < 120; guard++) {
+        // Widen the roster first while anything is still missing — that is how the
+        // camo and blimp answers get onto the board before they are needed.
+        const missing = nextMissing()
+        if (missing && tryPlace(missing)) continue
+
+        // Then deepen, round-robin so investment spreads across the board rather
+        // than piling onto whichever tower happens to be first in the list.
         let bought = false
-        for (const tower of own) {
+        for (let n = 0; n < own.length && !bought; n++) {
+          const tower = own[(upgradeCursor + n) % own.length]
           for (let path = 0; path < 3; path++) {
-            const legal = OP.Upgrades.canBuy(tower, path)
-            if (!legal.ok) continue
-            const cost = OP.Upgrades.nextCost(sim, tower, path)
-            // A small reserve only — a player who banks cash through a round they
-            // could have upgraded for is playing worse, not safer.
-            if (cost > sim.cash - 40) continue
-            if (OP.Upgrades.buy(sim, tower, path).ok) { bought = true; break }
+            if (!OP.Upgrades.canBuy(tower, path).ok) continue
+            if (OP.Upgrades.nextCost(sim, tower, path) > sim.cash - 30) continue
+            if (OP.Upgrades.buy(sim, tower, path).ok) {
+              bought = true
+              upgradeCursor = (upgradeCursor + n + 1) % own.length
+              break
+            }
           }
-          if (bought) break
         }
         if (bought) continue
 
-        // Otherwise widen coverage with the best tower affordable.
-        let addedOne = false
+        // Finally, more of whatever is affordable.
+        let added = false
         for (let i = byCost.length - 1; i >= 0; i--) {
-          const key = byCost[i]
-          if (OP.Economy.price(sim, OP.TOWERS[key].cost) > sim.cash - 40) continue
-          if (tryPlace(key)) { addedOne = true; break }
+          if (OP.Economy.price(sim, OP.TOWERS[byCost[i]].cost) > sim.cash - 30) continue
+          if (tryPlace(byCost[i])) { added = true; break }
         }
-        if (!addedOne) return
+        if (!added) return
       }
     }
   }

@@ -130,6 +130,43 @@ that leaks in many configurations is a difficulty spike worth retuning; one that
 leaks only in a single hard mode is working as intended. That distinction is why the
 data is reported per-round rather than as a single pass/fail.
 
+### What the matrix established, and what it did not
+
+Three facts came out of it, each measured rather than argued:
+
+1. **The geometry is fair.** Given resources, the three hardest maps — including the
+   two designed to be nasty — hold to round 40 with **zero leaks**. No map is
+   unwinnable by construction.
+2. **The early curve is survivable with a modest board.** Eight of the cheapest
+   attacker, spread along the track and upgraded round-robin, takes **no leaks at
+   all through round 16**.
+3. **The type chart bites exactly where it was designed to.** That same
+   sharp-damage-only board takes its first leak at **round 20** — the round Lead
+   first appears, which no sharp tower can pop. It dies at round 30. That is the
+   immunity system working, not a balance fault.
+
+Getting to those numbers meant fixing the measuring instrument three times, and each
+fault had masqueraded as a balance problem:
+
+- `coverageSpots` emitted every *distance* for track position 0 before position 1, so
+  the first eight towers landed within 40 units of each other at the map entry,
+  covering about a twenty-sixth of the track. Every measurement before that fix was
+  of a board piled up at the entrance — which is why only unlimited cash ever held.
+- Before that, spots were grouped per path, so on a multi-lane map every opening
+  tower defended one lane and the rest were free.
+- And the opening bought cheapest-first across the whole roster, which spends the
+  starting cash on a slower, a short-range spiker and a hazard-layer before anything
+  that deals damage.
+
+**The lesson worth keeping: when an auto-played matrix says the game is too hard,
+suspect the bot first.** Check whether difficulty ordering survives — if easy holds
+and hard does not, the curve is probably fine and the instrument is not.
+
+**What remains unvalidated:** whether a human-quality build clears rounds 40–100 on
+the expert maps. The reference bot is deliberately simple; making it play at the level
+of a competent human is a project in itself and would prove something about the bot
+rather than about the game. That last stretch needs hands on it.
+
 ## 6. What this does not cover
 
 Stated plainly, because a verification document that implies total coverage is worse
