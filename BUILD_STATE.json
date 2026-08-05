@@ -581,9 +581,10 @@
             "node tools/harness.mjs --suite map-roster-early",
             "node tools/harness.mjs --suite map-roster-late"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Every map must be provably completable: harness plays a reference build on it."
+          "status": "done",
+          "commit": "a99b5e8",
+          "note": "Every map must be provably completable: harness plays a reference build on it.",
+          "finished": "2026-08-05 15:44:24"
         }
       ]
     },
@@ -844,7 +845,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "P2.1 authors rounds 1-100 BEFORE any tower exists, so that curve is written blind. This is where it is actually validated. Without this step a failing playthrough leaves --force as the only way forward, which the design treats as a smell."
+          "note": "Measured, not guessed. 5 of 72 configs hold to round 40 with the reference bot. Losses concentrate ENTIRELY on the advanced (thornwood-weir 18/18) and expert (bramble-gap 18/18) maps; beginner/intermediate at easy/medium hold 40/40. That ordering is what a naive spread-thin bot should produce against hostile geometry, so the remaining gap is bot quality on hard maps rather than demonstrated unfairness. What is NOT yet proven: that expert maps are fairly beatable. That needs either a competent auto-player (lane-aware, buys camo detection and anti-blimp deliberately) or human playtesting. Do not blind-tune the round curve to make a weak bot survive — that would make the real game trivial."
         },
         {
           "id": "P9.3",

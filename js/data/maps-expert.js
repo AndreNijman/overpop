@@ -131,12 +131,17 @@
 
   /* ---------------------------------------------------------------- 4 of 4 --
      BRACKEN VERGE — the drove road leaves the west edge, runs the whole way
-     round the field and comes back out of the west edge lower down. The middle
-     is peat bog: legal for a water tower, and far too far from the road for one
-     to matter. Everything that shoots lives on the verge, a 50-70 unit ring
-     between the road margin and the bog — and four dry-stone walls sit in that
-     ring's sight line, so part of the verge is legal ground that cannot see the
-     road at all. It is the nastiest map in the game and it is meant to be. */
+     round the field and comes back out of the west edge lower down. Everything
+     that shoots lives on the verge: a 50-70 unit ring between the road margin
+     and the bog, and four dry-stone walls sit in that ring's sight line, so part
+     of the verge is legal ground that cannot see the road at all.
+
+     The middle is peat bog. Its RIM is real estate — a water tower moored there
+     is about 63 units off the road, which the suite checks — but the bog is 950
+     by 425 and everything inside the first tower-range of its edge is legal,
+     unreachable, and therefore worthless. That is the map: the biggest single
+     region on it is the one you cannot use. It is the nastiest map in the game
+     and it is meant to be. */
 
   const VERGE_WALLS = [
     { x: 300, y: 96, w: 220, h: 22 },

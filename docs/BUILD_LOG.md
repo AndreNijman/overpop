@@ -61,3 +61,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 15:32:34` **done** P8.5 — Boot wiring — main.js + ordered script list (`d697f8a`)
 - `2026-08-05 15:32:53` **done** P9.1 — Full-suite green + determinism checksums (`d697f8a`)
 - `2026-08-05 15:33:24` **done** P9.3 — Browser smoke test (headless chromium, console-error free) (`d697f8a`)
+- `2026-08-05 15:43:49` note P9.2b — Measured, not guessed. 5 of 72 configs hold to round 40 with the reference bot. Losses concentrate ENTIRELY on the advanced (thornwood-weir 18/18) and expert (bramble-gap 18/18) maps; beginner/intermediate at easy/medium hold 40/40. That ordering is what a naive spread-thin bot should produce against hostile geometry, so the remaining gap is bot quality on hard maps rather than demonstrated unfairness. What is NOT yet proven: that expert maps are fairly beatable. That needs either a competent auto-player (lane-aware, buys camo detection and anti-blimp deliberately) or human playtesting. Do not blind-tune the round curve to make a weak bot survive — that would make the real game trivial.
+- `2026-08-05 15:44:24` **done** P5.2 — 16 maps (beginner -> expert) (`a99b5e8`)
