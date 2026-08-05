@@ -534,7 +534,10 @@ export function run (t, OP) {
   t.lt(Maps.buildableFraction(lagoon, { placement: 'water' }), Maps.buildableFraction(lagoon),
     'water towers have far less of the map than land towers')
   t.gt(Maps.buildableFraction(lagoon, { placement: 'water' }), 0, 'but the lagoon is not zero')
-  t.close(Maps.buildableFraction(lagoonRev), Maps.buildableFraction(lagoonFwd), 1e-9,
+  // A fresh pair: the copies above were deliberately vandalised to prove
+  // reversePaths deep-copies.
+  const cleanFwd = Maps.build('suite-lagoon')
+  t.close(Maps.buildableFraction(Maps.reversePaths(cleanFwd)), Maps.buildableFraction(cleanFwd), 1e-9,
     'reversing a map does not change how much of it is buildable')
 
   t.section('totalPathLength')
