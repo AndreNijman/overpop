@@ -42,3 +42,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:55:22` **done** P5.1 — Map format + loader + placement masks (`9a067d8`)
 - `2026-08-05 12:55:23` **done** P2.3 — Difficulties + game modes matrix (`9a067d8`)
 - `2026-08-05 12:55:23` **done** P8.1 — Save system + settings + profile progression (`9a067d8`)
+- `2026-08-05 13:01:40` **done** P3.3 — Magic family (6 towers) (`3c93d13`)

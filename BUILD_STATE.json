@@ -450,9 +450,10 @@
           "verify": [
             "node tools/harness.mjs --suite towers-magic"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt. MUST declare OP.FAMILY_ROSTERS.magic and its suite MUST call assertFamily(t, OP, \"magic\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
+          "status": "done",
+          "commit": "3c93d13",
+          "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt. MUST declare OP.FAMILY_ROSTERS.magic and its suite MUST call assertFamily(t, OP, \"magic\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "finished": "2026-08-05 13:01:40"
         },
         {
           "id": "P3.4",

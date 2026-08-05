@@ -38,6 +38,17 @@ export function run (t, OP) {
   t.eq(OP.ROUND_SETS.alternate, ALT, 'OP.ROUND_SETS.alternate points at the same table')
   t.neq(OP.ROUND_SETS.alternate, undefined, 'so a save can name the set rather than embed it')
 
+  // Guarded: js/data/modes.js belongs to another step, so its absence must not
+  // fail this suite — but if it is loaded, the key it names has to resolve, or
+  // picking Alternate Waves silently starts a standard game.
+  const altMode = OP.MODES && OP.MODES['alternate-waves']
+  if (altMode) {
+    t.eq(altMode.roundSetKey, 'alternate', 'the Alternate Waves mode names this set by key')
+    t.eq(OP.ROUND_SETS[altMode.roundSetKey], ALT, 'and that key resolves to this table')
+  } else {
+    t.ok(true, 'OP.MODES is not loaded yet — skipping the mode wiring check')
+  }
+
   t.section('it covers exactly rounds 1..100')
   const keys = Object.keys(ALT)
   t.eq(keys.length, 100, 'a hundred entries')
