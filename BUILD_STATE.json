@@ -639,9 +639,10 @@
           "verify": [
             "node tools/harness.mjs --suite sprites-towers"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Silhouette must change as upgrades land, so the board is readable at a glance."
+          "status": "done",
+          "commit": "1dcfe4f",
+          "note": "Silhouette must change as upgrades land, so the board is readable at a glance.",
+          "finished": "2026-08-05 14:56:16"
         },
         {
           "id": "P6.4",

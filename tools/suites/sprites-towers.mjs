@@ -1,8 +1,11 @@
 export const name = 'sprites-towers'
 export const needs = ['js/render/sprites-towers.js']
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { makeSim } from './_fixture.mjs'
 import { arena } from './_towerfamily.mjs'
+import { ROOT } from '../loadgame.mjs'
 
 /* Tower and projectile sprites.
 
@@ -15,6 +18,32 @@ import { arena } from './_towerfamily.mjs'
 export function run (t, OP, env) {
   const R = OP.Render
   const M = OP.M
+
+  /* Coverage is measured against the SHIPPED roster, not OP.TOWERS. Other suites
+     register throwaway test towers into the same registry — under --all there are a
+     dozen of them — and a sprite suite that demanded art for `det-bomber` would be
+     failing on a fixture. The family files declare OP.FAMILY_ROSTERS, and the hero
+     source is read directly, so both lists are authoritative. */
+  // _TEMPLATE.js reassigns OP.FAMILY_ROSTERS.primary when a suite evalFiles it, so
+  // the template's own key can leak into the roster. It is not shipped art.
+  const SHIPPED_TOWERS = OP.FAMILIES
+    .reduce((acc, fam) => acc.concat(OP.FAMILY_ROSTERS[fam] || []), [])
+    .filter(k => OP.TOWERS[k] && k.indexOf('template-') !== 0)
+
+  const SHIPPED_FILES = [
+    'js/towers/primary.js', 'js/towers/military.js', 'js/towers/magic.js',
+    'js/towers/support.js', 'js/towers/heroes.js', 'js/towers/paragons.js'
+  ]
+  const shippedSrc = SHIPPED_FILES.map(function (rel) {
+    try { return readFileSync(resolve(ROOT, rel), 'utf8') } catch (e) { return '' }
+  }).join('\n')
+
+  const SHIPPED_HEROES = OP.HERO_ORDER.filter(k => shippedSrc.indexOf("'" + k + "'") >= 0)
+
+  // Kinds declared by the templates and by test fixtures are not shipped either, so
+  // the drawer-coverage check is measured against what the shipped files declare.
+  const SHIPPED_KINDS = Object.keys(OP.PROJ_KINDS)
+    .filter(k => new RegExp("declareProjKind\\(\\s*'" + k.replace(/[-]/g, '\\-') + "'").test(shippedSrc))
 
   /** Records call names, and the fill/stroke styles in use when they happen, so a
       signature captures colour choices as well as geometry. */
@@ -102,19 +131,19 @@ export function run (t, OP, env) {
   /* ---------- coverage ---------- */
 
   t.section('every tower and hero has a sprite')
-  const missingTowers = OP.TOWER_ORDER.filter(k => !R.towerSprites[k])
+  const missingTowers = SHIPPED_TOWERS.filter(k => !R.towerSprites[k])
   t.eq(missingTowers.length, 0, missingTowers.length
     ? `no sprite for: ${missingTowers.join(', ')}`
-    : `all ${OP.TOWER_ORDER.length} towers have a sprite`)
+    : `all ${SHIPPED_TOWERS.length} shipped towers have a sprite`)
 
-  const missingHeroes = OP.HERO_ORDER.filter(k => !R.towerSprites[k])
+  const missingHeroes = SHIPPED_HEROES.filter(k => !R.towerSprites[k])
   t.eq(missingHeroes.length, 0, missingHeroes.length
     ? `no sprite for hero: ${missingHeroes.join(', ')}`
-    : `all ${OP.HERO_ORDER.length} heroes have a sprite`)
+    : `all ${SHIPPED_HEROES.length} shipped heroes have a sprite`)
 
   t.section('every declared projectile kind has a drawer')
-  const kinds = Object.keys(OP.PROJ_KINDS)
-  t.gt(kinds.length, 20, `${kinds.length} projectile kinds are declared`)
+  const kinds = SHIPPED_KINDS
+  t.gt(kinds.length, 20, `${kinds.length} projectile kinds are declared by the shipped files`)
   const missingProj = kinds.filter(k => !R.projSprites[k])
   t.eq(missingProj.length, 0, missingProj.length
     ? `no drawer for: ${missingProj.slice(0, 12).join(', ')}${missingProj.length > 12 ? ' …' : ''}`
@@ -125,11 +154,11 @@ export function run (t, OP, env) {
   t.section('every tower sprite paints something substantial')
   const s = sim()
   const placed = {}
-  OP.TOWER_ORDER.forEach((k, i) => { const tw = placeAt(s, k, i); if (tw) placed[k] = tw })
-  t.eq(Object.keys(placed).length, OP.TOWER_ORDER.length, 'all 25 towers placed for drawing')
+  SHIPPED_TOWERS.forEach((k, i) => { const tw = placeAt(s, k, i); if (tw) placed[k] = tw })
+  t.eq(Object.keys(placed).length, SHIPPED_TOWERS.length, `all ${SHIPPED_TOWERS.length} shipped towers placed for drawing`)
 
   const signatures = {}
-  for (const k of OP.TOWER_ORDER) {
+  for (const k of SHIPPED_TOWERS) {
     const tower = placed[k]
     if (!tower) continue
     const ctx = drawTower(tower)
@@ -141,8 +170,8 @@ export function run (t, OP, env) {
 
   t.section('sprites are not all the same drawing')
   const distinct = new Set(Object.values(signatures)).size
-  t.gte(distinct, Math.floor(OP.TOWER_ORDER.length * 0.8),
-    `at least 80% of towers draw distinctly (${distinct} distinct of ${OP.TOWER_ORDER.length})`)
+  t.gte(distinct, Math.floor(SHIPPED_TOWERS.length * 0.8),
+    `at least 80% of towers draw distinctly (${distinct} distinct of ${SHIPPED_TOWERS.length})`)
 
   t.section('every projectile drawer paints something')
   const pSim = sim()
@@ -166,7 +195,7 @@ export function run (t, OP, env) {
   // across families rather than all 25, because each sample walks a full tree.
   const sample = []
   for (const fam of OP.FAMILIES) {
-    const roster = OP.FAMILY_ROSTERS[fam] || []
+    const roster = (OP.FAMILY_ROSTERS[fam] || []).filter(k => SHIPPED_TOWERS.indexOf(k) >= 0)
     if (roster.length) sample.push(roster[0])
     if (roster.length > 2) sample.push(roster[2])
   }
@@ -186,7 +215,8 @@ export function run (t, OP, env) {
   }
 
   t.section('a paragon looks unmistakably different, and grander with degree')
-  const paragonKeys = Object.keys(OP.PARAGONS || {})
+  // Same reason as everywhere else: the paragon template is not shipped art.
+  const paragonKeys = Object.keys(OP.PARAGONS || {}).filter(k => SHIPPED_TOWERS.indexOf(k) >= 0)
   if (paragonKeys.length === 0) {
     t.ok(true, 'no paragons registered yet — skipped (paragon-roster suite owns this)')
   } else {
@@ -208,7 +238,7 @@ export function run (t, OP, env) {
   }
 
   t.section('a hero shows its level')
-  for (const k of OP.HERO_ORDER) {
+  for (const k of SHIPPED_HEROES) {
     const s4 = sim()
     const hero = OP.Heroes.place(s4, k, 400, 620, { free: true })
     if (!hero) continue
@@ -220,7 +250,7 @@ export function run (t, OP, env) {
 
   t.section('a tower faces its target')
   const aimSim = sim()
-  const aimer = OP.Towers.place(aimSim, OP.TOWER_ORDER[0], 400, 620, { free: true })
+  const aimer = OP.Towers.place(aimSim, SHIPPED_TOWERS[0], 400, 620, { free: true })
   const facingA = sig(drawTower(aimer))
   aimer.angle = Math.PI
   const facingB = sig(drawTower(aimer))
@@ -232,7 +262,7 @@ export function run (t, OP, env) {
   // This, not entity count, is what actually kills canvas2D at scale.
   let gradientUsers = []
   let shadowUsers = []
-  for (const k of OP.TOWER_ORDER.concat(OP.HERO_ORDER)) {
+  for (const k of SHIPPED_TOWERS.concat(SHIPPED_HEROES)) {
     const tower = placed[k]
     if (!tower) continue
     const ctx = drawTower(tower)
@@ -250,7 +280,7 @@ export function run (t, OP, env) {
   const perfSim = sim()
   const board = []
   for (let i = 0; i < 200; i++) {
-    const key = OP.TOWER_ORDER[i % OP.TOWER_ORDER.length]
+    const key = SHIPPED_TOWERS[i % SHIPPED_TOWERS.length]
     const tw = OP.Towers.place(perfSim, key, 40 + (i * 53) % 1200, 40 + (i * 91) % 640, { free: true })
     if (tw) board.push(tw)
   }
@@ -270,7 +300,7 @@ export function run (t, OP, env) {
 
   t.section('drawing never mutates the tower')
   const pureSim = sim()
-  const subject = OP.Towers.place(pureSim, OP.TOWER_ORDER[4], 400, 620, { free: true })
+  const subject = OP.Towers.place(pureSim, SHIPPED_TOWERS[4], 400, 620, { free: true })
   upgradeTo(pureSim, subject, [3, 2, 0])
   const before = scalarSnapshot(subject)
   for (let i = 0; i < 50; i++) drawTower(subject, { reducedMotion: false })
@@ -279,7 +309,7 @@ export function run (t, OP, env) {
   t.section('drawing never mutates the simulation')
   const a = sim({ seed: 'purity' })
   const b = sim({ seed: 'purity' })
-  OP.TOWER_ORDER.slice(0, 8).forEach((k, i) => { placeAt(a, k, i); placeAt(b, k, i) })
+  SHIPPED_TOWERS.slice(0, 8).forEach((k, i) => { placeAt(a, k, i); placeAt(b, k, i) })
   for (let i = 0; i < 200; i++) {
     if (i % 7 === 0) {
       OP.Balloons.spawn(a, { tier: 'ceramic', path: 0, t: 0 })
@@ -295,7 +325,7 @@ export function run (t, OP, env) {
   // Not every sprite needs an idle animation, so this asserts the flag reaches at
   // least one sprite rather than demanding all of them respond.
   let respondsToReducedMotion = 0
-  for (const k of OP.TOWER_ORDER) {
+  for (const k of SHIPPED_TOWERS) {
     const tower = placed[k]
     if (!tower) continue
     const full = sig(drawTower(tower, { reducedMotion: false, time: 1.234 }))
@@ -303,10 +333,10 @@ export function run (t, OP, env) {
     if (full !== calm) respondsToReducedMotion++
   }
   t.ok(respondsToReducedMotion >= 0,
-    `${respondsToReducedMotion} of ${OP.TOWER_ORDER.length} sprites change under reduced motion`)
+    `${respondsToReducedMotion} of ${SHIPPED_TOWERS.length} sprites change under reduced motion`)
 
   t.section('a sprite handles a tower with no upgrades and one fully maxed')
-  for (const k of OP.TOWER_ORDER) {
+  for (const k of SHIPPED_TOWERS) {
     const s5 = sim()
     const fresh = OP.Towers.place(s5, k, 300, 620, { free: true })
     if (!fresh) continue

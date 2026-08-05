@@ -51,3 +51,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 14:51:45` **done** P6.2 — Balloon + blimp sprites, pop FX, damage FX (`4fddd83`)
 - `2026-08-05 14:51:46` **done** P6.4 — Map terrain painter (`4fddd83`)
 - `2026-08-05 14:53:52` **done** P4.2 — Hero roster (8 heroes) (`647bdd7`)
+- `2026-08-05 14:56:16` **done** P6.3 — Critter tower sprites (25 towers x visible tier states) (`1dcfe4f`)
