@@ -44,7 +44,8 @@ const TIERS = [
     laneFloor: 700, laneCap: 4500,     // so "three lanes" is never one lane and two stubs
     totalLo: 3000, totalHi: 4500,      // Maps.totalPathLength — the SUM across lanes
     buildFloor: 0.38, buildCap: 0.60,
-    minWater: 2, waterFloor: 0.08,     // "significant water"
+    minWater: 2, waterFloor: 0.07,     // "significant water" — the floor is on AREA,
+                                       //   not count: one big pond beats four puddles
     minBlockers: 3,                    // "several line-of-sight blockers"
     minRemovable: 3                    // "multiple removable obstacles"
   },
@@ -55,7 +56,7 @@ const TIERS = [
     laneFloor: 700, laneCap: 4500,
     totalLo: 1800, totalHi: 4500,      // short IS the difficulty for one of them
     buildFloor: 0.15, buildCap: 0.40,
-    minWater: 1, waterFloor: 0.08,
+    minWater: 1, waterFloor: 0.07,
     minBlockers: 3,
     minRemovable: 2
   }
@@ -746,6 +747,26 @@ export function run (t, OP) {
   const tightest = ALL.slice().sort((a, b) => cells[a] - cells[b])[0]
   t.ok(rosters.expert.indexOf(tightest) >= 0,
     `the tightest map across both tiers is an expert one: ${tightest} at ${cells[tightest]} cells`)
+
+  // The same proxy against the shipped earlier tiers, when they are loaded.
+  // GUARDED: js/data/maps-beginner.js and js/data/maps-intermediate.js are not in
+  // this suite's `needs`, because this suite must be able to go green on its own
+  // two files. When they are present the comparison is the direct form of the
+  // claim, so it is worth making — map-roster-early.mjs measures on exactly this
+  // grid, which is what lets the two suites' numbers be compared at all.
+  for (const earlier of ['beginner', 'intermediate']) {
+    const keys = OP.MAP_ROSTERS && OP.MAP_ROSTERS[earlier]
+    if (!Array.isArray(keys) || !keys.length) continue
+    const earlierCells = keys.map(k => cellsOf(Maps.build(k)))
+    const earlierMin = Math.min.apply(null, earlierCells)
+    const advMax = Math.max.apply(null, advCells)
+    t.lt(advMax, earlierMin,
+      `every advanced map is tighter than every ${earlier} map: the loosest advanced ` +
+      `(${advMax} cells) against the tightest ${earlier} (${earlierMin} cells) — ` +
+      keys.map((k, i) => k + '=' + earlierCells[i]).join(' '))
+    t.lt(expMax, earlierMin,
+      `and so is every expert map: loosest expert ${expMax} cells vs tightest ${earlier} ${earlierMin}`)
+  }
 
   /* ================================================================
      6. water and land are mutually exclusive, both ways

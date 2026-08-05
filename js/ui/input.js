@@ -60,6 +60,8 @@
    * exactly one of these, and each returns nothing — the shell decides what to do.
    *
    *   place(key, x, y, isHero)   confirm a placement
+   *   widget(x, y, selectedId)   an on-canvas panel claims the tap; return true to
+   *                              stop it reaching the board. Gets the LIVE selection.
    *   select(towerId)            select or deselect (-1)
    *   aim(towerId, x, y)         set a point-target tower's aim point
    *   context(towerId, x, y)     long-press / right-click on a tower
@@ -233,6 +235,20 @@
       fire(io, 'aim', io.aimingTowerId, x, y)
       return 'aim'
     }
+
+    // An on-canvas panel gets FIRST REFUSAL on the tap, before the selection is
+    // touched. Without this, pressing an upgrade or sell button cleared the
+    // selection on the way through — closing the very panel the press was aimed at,
+    // because the press landed on empty ground as far as the tower lookup was
+    // concerned. A UI layer returns true from `widget` to claim the tap.
+    if (io._handlers.widget) {
+      let claimed = false
+      try { claimed = !!io._handlers.widget(x, y, io.selectedId) } catch (e) {
+        if (typeof console !== 'undefined' && console.error) console.error('OVERPOP: widget handler threw', e)
+      }
+      if (claimed) return 'widget'
+    }
+
     const id = io._towerAt ? io._towerAt(x, y) : -1
     // Tapping the already-selected tower deselects it, which is what every player
     // tries first when they want the range circle to go away.

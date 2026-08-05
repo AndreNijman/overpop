@@ -295,6 +295,11 @@
         // The accumulated fraction of a damage-over-time tick. Small, but a save
         // that dropped it would resume a burning balloon slightly healthier.
         dotAcc: b.dotAcc || 0,
+        // speedMul is DERIVED from the effect list and recomputed every tick — but
+        // the checksum is taken between ticks, so a save made while a balloon was
+        // slowed reloaded it at full speed and the checksums disagreed. Persisting
+        // it costs one number and removes the discrepancy entirely.
+        speedMul: b.speedMul === undefined ? 1 : b.speedMul,
         hpScale: b.hpScale, speedScale: b.speedScale,
         effects: b.effects.map(OP.Effects.serialize)
       })
@@ -320,7 +325,7 @@
       b.dotAcc = s.dotAcc || 0
       b.hpScale = s.hpScale
       b.speedScale = s.speedScale
-      b.speedMul = 1
+      b.speedMul = s.speedMul === undefined ? 1 : s.speedMul
       b.effects.length = 0
       for (let e = 0; e < (s.effects || []).length; e++) b.effects.push(OP.Effects.deserialize(s.effects[e]))
       sim.map.paths[b.path].posInto(b.t, b)

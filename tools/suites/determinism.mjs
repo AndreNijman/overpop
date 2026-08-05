@@ -179,6 +179,39 @@ export function run (t, OP) {
   t.eq(control.stats.popped, resumed.stats.popped, 'and the same pop totals')
   t.eq(control.rng.calls, resumed.rng.calls, 'and the same RNG consumption')
 
+  t.section('a save taken while balloons are SLOWED round-trips exactly')
+  // The gap this closes: every earlier save test used towers that apply no status
+  // effects, so no balloon was ever slowed at the moment of the snapshot. speedMul
+  // is derived from the effect list and recomputed each tick, but the checksum is
+  // taken BETWEEN ticks — so a slowed balloon reloaded at full speed and the
+  // checksums silently disagreed.
+  const slowed = newSim('slow-save')
+  S.run(slowed, 200)
+  let affected = 0
+  for (const b of slowed.balloons) {
+    OP.Effects.apply(b, OP.Effects.make('glue', 8, 0.55, -1, D.NORMAL))
+    OP.Effects.apply(b, OP.Effects.make('cold', 6, 0.35, -1, D.COLD))
+    affected++
+  }
+  S.step(slowed)
+  t.gt(affected, 0, `${affected} balloons were slowed before the save`)
+  t.ok(slowed.balloons.some(b => b.speedMul < 1), 'and at least one really is below full speed')
+
+  const slowSnap = JSON.parse(JSON.stringify(S.serialize(slowed)))
+  const slowBack = S.deserialize(slowSnap, makeMap())
+  t.eq(S.checksum(slowBack), S.checksum(slowed), 'the checksum matches with slows active')
+  t.deep(slowBack.balloons.map(b => b.speedMul.toFixed(6)),
+    slowed.balloons.map(b => b.speedMul.toFixed(6)), 'every speedMul round-trips exactly')
+
+  let slowDiverged = -1
+  for (let i = 0; i < 600; i++) {
+    S.step(slowed); S.step(slowBack)
+    if (S.checksum(slowed) !== S.checksum(slowBack)) { slowDiverged = i; break }
+  }
+  t.eq(slowDiverged, -1, slowDiverged < 0
+    ? '600 further ticks in lockstep with status effects in play'
+    : `diverged ${slowDiverged} ticks after loading a slowed board`)
+
   t.section('a save round-trip mid-projectile-flight preserves the hit sets')
   const flight = newSim('delta')
   S.run(flight, 400)

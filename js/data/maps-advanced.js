@@ -254,9 +254,11 @@
       ],
 
       water: [
-        { cx: 300, cy: 400, r: 105 },          // the tarn
+        { cx: 300, cy: 400, r: 112 },          // the tarn
         { cx: 480, cy: 470, r: 90 },           // its overflow
-        { x: 960, y: 235, w: 240, h: 150 }     // the high catch pool
+        { cx: 250, cy: 665, r: 48 },           // the outflow pool
+        { cx: 790, cy: 90, r: 45 },            // a saddle pool on the crest
+        { x: 960, y: 235, w: 240, h: 150 }     // the high catch pool the road fords
       ],
 
       blocked: [
