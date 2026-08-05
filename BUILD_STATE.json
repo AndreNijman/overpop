@@ -115,10 +115,11 @@
           "verify": [
             "node tools/harness.mjs --suite rng"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "84da27f",
           "note": "sfc32 or mulberry32. Determinism is the foundation of the whole verification story.",
-          "started": "2026-08-05 11:27:27"
+          "started": "2026-08-05 11:27:27",
+          "finished": "2026-08-05 11:29:58"
         },
         {
           "id": "P1.2",
@@ -132,9 +133,10 @@
           "verify": [
             "node tools/harness.mjs --suite track"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "t = distance travelled along path. First/Last targeting = max/min t. Leak = t >= length. Children spawn at parent t. Supports multiple concurrent paths + entry/exit pairs."
+          "note": "t = distance travelled along path. First/Last targeting = max/min t. Leak = t >= length. Children spawn at parent t. Supports multiple concurrent paths + entry/exit pairs.",
+          "started": "2026-08-05 11:30:09"
         },
         {
           "id": "P1.3",

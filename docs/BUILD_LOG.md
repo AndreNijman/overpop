@@ -13,3 +13,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:25:01` **start** P1.10 — Headless verification harness
 - `2026-08-05 11:27:26` **done** P1.10 — Headless verification harness (`e1a170c`)
 - `2026-08-05 11:27:27` **start** P1.1 — Seeded RNG + math/geometry helpers
+- `2026-08-05 11:29:58` **done** P1.1 — Seeded RNG + math/geometry helpers (`84da27f`)
+- `2026-08-05 11:30:09` **start** P1.2 — Track model — polyline with scalar distance t
