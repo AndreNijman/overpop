@@ -130,6 +130,19 @@
     return null
   }
 
+  /* The one place a playable map is produced from a definition. Reverse is a mode
+     rule, so the reversal has to happen on the resume path too — building the
+     forward map for a saved Reverse run puts every stored balloon `t` on a track
+     running the other way, and they walk out of the entry they came in by. */
+  function buildMapFor (def, mode) {
+    let map = OP.Maps.build(def)
+    const modeDef = OP.MODES && OP.MODES[mode]
+    if (modeDef && modeDef.rules && modeDef.rules.reversePaths && OP.Maps.reversePaths) {
+      map = OP.Maps.reversePaths(map)
+    }
+    return map
+  }
+
   function resize () {
     const S = App.state
     const rect = S.canvas.getBoundingClientRect()
@@ -238,11 +251,10 @@
     const def = OP.MAPS[mapKey]
     if (!def) { fail('unknown map: ' + mapKey); return null }
 
-    let map = OP.Maps.build(def)
+    // buildMapFor applies Maps.reversePaths before Sim.create, because a Track is
+    // built once and every stored balloon `t` is measured along it.
+    const map = buildMapFor(def, mode)
     const modeDef = OP.MODES && OP.MODES[mode]
-    if (modeDef && modeDef.rules && modeDef.rules.reversePaths && OP.Maps.reversePaths) {
-      map = OP.Maps.reversePaths(map)
-    }
 
     S.mapKey = mapKey
     S.difficulty = difficulty || 'medium'
@@ -273,7 +285,7 @@
     const def = OP.MAPS[run.mapKey]
     if (!def) return null
     try {
-      S.sim = OP.Sim.deserialize(run.snapshot, OP.Maps.build(def))
+      S.sim = OP.Sim.deserialize(run.snapshot, buildMapFor(def, run.snapshot.mode))
       S.mapKey = run.mapKey
       S.difficulty = S.sim.difficulty
       S.mode = S.sim.mode

@@ -143,6 +143,7 @@ export function run (t, OP, env) {
   // for being two words, which would only have pushed every desc toward padding.
   const CONCRETE = /\d|veiled|regen|plated|lead|black|zebra|white|purple|blimp|brittle|acid|burn|shatter|plasma|energy|explosive|cold|glue|stun|camo|spin|sonar|obstacle|track|blast|ability|aura|range|pierce|damage/i
   const PLACEHOLDER = /^(better|improved|stronger|faster|more|upgrade|tbd|todo|wip)\b|\bplaceholder\b/i
+  const noNumber = []
   for (const d of ROSTER.map(k => OP.TOWERS[k]).filter(Boolean)) {
     let empty = null
     let vague = null
@@ -153,6 +154,8 @@ export function run (t, OP, env) {
         if (desc.length < 4) empty = empty || `${path.name} t${up.tier}: "${desc}"`
         if (!CONCRETE.test(desc)) vague = vague || `${path.name} t${up.tier}: "${desc}"`
         if (PLACEHOLDER.test(desc)) placeholder = placeholder || `${path.name} t${up.tier}: "${desc}"`
+        // A stat change the player is paying for should quote the actual number.
+        if (!/\d/.test(desc)) noNumber.push(`${d.key} ${path.name} t${up.tier}`)
       }
     }
     t.notOk(empty, `${d.key} has no empty descriptions` + (empty ? ' — ' + empty : ''))

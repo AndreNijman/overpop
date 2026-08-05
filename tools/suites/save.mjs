@@ -315,6 +315,120 @@ export function run (t, OP, env) {
   t.deep(dirty.seenBalloons, [], 'a non-array bestiary list becomes empty')
   t.eq(jsonUnsafe(dirty), '', 'and the whole result is still pure JSON')
 
+  /* ---------- hostile object keys ---------- */
+
+  t.section('a __proto__ key in stored data cannot reach Object.prototype')
+  // The profile supplies object KEYS — map, difficulty and mode names. Two traps:
+  //
+  //   `obj.__proto__ = {}` stores nothing. It reaches the inherited setter and
+  //   REPLACES the object's prototype, so `if (!out[k]) out[k] = {}` followed by
+  //   `out[k][d] = {}` writes onto Object.prototype itself. Every object in the
+  //   running game then carries that property, permanently. JSON.parse makes
+  //   `__proto__` a genuine own enumerable property, so hasOwnProperty does NOT
+  //   filter it out.
+  //
+  // The discriminating assertion is NOT a deep-compare of `completions` — that
+  // passes even when the write escaped, because the escaped value never lands in
+  // `completions` at all. It has to be a fresh object built INSIDE the game,
+  // asked whether it inherited anything. `{}` built here is the wrong realm: the
+  // harness VM has its own Object.prototype, so a host-realm literal would show
+  // nothing either way and the assertion would be vacuous.
+  const POISON = [
+    ['a poisoned map key', '{"schemaVersion":1,"completions":{"__proto__":{"easy":{"standard":true}}}}', 'easy'],
+    ['a poisoned difficulty key', '{"schemaVersion":1,"completions":{"glade":{"__proto__":{"standard":true}}}}', 'standard'],
+    ['a poisoned bestRound key', '{"schemaVersion":1,"stats":{"bestRound":{"__proto__":{"leaked":1}}}}', 'leaked']
+  ]
+  for (const [label, raw, probeKey] of POISON) {
+    wipe()
+    plant(S.PROFILE_KEY, raw)
+    let got = null
+    t.noThrow(() => { got = S.load() }, `${label} does not throw`)
+    t.ok(completeProfile(OP, got), `${label} still yields a complete profile`)
+    t.eq(S.defaults()[probeKey], undefined,
+      `${label} leaks no "${probeKey}" onto every object the game builds`)
+    t.eq(S.migrate({})[probeKey], undefined, `and none onto a migrated one either`)
+  }
+
+  t.section('a poisoned mode key drops the leaf instead of writing through it')
+  wipe()
+  plant(S.PROFILE_KEY, '{"schemaVersion":1,"completions":{"glade":{"easy":{"__proto__":true,"standard":true}}}}')
+  const poisonLeaf = S.load()
+  t.eq(poisonLeaf.completions.glade.easy.standard, true, 'the honest sibling leaf survives')
+  t.eq(own(poisonLeaf.completions.glade.easy, '__proto__'), false, 'and the poisoned one was not stored')
+  t.eq(S.defaults().standard, undefined, 'with nothing leaked onto the prototype')
+
+  t.section('recordResult cannot be talked into poisoning the prototype either')
+  // A second, independent code path: recordResult writes completions directly and
+  // has its own existence tests.
+  for (const [field, res] of [
+    ['mapKey', { mapKey: '__proto__', difficulty: 'medium', mode: 'standard', won: true, round: 5 }],
+    ['difficulty', { mapKey: 'glade', difficulty: '__proto__', mode: 'standard', won: true, round: 5 }],
+    ['mode', { mapKey: 'glade', difficulty: 'medium', mode: '__proto__', won: true, round: 5 }]
+  ]) {
+    let rec = null
+    t.noThrow(() => { rec = S.recordResult(S.defaults(), res) }, `a result with a __proto__ ${field} does not throw`)
+    t.eq(rec.stats.gamesPlayed, 1, `the game is still counted despite the __proto__ ${field}`)
+    t.eq(S.defaults().medium, undefined, `no "medium" leaked onto the prototype via ${field}`)
+    t.eq(S.defaults().standard, undefined, `and no "standard" either via ${field}`)
+    t.eq(jsonUnsafe(rec), '', `and the profile is still pure JSON after a __proto__ ${field}`)
+  }
+  const pKey = S.recordResult(S.defaults(), { mapKey: '__proto__', difficulty: 'medium', mode: 'standard', won: true, round: 5 })
+  t.deep(pKey.completions, {}, 'a completion named __proto__ is refused, not stored')
+  t.deep(pKey.stats.bestRound, {}, 'and so is a best round on it')
+
+  t.section('an inherited-name key is stored honestly rather than written through')
+  // `constructor`, `toString` and friends are truthy on any plain object, so a
+  // truthiness existence test skips creating the branch and writes onto the
+  // inherited value — mutating something global AND losing the entry. Assignment
+  // to these is safe once existence is tested with hasOwnProperty, so the correct
+  // behaviour is to keep them, not to drop them.
+  wipe()
+  plant(S.PROFILE_KEY, '{"schemaVersion":1,"completions":{"constructor":{"toString":{"valueOf":true}}}}')
+  const inherited = S.load()
+  t.eq(own(inherited.completions, 'constructor'), true, 'a map key named "constructor" became a real own key')
+  t.eq(inherited.completions.constructor.toString.valueOf, true, 'and its whole branch survived intact')
+  t.eq(S.defaults().toString(), '[object Object]', 'while Object.prototype.toString still works')
+  t.eq(S.defaults().valueOf, Object.getPrototypeOf(S.migrate({})).valueOf, 'and valueOf was not replaced')
+  t.eq(jsonUnsafe(inherited), '', 'and the profile is still pure JSON')
+  t.eq(S.save(inherited), true, 'it stores')
+  t.eq(own(S.load().completions, 'constructor'), true, 'and survives a full round-trip')
+
+  t.section('a __proto__ entry in a key list is dropped')
+  // These lists get turned into lookup objects by the shop and the bestiary.
+  const listPoison = S.migrate({ schemaVersion: 1, unlockedTowers: ['__proto__', 'acorn-fox'], seenBalloons: ['__proto__'] })
+  t.deep(listPoison.unlockedTowers, ['acorn-fox'], 'the reserved key is gone, the real one kept')
+  t.deep(listPoison.seenBalloons, [], 'and a list of nothing but reserved keys is empty')
+  const listMerge = S.recordResult(S.defaults(), { unlockedTowers: ['__proto__', 'elder-owl'], seenBalloons: ['__proto__', 'red'] })
+  t.deep(listMerge.unlockedTowers, ['elder-owl'], 'merging drops it too')
+  t.deep(listMerge.seenBalloons, ['red'], 'on both lists')
+
+  /* ---------- counter range ---------- */
+
+  t.section('lifetime counters stay inside the exact-integer range')
+  // Past MAX_SAFE_INTEGER, `+= 1` stops changing the number: a counter that gets
+  // there is frozen for the life of the profile, and one hand-edited to 1e308
+  // freezes on its first save.
+  const huge = S.migrate({
+    schemaVersion: 1,
+    stats: { totalCash: 1e308, totalPops: 1e21, gamesPlayed: Number.MAX_SAFE_INTEGER + 4096, roundsCleared: 9e15 }
+  })
+  for (const k of COUNTERS) {
+    t.ok(Number.isSafeInteger(huge.stats[k]), `stats.${k} is a safe integer however absurd the stored value`)
+  }
+  t.eq(huge.stats.totalCash, Number.MAX_SAFE_INTEGER, 'an absurd stored counter clamps rather than freezing')
+  t.eq(huge.stats.roundsCleared, 9e15, 'a large-but-exact counter is kept as it is')
+  t.eq(jsonUnsafe(huge), '', 'and the result is still pure JSON')
+
+  const saturated = S.defaults()
+  saturated.stats.totalPops = Number.MAX_SAFE_INTEGER
+  saturated.stats.totalCash = 1e308
+  S.recordResult(saturated, { pops: 1000, cash: 1000, roundsCleared: 5 })
+  for (const k of COUNTERS) {
+    t.ok(Number.isSafeInteger(saturated.stats[k]), `accumulating keeps stats.${k} a safe integer`)
+  }
+  t.eq(saturated.stats.gamesPlayed, 1, 'while an unsaturated counter still counts normally')
+  t.eq(saturated.stats.roundsCleared, 5, 'and still accumulates honestly')
+
   /* ---------- save / load round-trip ---------- */
 
   t.section('save/load round-trips losslessly')

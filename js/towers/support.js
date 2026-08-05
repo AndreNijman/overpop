@@ -547,7 +547,7 @@
             desc: 'Nearby towers get +45 range, +3 pierce, and 12% off their attack cooldown.',
             apply: function (s) { s.auraRange += 17; s.auraPierce += 1; s.auraCooldown *= 0.88 } },
           { name: 'Grand Lookout', cost: 86400,
-            desc: 'Aura radius grows by another 120. Nearby towers get +90 range, +6 pierce, +2 damage, and 25% more off their cooldown.',
+            desc: 'Aura radius grows by another 120. Nearby towers get +90 range in all, +6 pierce in all, +2 damage, and 25% more off their cooldown.',
             apply: function (s) {
               s.range += 120
               s.auraRange += 45
@@ -598,7 +598,7 @@
             desc: 'Nearby towers get a further 22% off their cooldown — about 30% in all — and +2 damage.',
             apply: function (s) { s.auraCooldown *= 0.78; s.auraDamage += 2 } },
           { name: 'Hall of Embers', cost: 90000,
-            desc: 'The shatter conversion overrides any other hall. Nearby towers also get +6 damage, +3 pierce, and a further 35% off their cooldown — about 55% in all.',
+            desc: 'The shatter conversion now overrides any other hall. Nearby towers get +6 more damage (+9 in all), +3 more pierce (+4 in all), and a further 35% off their cooldown — about 55% in all.',
             apply: function (s) {
               s.auraDmgType = D.SHATTER
               s.auraPriority = 30

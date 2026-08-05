@@ -782,7 +782,7 @@ export function run (t, OP, env) {
     t.ok(ferret.s.ability, 'tier 5 attaches an ability')
     t.eq(ferret.s.ability.key, 'falcon-stoop', 'pointing at the registered key')
     t.eq(ferret.s.ability.cooldown, 35, 'on the 35 second cooldown it advertises')
-    const g = OP.Balloons.spawn(s, { tier: 'goliath', path: 0, t: 260 })
+    const gid = OP.Balloons.spawn(s, { tier: 'goliath', path: 0, t: 260 }).id
     OP.Sim.run(s, 30)
     const before = s.stats.damageDealt
     t.ok(OP.Towers.activate(s, ferret).ok, 'Skyfall activates')
@@ -791,7 +791,7 @@ export function run (t, OP, env) {
     t.gt(blast.length, 0, 'the bird lands as a blast')
     t.eq(blast[0].radius, 90, 'with the 90 unit radius the description promises')
     t.gt(s.stats.damageDealt - before, 190, 'and it puts 400 shatter damage into the GOLIATH')
-    t.notOk(g.alive, 'which finishes a 200hp GOLIATH outright')
+    t.notOk(s.byId.get(gid), 'which finishes a 200hp GOLIATH outright')
   }
 
   /* ========================================================================
@@ -818,7 +818,8 @@ export function run (t, OP, env) {
     }
     const beetle = forward.towers.find(w => w.key === 'caltrop-beetle')
     t.eq(beetle.s.buffCount, 2, 'and the beetle really is carrying both buffs')
-    t.lt(beetle.s.cooldown, 1.5 * 0.7, 'with the hall and the shrew both shortening its cooldown')
+    t.close(beetle.s.cooldown, 1.05, 1e-9, 'the shrew is the one shortening its cooldown')
+    t.eq(beetle.s.range, 142, 'and the hall is the one extending its range — the two do not tread on each other')
   }
 
   t.section('support: a cooldown aura genuinely makes the beetle work faster')
@@ -866,7 +867,9 @@ export function run (t, OP, env) {
     const r = spot(s, 300, 0, -140)
     const ferret = put(s, 'falconer-ferret', r.x, r.y)
     stream(s, 'red', 20, 150, 10)
-    OP.Sim.run(s, 400)
+    // 450 ticks lands inside the shrew's second overclock window, so the snapshot
+    // is taken with a timed buff genuinely mid-flight rather than between cycles.
+    OP.Sim.run(s, 450)
 
     t.eq(s.towers.length, 5, 'all five towers are on the board')
     t.gt(ownedAlive(s, beetle.id), 0, 'with live hazards lying on the track')

@@ -728,6 +728,42 @@ export function run (t, OP, env) {
     if (drag) t.close(drag.mag, 0.97 * 0.35, 0.001, "at 97% before the COLOSSUS's heavier resistance")
   }
 
+  /* ================= crosspaths I made deliberate decisions about ================= */
+
+  t.section('magic: the crosspath combinations resolve the way they were designed to')
+  {
+    // Two branches both want to redraw the projectile. Apply order is branch
+    // 0 -> 1 -> 2, so whichever branch got past tier 2 is the one that wins.
+    const lance = rig(OP, 'rune-weasel', [3, 2, 0])
+    t.eq(lance.tower.s.projKind, 'rune-lance', 'a 3-2-0 Rune Weasel is a lance: Runeline reached tier 3, Emberscript did not')
+    t.eq(lance.tower.s.dmgType, D.ENERGY, 'and it is still energy damage')
+    t.gte(lance.tower.s.pierce, 30, 'with the lance pierce')
+
+    const ember = rig(OP, 'rune-weasel', [2, 3, 0])
+    t.eq(ember.tower.s.projKind, 'rune-ember', 'a 2-3-0 Rune Weasel is an ember: Emberscript reached tier 3 instead')
+    t.eq(ember.tower.s.dmgType, D.FIRE, 'and it is fire damage')
+    t.lt(ember.tower.s.pierce, 30, 'without the lance pierce, because Runeline stopped at tier 2')
+  }
+  {
+    // A newt at 2-5-0 carries a knockback AND a blast radius, so the shove only
+    // lands on something that survives the detonation. Asserting the behaviour I
+    // actually chose, rather than leaving it to be discovered in a playthrough.
+    const { s, tower } = rig(OP, 'tidecaller-newt', [2, 5, 0])
+    t.gt(tower.s.blastRadius, 0, 'Absolute Zero turns the jet into a bursting shot')
+    t.gt(tower.s.shove, 0, 'while Undertow still wants to shove')
+    // A thick-hulled ceramic, so it is still alive to be shoved afterwards.
+    const b = OP.Balloons.spawn(s, { tier: 'ceramic', path: 0, t: 330, hpScale: 30 })
+    let back = 0
+    let prev = b.t
+    for (let i = 0; i < 120 && b.alive; i++) {
+      OP.Sim.step(s)
+      if (b.alive && b.t < prev) back++
+      if (b.alive) prev = b.t
+    }
+    t.lt(b.hp, 300, 'the burst damages it')
+    t.gt(back, 0, 'and a survivor of the burst is still shoved backwards')
+  }
+
   /* ================= determinism hygiene ================= */
 
   t.section('magic: nothing in this family touches sim randomness outside sim.rng')

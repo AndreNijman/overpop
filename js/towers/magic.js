@@ -353,7 +353,7 @@
       {
         name: 'Summoning',
         tiers: [
-          { name: 'Chalk Circle', cost: 200,
+          { name: 'Chalk Circle', cost: 225,
             desc: '+18 range, out to 148 units.',
             apply: function (s) { s.range += 18 } },
           { name: 'Bound Sigil', cost: 425,

@@ -129,7 +129,10 @@ export function run (t, OP, env) {
   const ctx = recorder()
   t.noThrow(() => R.frame(s2, ctx, view(), {}), 'frame() runs')
   t.gt(ctx.calls.length, 20, `and issued ${ctx.calls.length} draw calls`)
-  t.ok(ctx.calls.includes('arc'), 'including arcs for the balloons')
+  // Assert that painting happened, not HOW. Asserting `arc` specifically broke the
+  // moment real sprites landed and drew with paths and ellipses instead.
+  t.ok(ctx.calls.includes('fill') || ctx.calls.includes('stroke') || ctx.calls.includes('drawImage'),
+    'and actually painted something')
 
   t.section('RENDERING NEVER MUTATES SIM STATE')
   // The whole determinism story depends on this. The harness runs the sim with no
@@ -162,24 +165,31 @@ export function run (t, OP, env) {
   /* ---------- sprite registries ---------- */
 
   t.section('registered sprites are used')
-  let balloonDrawn = 0, towerDrawn = 0, projDrawn = 0
+  let balloonDrawn = 0
+  // Stash the real sprite: suites share one bundle, so deleting it outright would
+  // leave every later suite drawing reds as placeholders.
+  const realRed = R.balloonSprites.red
   R.registerBalloon('red', function () { balloonDrawn++ })
   const s3 = sim()
   spawn(OP, s3, 'red', 100)
   spawn(OP, s3, 'red', 200)
   R.frame(s3, recorder(), view(), {})
   t.eq(balloonDrawn, 2, 'the registered balloon sprite drew both reds')
-  delete R.balloonSprites.red
+  if (realRed) R.balloonSprites.red = realRed; else delete R.balloonSprites.red
 
   t.section('a missing sprite draws a placeholder and is reported once')
-  const before = Object.keys(R.missingSprites()).length
+  // Temporarily remove a real sprite rather than relying on one being absent: once
+  // the sprite files landed there were no gaps left, and an assertion that only
+  // passes while the project is unfinished is worse than none.
+  const stashed = R.balloonSprites.zebra
+  delete R.balloonSprites.zebra
   const s4 = sim()
   spawn(OP, s4, 'zebra', 100)
   const c4 = recorder()
   t.noThrow(() => R.frame(s4, c4, view(), {}), 'a tier with no sprite does not crash the frame')
   t.gt(c4.calls.length, 5, 'and something was still drawn — an invisible balloon is the worse bug')
-  const after = R.missingSprites()
-  t.ok(after['balloon:zebra'] !== undefined || before > 0, 'the gap was recorded')
+  t.ok(R.missingSprites()['balloon:zebra'] !== undefined, 'and the gap was recorded by key')
+  if (stashed) R.balloonSprites.zebra = stashed
 
   t.section('a sprite that throws does not kill the frame')
   R.registerBalloon('blue', function () { throw new Error('bad sprite') })

@@ -375,6 +375,24 @@ export function run (t, OP, env) {
   t.section('assignment, not composition — the surprise is pinned here')
   // applyRules assigns, so a mode figure REPLACES the difficulty figure. Hard's
   // 0.9 pop income does not stack with Half Cash's 0.5 into 0.45.
+  // The overlap is the whole hazard, so it is enumerated rather than described: any
+  // field named by BOTH a difficulty and a mode is a field where the mode's absolute
+  // value silently discards the difficulty's. A new mode field that joins this set
+  // fails here, which is the moment to check the number is written absolute.
+  const diffFields = new Set()
+  for (const k of DIFF_KEYS) for (const f of Object.keys(D[k].rules)) diffFields.add(f)
+  const modeFields = new Set()
+  for (const k of MODE_KEYS) for (const f of Object.keys(M[k].rules)) modeFields.add(f)
+  const overlap = [...modeFields].filter(f => diffFields.has(f)).sort()
+  t.deep(overlap, ['cashPerPopMul', 'firstRound', 'roundBonusMul', 'startCash', 'startLives'],
+    'exactly these five fields are contested between a difficulty and a mode')
+  // The scale fields are the other half of the argument: no difficulty names them,
+  // so Onslaught and Double HP Blimps cannot have their figures replaced from below.
+  for (const f of ['hpScale', 'speedScale', 'blimpHpMul']) {
+    t.notOk(diffFields.has(f), `no difficulty names ${f}, so a mode's value stands alone`)
+    t.ok(modeFields.has(f), `and a mode does name ${f}`)
+  }
+
   t.eq(S.resolveRules({ difficulty: 'hard' }).cashPerPopMul, 0.9, 'Hard alone pays 0.9 per pop')
   t.eq(S.resolveRules({ difficulty: 'hard', mode: 'half-cash' }).cashPerPopMul, 0.5,
     'Hard + Half Cash pays 0.5, not 0.45 — mode values are absolute')
@@ -573,6 +591,14 @@ export function run (t, OP, env) {
   t.notOk(OP.modeAllowedOn('nope', 'medium'), 'an unknown mode is refused')
   t.notOk(OP.modeAllowedOn('standard', 'nope'), 'an unknown difficulty is refused')
   t.notOk(OP.modeAllowedOn(undefined, undefined), 'and so is nothing at all')
+  // Unlike modeConfig, this one must NOT default: a menu that silently substitutes
+  // Standard would offer a combination the player did not choose.
+  for (const junk of [null, '', 0, 7, [], {}, true, NaN]) {
+    t.notOk(OP.modeAllowedOn(junk, 'medium'), `mode ${fmtJunk(junk)} is refused, not defaulted`)
+    t.notOk(OP.modeAllowedOn('standard', junk), `difficulty ${fmtJunk(junk)} is refused, not defaulted`)
+    t.noThrow(() => OP.modeAllowedOn(junk, junk), `and ${fmtJunk(junk)} on both sides does not throw`)
+  }
+  t.notOk(OP.modeAllowedOn('purist', 'Hard'), 'the gate is case-sensitive, like every other key in the project')
 
   // The gate is advisory: a save from a future ruleset must still load.
   t.noThrow(() => S.create({ map: { key: 'test', paths: [straightTrack(OP, 1000)] }, difficulty: 'easy', mode: 'purist' }),
@@ -657,8 +683,14 @@ export function run (t, OP, env) {
   t.ok(/modeConfig|modeDef\s*&&\s*modeDef\.roundSetKey|MODES\[[^\]]*\][\s\S]{0,80}roundSetKey/.test(shell),
     'and derives it from the mode definition rather than hardcoding one table')
   t.ok(shell.indexOf('Maps.reversePaths(') >= 0, 'the shell reverses the map itself')
-  t.ok(/reversePaths[\s\S]{0,200}Sim\.create/.test(shell),
-    'and does it BEFORE Sim.create, because a Track is built once')
+  t.ok(/rules\.reversePaths/.test(shell), 'gated on the mode flag rather than on a mode name')
+  t.notOk(/mode\s*===\s*['"]reverse['"]/.test(shell), 'and not on a mode name — §8 forbids branching on one')
+  // Ordering, not proximity: the map has to be reversed before the Track reaches
+  // Sim.create, because Sim.create keeps the map object it is handed.
+  const iRev = shell.indexOf('Maps.reversePaths(')
+  const iCreate = shell.indexOf('Sim.create(')
+  t.gt(iCreate, 0, 'the shell calls Sim.create')
+  t.lt(iRev, iCreate, 'and reverses the map BEFORE that call, because Sim.create keeps the map it is handed')
 
   t.section('a mode with roundSetKey "alternate" yields sim.roundSetKey === "alternate"')
   const altSim = simFor('medium', 'alternate-waves')
@@ -741,4 +773,107 @@ export function run (t, OP, env) {
   t.eq(OP.difficultyRank('relentless'), 3, 'relentless is last')
   t.lt(OP.difficultyRank('medium'), OP.difficultyRank('hard'), 'medium sits below hard')
   t.eq(OP.difficultyRank('nope'), -1, 'an unknown difficulty has no rank')
+  // rank is what gates PURIST, so every non-key has to land below every key rather
+  // than throwing or coming back undefined and comparing false in both directions.
+  for (const junk of [undefined, null, '', 0, 3, [], {}, 'Easy', 'EASY', ' easy']) {
+    t.eq(OP.difficultyRank(junk), -1, `${fmtJunk(junk)} has no rank`)
+  }
+  t.deep(OP.DIFFICULTY_ORDER.map(k => OP.difficultyRank(k)), [0, 1, 2, 3],
+    'and every real key ranks at its own index in the order array')
+
+  /* ================= corrupt and absent payloads ================= */
+
+  t.section('resolveRules survives absent and corrupt input')
+  t.noThrow(() => S.resolveRules({}), 'an empty config resolves')
+  for (const junk of [null, 0, 7, [], true, 'nope']) {
+    t.noThrow(() => S.resolveRules({ difficulty: junk, mode: junk }), `a ${fmtJunk(junk)} key resolves`)
+    const r = S.resolveRules({ difficulty: junk, mode: junk })
+    // Falsy keys default to medium/standard inside resolveRules; truthy nonsense
+    // matches nothing and applies nothing. Either way the result must be playable.
+    t.eq(r.startLives, 150, `and yields Medium's lives for ${fmtJunk(junk)}`)
+    t.eq(unknownKeys(r).length, 0, `with no junk keys on the ruleset for ${fmtJunk(junk)}`)
+  }
+  t.noThrow(() => S.resolveRules({ difficulty: 'hard', mode: 'purist', rules: null }),
+    'a null explicit-override block is ignored rather than fatal')
+  t.eq(S.resolveRules({ difficulty: 'hard', mode: 'purist', rules: {} }).allowSell, false,
+    'and an empty one leaves the mode delta intact')
+
+  /* ================= the registry is not shared mutable state ================= */
+
+  t.section('the registries cannot be mutated through a running sim')
+  // resolveRules copies field VALUES, so any array a mode names lands on sim.rules
+  // as the registry's own instance: sim.rules.families for Primary Only IS
+  // OP.MODES['primary-only'].rules.families. One push() through sim.rules would
+  // retune every game started later in the session, and the corruption would
+  // outlive the run that caused it. The data files freeze the registries so that
+  // becomes a throw at the mutation site instead.
+  const famSim = simFor('medium', 'primary-only')
+  t.eq(famSim.rules.families, M['primary-only'].rules.families,
+    'the resolved families array IS the registry instance — this is why the freeze matters')
+  t.ok(Object.isFrozen(M['primary-only'].rules.families), 'so the registry array is frozen')
+  t.throws(() => { famSim.rules.families.push('magic') },
+    'pushing a family through sim.rules throws instead of silently widening Primary Only')
+  t.deep(M['primary-only'].rules.families, ['primary'], 'and the registry is unchanged after the attempt')
+  t.eq(OP.Economy.familyAllowed(simFor('medium', 'primary-only'), 'magic'), false,
+    'so a later Primary Only game is still Primary Only')
+
+  for (const mk of MODE_KEYS) {
+    t.ok(Object.isFrozen(M[mk]), `mode ${mk} is frozen`)
+    t.ok(Object.isFrozen(M[mk].rules), `and so is its rules block`)
+  }
+  for (const dk of DIFF_KEYS) {
+    t.ok(Object.isFrozen(D[dk]), `difficulty ${dk} is frozen`)
+    t.ok(Object.isFrozen(D[dk].rules), `and so is its rules block`)
+  }
+  t.ok(Object.isFrozen(M), 'the mode registry itself is frozen, so a mode cannot be added at runtime')
+  t.ok(Object.isFrozen(D), 'and so is the difficulty registry')
+  t.ok(Object.isFrozen(OP.MODE_ORDER), 'MODE_ORDER cannot be sorted in place by a menu')
+  t.ok(Object.isFrozen(OP.DIFFICULTY_ORDER), 'nor can DIFFICULTY_ORDER')
+  t.throws(() => { M.purist.rules.allowSell = true }, 'PURIST cannot have selling switched back on at runtime')
+  t.eq(M.purist.rules.allowSell, false, 'and the attempt changed nothing')
+  t.throws(() => { D.relentless.rules.startLives = 100 }, 'nor can Relentless be handed more lives')
+  t.eq(D.relentless.rules.startLives, 1, 'and that attempt changed nothing either')
+
+  // Freezing the registry must not freeze the resolved ruleset — explicit overrides
+  // and any future in-run rule change still have to work.
+  const mutSim = simFor('medium', 'primary-only')
+  t.notOk(Object.isFrozen(mutSim.rules), 'the resolved ruleset itself is a fresh, writable object')
+  t.noThrow(() => { mutSim.rules.costMul = 2 }, 'so a scalar rule can still be overridden per sim')
+  t.eq(D.medium.rules.costMul, 1, 'without leaking back into the difficulty')
+
+  /* ================= Reverse, through the map it actually changes ================= */
+
+  t.section('Reverse produces a genuinely reversed map, and only when the flag is set')
+  // The sim never reads sim.rules.reversePaths; the shell applies it to the map
+  // before Sim.create. Reproduced here, because a mode whose only assertion is
+  // "the flag is true" is a mode that could be a no-op forever.
+  function shellMap (modeKey) {
+    const base = { key: 'test', paths: [straightTrack(OP, 1200)] }
+    const def = M[modeKey]
+    return (def && def.rules && def.rules.reversePaths) ? OP.Maps.reversePaths(base) : base
+  }
+  const plainMap = shellMap('standard')
+  const revMap = shellMap('reverse')
+  t.eq(plainMap.paths[0], plainMap.paths[0], 'Standard hands the map through untouched')
+  t.notOk(plainMap.reversed, 'and does not mark it reversed')
+  t.ok(revMap.reversed, 'Reverse marks the map reversed')
+  t.neq(revMap.paths[0], plainMap.paths[0], 'and hands over a different Track object')
+  const fwd = plainMap.paths[0], back = revMap.paths[0]
+  t.close(fwd.length, back.length, 1e-6, 'the reversed track is the same length')
+  t.close(back.posAt(0).x, fwd.posAt(fwd.length).x, 1e-6, 'the reversed entry is the forward exit (x)')
+  t.close(back.posAt(0).y, fwd.posAt(fwd.length).y, 1e-6, 'and (y)')
+  t.close(back.posAt(back.length).x, fwd.posAt(0).x, 1e-6, 'and the reversed exit is the forward entry (x)')
+
+  // End to end: a Reverse sim built on the reversed map walks balloons the other way.
+  const revSim = S.create(OP.modeConfig('reverse', 'medium', { map: revMap, seed: 'rev' }))
+  const fwdSim = S.create(OP.modeConfig('standard', 'medium', { map: plainMap, seed: 'rev' }))
+  const rb = OP.Balloons.spawn(revSim, { tier: 'red', path: 0, t: 0 })
+  const fb2 = OP.Balloons.spawn(fwdSim, { tier: 'red', path: 0, t: 0 })
+  t.close(rb.x, fwdSim.map.paths[0].posAt(fwd.length).x, 1e-6, 'a Reverse balloon enters at the forward exit')
+  t.neq(Math.round(rb.x), Math.round(fb2.x), 'so the two modes start a balloon in different places')
+  for (let i = 0; i < 60; i++) { OP.Balloons.move(revSim); OP.Balloons.move(fwdSim) }
+  t.gt(rb.t, 0, 'and it still advances along its own t')
+  t.close(rb.t, fb2.t, 1e-6, 'at the same rate — Reverse costs no second movement path')
+  t.eq(revSim.rules.reversePaths, true, 'the flag rides along on sim.rules for the save to restore')
+  t.eq(fwdSim.rules.reversePaths, undefined, 'and is absent on every other mode')
 }

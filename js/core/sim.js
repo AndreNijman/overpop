@@ -384,6 +384,14 @@
     sim.heroId = snap.heroId === undefined ? -1 : snap.heroId
     sim.stats = Object.assign(sim.stats, snap.stats)
 
+    // Cleared obstacles, before towers: this is what re-filters the map's LOS
+    // blocker list, and a tower's first acquire must see the same sight lines the
+    // save was taken with. Absent on snapshots from before the field existed, so
+    // the guard keeps those loading.
+    if (Array.isArray(snap.cleared) && OP.Maps && OP.Maps.restoreCleared) {
+      OP.Maps.restoreCleared(sim, snap.cleared)
+    }
+
     // Towers first: buff rebuilding and stat resolution depend on them, and
     // balloons must be able to look up a tower id for pop attribution.
     OP.Towers.deserialize(sim, snap.towers || [])
