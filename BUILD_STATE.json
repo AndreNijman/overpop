@@ -1011,9 +1011,10 @@
           ],
           "produces": [],
           "verify": [],
-          "status": "todo",
-          "commit": null,
-          "note": "projects/overpop.md, decisions/2026-08-05-overpop-name-and-theme.md, journal append. Written as we go, not batched."
+          "status": "done",
+          "commit": "0c3be64",
+          "note": "projects/overpop.md, decisions/2026-08-05-overpop-name-and-theme.md, journal append. Written as we go, not batched.",
+          "finished": "2026-08-05 15:48:09"
         },
         {
           "id": "P11.7",
