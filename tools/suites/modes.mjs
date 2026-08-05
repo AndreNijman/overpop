@@ -29,6 +29,14 @@ export function run (t, OP, env) {
   const MODE_KEYS = ['standard', 'primary-only', 'military-only', 'magic-only', 'deflation',
     'onslaught', 'half-cash', 'double-hp-blimps', 'alternate-waves', 'reverse', 'purist']
 
+  /** A readable label for the junk values fed to the fallback paths below. */
+  function fmtJunk (v) {
+    if (typeof v === 'number' && Number.isNaN(v)) return 'NaN'
+    if (Array.isArray(v)) return '[]'
+    if (v && typeof v === 'object') return '{}'
+    return JSON.stringify(v) === undefined ? String(v) : JSON.stringify(v)
+  }
+
   /** A fresh sim for a difficulty/mode pair, with a long straight track. */
   function simFor (difficulty, mode, extra) {
     return S.create(OP.modeConfig(mode, difficulty, Object.assign({
@@ -349,10 +357,14 @@ export function run (t, OP, env) {
   t.eq(S.resolveRules({ difficulty: 'relentless', mode: 'deflation' }).lastRound, 100,
     'and leaves the far end to the difficulty')
   // The two edges of that choice, pinned so a retune sees both at once: Deflation
-  // shortens a run from the front only, so it is nine rounds on Easy and seventy on
-  // Relentless, off one fixed pile of cash either way.
+  // shortens a run from the front only, so counting inclusively it is ten rounds on
+  // Easy (31-40) and seventy on Relentless (31-100), off one fixed pile of cash
+  // either way. sim.roundIndex === firstRound - 1, so firstRound is played.
   t.eq(S.resolveRules({ difficulty: 'easy', mode: 'deflation' }).lastRound, 40,
-    'Easy Deflation is a nine-round scenario, by design')
+    'Easy Deflation is a ten-round scenario, by design')
+  t.eq(S.resolveRules({ difficulty: 'relentless', mode: 'deflation' }).lastRound -
+       S.resolveRules({ difficulty: 'relentless', mode: 'deflation' }).firstRound + 1, 70,
+    'and Relentless Deflation is seventy rounds off the same pile')
   t.eq(S.resolveRules({ difficulty: 'easy', mode: 'deflation' }).firstRound, 31,
     'starting where every other difficulty starts it')
   t.eq(S.resolveRules({ difficulty: 'relentless', mode: 'purist', rules: { startLives: 99 } }).startLives, 99,
@@ -584,6 +596,70 @@ export function run (t, OP, env) {
   t.eq(OP.modeConfig('nope', 'medium').mode, 'standard', 'an unknown mode falls back rather than throwing')
   t.eq(OP.modeConfig('standard', 'nope').difficulty, 'medium', 'and so does an unknown difficulty')
 
+  t.section('modeConfig on absent, empty and corrupt input')
+  // These are menu selections and save fields, so every one of them is reachable:
+  // a fresh profile with nothing chosen, a save written by an older build, a form
+  // field that came back empty. None may throw and none may produce a config that
+  // Sim.create cannot use.
+  t.noThrow(() => OP.modeConfig(), 'calling with no arguments at all does not throw')
+  const blank = OP.modeConfig()
+  t.eq(blank.mode, 'standard', 'no mode means Standard')
+  t.eq(blank.difficulty, 'medium', 'no difficulty means Medium')
+  t.eq(blank.roundSetKey, 'standard', 'and the standard table')
+  for (const junk of [null, '', 0, 7, [], {}, true, NaN]) {
+    const c = OP.modeConfig(junk, junk)
+    t.eq(c.mode, 'standard', `mode ${fmtJunk(junk)} falls back to Standard`)
+    t.eq(c.difficulty, 'medium', `difficulty ${fmtJunk(junk)} falls back to Medium`)
+    t.ok(M[c.mode] && D[c.difficulty], `and ${fmtJunk(junk)} still yields a config naming real entries`)
+  }
+  t.noThrow(() => S.create(Object.assign(OP.modeConfig(null, null),
+    { map: { key: 'test', paths: [straightTrack(OP, 500)] } })), 'a config built from junk still creates a sim')
+
+  // A falsy round-set key must fall back to the MODE'S table, not to standard.
+  // Sim.create resolves `config.roundSetKey || 'standard'`, so handing it null here
+  // would put Alternate Waves back on the standard waves without a word — the exact
+  // silent nothing modeConfig exists to prevent.
+  for (const falsy of [null, undefined, '', 0, false, NaN]) {
+    t.eq(OP.modeConfig('alternate-waves', 'medium', { roundSetKey: falsy }).roundSetKey, 'alternate',
+      `a falsy roundSetKey (${fmtJunk(falsy)}) falls back to the mode's own table, not standard`)
+  }
+  t.eq(simFor('medium', 'alternate-waves', { roundSetKey: null }).roundSet, OP.ROUND_SETS.alternate,
+    'and the sim built that way really is on the alternate table')
+
+  // extra is copied, not adopted. A caller that reuses one options object across
+  // several starts must not find difficulty/mode/roundSetKey welded onto it.
+  const reused = { seed: 3, map: 'm' }
+  const frozenCopy = JSON.stringify(reused)
+  OP.modeConfig('alternate-waves', 'relentless', reused)
+  t.eq(JSON.stringify(reused), frozenCopy, 'modeConfig does not mutate the extra object it was handed')
+  t.eq(reused.difficulty, undefined, 'so no difficulty is welded onto it')
+  t.eq(reused.roundSetKey, undefined, 'and no round-set key either')
+
+  // The positional arguments win over same-named fields in extra. Pinned rather
+  // than changed: roundSetKey is deliberately the one field extra may override,
+  // mirroring the explicit-overrides layer in resolveRules.
+  const clash = OP.modeConfig('onslaught', 'hard', { difficulty: 'easy', mode: 'purist' })
+  t.eq(clash.difficulty, 'hard', 'extra.difficulty loses to the positional difficulty')
+  t.eq(clash.mode, 'onslaught', 'and extra.mode loses to the positional mode')
+  t.eq(OP.modeConfig('standard', 'medium', { roundSetKey: 'alternate' }).roundSetKey, 'alternate',
+    'while extra.roundSetKey is the one field allowed to win')
+
+  t.section('the shipped shell actually bridges mode -> roundSetKey and mode -> reversed map')
+  // Sim.create ignores mode.roundSetKey and mode.rules.reversePaths by design, so
+  // both facts have to be applied at game start or Alternate Waves and Reverse are
+  // silent no-ops. js/main.js currently hand-rolls what OP.modeConfig does, which
+  // means the same fact lives in two places — so it is pinned in both. If
+  // App.startGame is ever collapsed onto OP.modeConfig, this assertion should be
+  // relaxed to "main.js calls OP.modeConfig", not deleted.
+  t.ok(env.present.indexOf('js/main.js') >= 0, 'js/main.js ships in the bundle')
+  const shell = readFileSync(resolve(ROOT, 'js/main.js'), 'utf8')
+  t.ok(/roundSetKey/.test(shell), 'the shell names roundSetKey at game start')
+  t.ok(/modeConfig|modeDef\s*&&\s*modeDef\.roundSetKey|MODES\[[^\]]*\][\s\S]{0,80}roundSetKey/.test(shell),
+    'and derives it from the mode definition rather than hardcoding one table')
+  t.ok(shell.indexOf('Maps.reversePaths(') >= 0, 'the shell reverses the map itself')
+  t.ok(/reversePaths[\s\S]{0,200}Sim\.create/.test(shell),
+    'and does it BEFORE Sim.create, because a Track is built once')
+
   t.section('a mode with roundSetKey "alternate" yields sim.roundSetKey === "alternate"')
   const altSim = simFor('medium', 'alternate-waves')
   t.eq(altSim.roundSetKey, 'alternate', 'the sim is playing the alternate waves')
@@ -600,9 +676,12 @@ export function run (t, OP, env) {
   // That is precisely the silent-nothing this suite exists to catch, and reading
   // the key back cannot see it. The table itself has to be compared.
   const altKey = M['alternate-waves'].roundSetKey
-  const stdTable = OP.ROUND_SETS[ 'standard' ]
+  // Defaulted to {} rather than left undefined so that an unregistered table fails
+  // every check below by name instead of throwing on the first property read and
+  // taking the remaining sections of the suite down with it.
+  const stdTable = (OP.ROUND_SETS && OP.ROUND_SETS.standard) || {}
   t.ok(OP.ROUND_SETS && OP.ROUND_SETS[altKey], `the declared key "${altKey}" is registered in OP.ROUND_SETS`)
-  t.ok(stdTable, 'and so is "standard", the fallback it must not be confused with')
+  t.ok(Object.keys(stdTable).length, 'and so is "standard", the fallback it must not be confused with')
   t.eq(altSim.roundSet, OP.ROUND_SETS[altKey], 'the sim holds exactly the registered alternate table')
   t.neq(altSim.roundSet, stdTable, 'which is not the standard table — no silent fallback')
   t.neq(altSim.roundSet, OP.ROUNDS_STANDARD, 'nor the last-resort ROUNDS_STANDARD reference')
@@ -610,7 +689,7 @@ export function run (t, OP, env) {
 
   // Identity is necessary but not sufficient: two distinct objects could still hold
   // identical data, which would make Alternate Waves a mode that changes nothing.
-  const altTable = OP.ROUND_SETS[altKey]
+  const altTable = (OP.ROUND_SETS && OP.ROUND_SETS[altKey]) || {}
   let differing = 0, missingAlt = [], missingStd = []
   for (let r = 1; r <= 100; r++) {
     if (!altTable[r]) missingAlt.push(r)

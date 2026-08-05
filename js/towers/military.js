@@ -598,7 +598,7 @@
             apply: function (s) { s.shots = 2; s.spread = 0.16 } },
           { name: 'Hardened Shafts', cost: 1550, desc: '+2 damage and +2 pierce per spear, so one throw clears a whole clump.',
             apply: function (s) { s.damage += 2; s.pierce += 2 } },
-          { name: 'Deep Volley', cost: 6500, desc: '4 spears per shot and +4 damage.',
+          { name: 'Deep Volley', cost: 6500, desc: '4 spears per shot and +4 damage — a wall of spears across the water.',
             apply: function (s) { s.shots = 4; s.spread = Math.max(s.spread, 0.34); s.damage += 4 } },
           { name: 'Riptide Barrage', cost: 50700, desc: '6 spears per shot, +14 damage, +4 pierce, and 30% faster.',
             apply: function (s) {
@@ -613,7 +613,7 @@
       {
         name: 'Sonar',
         tiers: [
-          { name: 'Clicks', cost: 275, desc: '+30 range.',
+          { name: 'Clicks', cost: 275, desc: '+30 range, which is also how far the sonar branch reaches later.',
             apply: function (s) { s.range += 30 } },
           { name: 'Echo Pulse', cost: 620, desc: '+30 range, and it sees Veiled balloons itself.',
             apply: function (s) { s.range += 30; s.camoDetect = true } },
@@ -932,7 +932,7 @@
             apply: function (s) { s.damage += 1 } },
           { name: 'Tight Circuit', cost: 2850, desc: '30% faster attack, and a tighter, quicker circuit that keeps it over the track.',
             apply: function (s) { s.cooldown *= 0.70; s.circuitRadius = 46; s.circuitSpeed = 2.2 } },
-          { name: 'Nose Cannon', cost: 12100, desc: '+6 damage and +3 pierce.',
+          { name: 'Nose Cannon', cost: 12100, desc: '+6 damage and +3 pierce, so a pass cuts through a whole clump.',
             apply: function (s) { s.damage += 6; s.pierce += 3 } },
           { name: 'Gunship', cost: 92400, desc: '4 rounds per burst, +22 damage, +6 pierce, 30% faster again.',
             apply: function (s) {
@@ -1170,7 +1170,7 @@
       {
         name: 'Gunship',
         tiers: [
-          { name: 'Searchlight', cost: 440, desc: '+30 range.',
+          { name: 'Searchlight', cost: 440, desc: '+30 range, so it can open fire before it has finished closing in.',
             apply: function (s) { s.range += 30 } },
           { name: 'Night Vision', cost: 1000, desc: 'Sees Veiled balloons, and will chase them — including the WRAITH blimp, which is Veiled from the moment it arrives.',
             apply: function (s) { s.camoDetect = true } },
@@ -1232,12 +1232,10 @@
               OP.Effects.apply(b, OP.Effects.make('glue', s.glueTime, s.glueMag, tower.id, D.NORMAL))
             }
           }
-          OP.Projectiles.spawn(sim, {
-            // A visual-only pulse: no damage, one pierce, dies immediately.
-            x: tower.x, y: tower.y, vx: 0, vy: 0, kind: 'mil-wash',
-            damage: 0, dmgType: s.dmgType, pierce: 1, radius: 1, life: 0.2,
-            ownerId: tower.id, camoDetect: s.camoDetect
-          })
+          // The downdraft is not a projectile — it deals no damage at all. Tell
+          // the renderer about it through the blast FX queue rather than
+          // spawning a damage-zero shot that would pollute the shot counters.
+          sim.blastEvents.push({ x: tower.x, y: tower.y, radius: s.pushRadius, kind: 'mil-wash', hits: 0 })
         }
       }
 
@@ -1465,7 +1463,7 @@
             apply: function (s) { s.damage += 1 } },
           { name: 'Ten Barrels', cost: 1425, desc: 'At full spin it fires roughly three times as fast, with +4 pierce.',
             apply: function (s) { s.spinRate = 0.68; s.spinPierce += 2; s.pierce += 2 } },
-          { name: 'Depleted Rounds', cost: 6050, desc: '+7 damage and +3 pierce.',
+          { name: 'Depleted Rounds', cost: 6050, desc: '+7 damage and +3 pierce on every round, spun up or not.',
             apply: function (s) { s.damage += 7; s.pierce += 3 } },
           { name: 'Vulcan', cost: 46200, desc: '+26 damage, +8 pierce, full spin in 1s. Ability: Overdrive — instant full spin held for 6s. 30s cooldown.',
             apply: function (s) {
@@ -1486,7 +1484,7 @@
             apply: function (s) { s.cooldown *= 0.82 } },
           { name: 'Cryo Coolant', cost: 1250, desc: '25% faster attack, and the spin never falls below 40% even after switching target.',
             apply: function (s) { s.cooldown *= 0.75; s.spinFloor = 0.40 } },
-          { name: 'Twin Feed', cost: 5225, desc: '2 rounds per shot and +4 damage.',
+          { name: 'Twin Feed', cost: 5225, desc: '2 rounds per shot and +4 damage, doubling the barrel output.',
             apply: function (s) { s.shots = 2; s.spread = 0.09; s.damage += 4 } },
           { name: 'Gatling Storm', cost: 40700, desc: '3 rounds per shot, +18 damage, 35% faster attack, spin never falls below 70%.',
             apply: function (s) {

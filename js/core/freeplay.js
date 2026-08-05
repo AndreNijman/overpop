@@ -135,8 +135,11 @@
       goliath: capped('goliath', 10 + over * 2),
       wraith: capped('wraith', 6 + Math.floor(over / 2)),
       leviathan: capped('leviathan', 5 + Math.floor(over / 3)),
-      colossus: capped('colossus', 4 + Math.floor(over / 5)),
-      omen: capped('omen', 3 + Math.floor(over / 12))
+      // The base blimp counts are set so that round 101 is heavier than round 100
+      // of either authored set. A dip at the seam would hand a player who just
+      // won the game an easier round than the one they beat.
+      colossus: capped('colossus', 6 + Math.floor(over / 5)),
+      omen: capped('omen', 5 + Math.floor(over / 12))
     }
 
     // tier, count, base spacing, delay, props, arrives-as-one-tick-clump

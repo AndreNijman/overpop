@@ -61,6 +61,31 @@
     return !!v && typeof v === 'object' && !Array.isArray(v)
   }
 
+  /* Stored data supplies object KEYS — map keys, difficulty keys, mode keys, tower
+     keys — and two things go wrong if they are trusted blindly.
+
+     1. `obj.__proto__ = {}` does not store anything. It reaches the inherited
+        setter on Object.prototype and REPLACES the object's prototype. A profile
+        hand-edited to `completions: {"__proto__": {"easy": {"standard": true}}}`
+        therefore walks straight into `Object.prototype.easy = {}` — every object
+        in the running game gains an `.easy` property, permanently, and the game
+        is unrecoverable until the tab is closed. JSON.parse makes `__proto__` a
+        genuine own enumerable property, so hasOwnProperty does NOT filter it.
+     2. A key that already exists on Object.prototype ('toString', 'constructor',
+        …) makes a truthiness test like `if (!out[k]) out[k] = {}` believe the
+        branch is already there, so the write lands on the inherited value and the
+        real entry is silently dropped.
+
+     (2) is fixed by testing existence with own() rather than truthiness — the
+     subsequent plain assignment then creates a shadowing own property, which is
+     safe. (1) cannot be fixed that way, because the assignment itself is the
+     unsafe act, so `__proto__` is rejected outright. No map, difficulty, mode,
+     tower or balloon tier in this game is named `__proto__`; rejecting it loses
+     nothing real. Both guards are needed — neither covers the other. */
+  function safeKey (k) {
+    return typeof k === 'string' && k !== '' && k !== '__proto__'
+  }
+
   /** A JSON round-trip. Doubles as the "is this actually storable?" test. */
   function jsonClone (v) {
     try { return JSON.parse(JSON.stringify(v)) } catch (e) { return null }
@@ -68,11 +93,19 @@
 
   function finite (v) { return typeof v === 'number' && isFinite(v) }
 
-  /** A non-negative integer counter. Anything unusable becomes 0. */
+  /** A non-negative integer counter. Anything unusable becomes 0.
+      Clamped to MAX_SAFE_INTEGER: past that, `+= 1` stops changing the value and
+      a lifetime counter silently freezes, so a hand-edited 1e308 would jam
+      totalCash forever. Clamping keeps every counter in the range where integer
+      arithmetic is still exact. */
   function counter (v) {
     if (!finite(v) || v <= 0) return 0
+    if (v >= Number.MAX_SAFE_INTEGER) return Number.MAX_SAFE_INTEGER
     return Math.floor(v)
   }
+
+  /** Counter addition that cannot leave the exact-integer range. */
+  function addCounter (a, b) { return counter(counter(a) + counter(b)) }
 
   function unit (v, fallback) {
     if (!finite(v)) return fallback
@@ -105,14 +138,16 @@
     return fallback
   }
 
-  /** Deduped, sorted list of non-empty string keys. Sorted so the stored JSON is
-      stable and normalise() is idempotent. */
+  /** Deduped, sorted list of usable string keys. Sorted so the stored JSON is
+      stable and normalise() is idempotent. Reserved keys are dropped here too:
+      these lists get turned into lookup objects by the shop and the bestiary, and
+      a `__proto__` entry surviving to that point is the same hazard as above. */
   function keyList (v) {
     const out = []
     if (!Array.isArray(v)) return out
     for (let i = 0; i < v.length; i++) {
       const k = v[i]
-      if (typeof k !== 'string' || !k) continue
+      if (!safeKey(k)) continue
       if (out.indexOf(k) < 0) out.push(k)
     }
     out.sort()
@@ -124,7 +159,7 @@
     if (!Array.isArray(add)) return out
     for (let i = 0; i < add.length; i++) {
       const k = add[i]
-      if (typeof k === 'string' && k && out.indexOf(k) < 0) out.push(k)
+      if (safeKey(k) && out.indexOf(k) < 0) out.push(k)
     }
     out.sort()
     return out
@@ -216,7 +251,7 @@
     }
     const best = isPlainObject(stats.bestRound) ? stats.bestRound : {}
     for (const mapKey in best) {
-      if (!own(best, mapKey) || !mapKey) continue
+      if (!own(best, mapKey) || !safeKey(mapKey)) continue
       const round = counter(best[mapKey])
       if (round > 0) out.stats.bestRound[mapKey] = round
     }
@@ -229,23 +264,25 @@
   }
 
   /** mapKey -> difficulty -> mode -> true. Only literal `true` leaves survive,
-      and a branch with no surviving leaf is dropped rather than left empty. */
+      and a branch with no surviving leaf is dropped rather than left empty.
+      Every key is safeKey()-screened and every "does this branch exist?" test is
+      own(), never truthiness — see safeKey above for why both matter. */
   function normaliseCompletions (raw) {
     const out = {}
     if (!isPlainObject(raw)) return out
     for (const mapKey in raw) {
-      if (!own(raw, mapKey) || !mapKey) continue
+      if (!own(raw, mapKey) || !safeKey(mapKey)) continue
       const diffs = raw[mapKey]
       if (!isPlainObject(diffs)) continue
       for (const diff in diffs) {
-        if (!own(diffs, diff) || !diff) continue
+        if (!own(diffs, diff) || !safeKey(diff)) continue
         const modes = diffs[diff]
         if (!isPlainObject(modes)) continue
         for (const mode in modes) {
-          if (!own(modes, mode) || !mode) continue
+          if (!own(modes, mode) || !safeKey(mode)) continue
           if (modes[mode] !== true) continue
-          if (!out[mapKey]) out[mapKey] = {}
-          if (!out[mapKey][diff]) out[mapKey][diff] = {}
+          if (!own(out, mapKey)) out[mapKey] = {}
+          if (!own(out[mapKey], diff)) out[mapKey][diff] = {}
           out[mapKey][diff][mode] = true
         }
       }
@@ -319,8 +356,16 @@
   }
 
   /**
-   * Write the profile. Normalises first, so nothing unstorable can reach the
-   * entry and so what comes back out of load() is what went in.
+   * Write the profile. Runs it through migrate() first, so nothing unstorable can
+   * reach the entry and what comes back out of load() is what went in.
+   *
+   * migrate() rather than normalise() on purpose. normalise() *stamps* the current
+   * schema version without running any migration step, so handing save() a profile
+   * that is still at an older version would relabel it as current and skip its
+   * migration permanently — the data would be silently frozen in the old shape
+   * with a new version number on it, and no later load() could ever repair it,
+   * because load() trusts the stamp. migrate() is idempotent and ends in
+   * normalise(), so for an already-current profile this is byte-identical.
    *
    * @returns {boolean} false if storage refused it (quota, denied, absent) or if
    *   `profile` is not a profile at all. A caller bug must not silently overwrite
@@ -329,7 +374,7 @@
   Save.save = function (profile) {
     if (!isPlainObject(profile)) return false
     let str
-    try { str = JSON.stringify(normalise(profile)) } catch (e) { return false }
+    try { str = JSON.stringify(Save.migrate(profile)) } catch (e) { return false }
     return writeKey(Save.PROFILE_KEY, str)
   }
 
@@ -399,23 +444,27 @@
     const p = isPlainObject(profile) ? repair(profile) : Save.defaults()
     if (!isPlainObject(result)) return p
 
-    p.stats.gamesPlayed += 1
-    if (result.won === true) p.stats.gamesWon += 1
-    p.stats.roundsCleared += counter(result.roundsCleared)
-    p.stats.totalPops += counter(result.pops)
-    p.stats.totalCash += counter(result.cash)
+    p.stats.gamesPlayed = addCounter(p.stats.gamesPlayed, 1)
+    if (result.won === true) p.stats.gamesWon = addCounter(p.stats.gamesWon, 1)
+    p.stats.roundsCleared = addCounter(p.stats.roundsCleared, result.roundsCleared)
+    p.stats.totalPops = addCounter(p.stats.totalPops, result.pops)
+    p.stats.totalCash = addCounter(p.stats.totalCash, result.cash)
 
-    const mapKey = typeof result.mapKey === 'string' ? result.mapKey : ''
+    // safeKey, not just a string test: a result naming its map `__proto__` would
+    // otherwise reach the prototype setter below.
+    const mapKey = safeKey(result.mapKey) ? result.mapKey : ''
     const reached = counter(result.round === undefined ? result.roundsCleared : result.round)
     if (mapKey && reached > counter(p.stats.bestRound[mapKey])) {
       p.stats.bestRound[mapKey] = reached
     }
 
-    const diff = typeof result.difficulty === 'string' ? result.difficulty : ''
-    const mode = typeof result.mode === 'string' ? result.mode : ''
+    const diff = safeKey(result.difficulty) ? result.difficulty : ''
+    const mode = safeKey(result.mode) ? result.mode : ''
     if (result.won === true && mapKey && diff && mode) {
-      if (!isPlainObject(p.completions[mapKey])) p.completions[mapKey] = {}
-      if (!isPlainObject(p.completions[mapKey][diff])) p.completions[mapKey][diff] = {}
+      // own(), not isPlainObject(): Object.prototype IS a plain object, so an
+      // inherited branch would pass the type test and the write would land on it.
+      if (!own(p.completions, mapKey) || !isPlainObject(p.completions[mapKey])) p.completions[mapKey] = {}
+      if (!own(p.completions[mapKey], diff) || !isPlainObject(p.completions[mapKey][diff])) p.completions[mapKey][diff] = {}
       p.completions[mapKey][diff][mode] = true
     }
 
@@ -461,8 +510,10 @@
   /**
    * @returns {?{snapshot:object, mapKey:string, savedAt:number}} null when there
    *   is no run, or when the stored bytes are unusable: unparseable, not an
-   *   object, a schema from a newer build, no snapshot, no clock or RNG state, or
-   *   no map key to rebuild geometry from. "No resumable run" is a menu state.
+   *   object, a schema from a newer build, no snapshot, no RNG state, a tick that
+   *   is not a whole non-negative count, an already-finished game, two map keys
+   *   that disagree, or no map key to rebuild geometry from. "No resumable run" is
+   *   a menu state.
    *
    * This validates the *stored data*, not the world it will be restored into.
    * OP.Sim.deserialize still throws for a mid-game snapshot whose `roundSetKey`
@@ -484,11 +535,27 @@
 
     const snapshot = payload.snapshot
     if (!isPlainObject(snapshot)) return null
-    if (!finite(snapshot.tick) || !isPlainObject(snapshot.rng)) return null
+    // A tick is a whole count of fixed steps. A fractional or negative one is not
+    // merely odd — Sim.deserialize assigns it verbatim, and every `tick % n` gate
+    // in the sim then never fires again.
+    if (!Number.isInteger(snapshot.tick) || snapshot.tick < 0) return null
+    if (!isPlainObject(snapshot.rng)) return null
 
-    const mapKey = typeof payload.mapKey === 'string' && payload.mapKey
-      ? payload.mapKey
-      : (typeof snapshot.mapKey === 'string' ? snapshot.mapKey : '')
+    // saveRun refuses to WRITE a finished sim; the read path has to refuse one
+    // too, or an entry from an older build, a hand-edit, or a second tab still
+    // offers "continue" on a game that is already over — and resuming it drops the
+    // player onto a dead board with no way back through the results screen.
+    if (snapshot.over === true) return null
+
+    const payloadKey = typeof payload.mapKey === 'string' ? payload.mapKey : ''
+    const snapKey = typeof snapshot.mapKey === 'string' ? snapshot.mapKey : ''
+    // saveRun always writes these two equal. If they disagree, the entry is not
+    // trustworthy: the caller rebuilds geometry from the envelope key while the
+    // snapshot's balloon `t` values belong to the other map's track lengths, so
+    // resuming would silently play one save on another map's paths. Refuse rather
+    // than pick a winner.
+    if (payloadKey && snapKey && payloadKey !== snapKey) return null
+    const mapKey = payloadKey || snapKey
     if (!mapKey) return null
 
     return {

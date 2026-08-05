@@ -134,15 +134,30 @@ export function run (t, OP, env) {
   t.eq(def('acorn-fox').cost, Math.min(...ROSTER.map(k => def(k).cost)),
     'Acorn Fox is the cheapest tower in the family')
 
-  t.section('primary: every upgrade description states real numbers')
-  let noNumber = []
-  for (const k of ROSTER) {
-    for (const path of def(k).paths) {
+  t.section('primary: every upgrade description says something concrete')
+  // A desc is shown verbatim in the upgrade panel, so "Better." is a bug. The bar
+  // is: it names a number or the mechanic it changes, and it is not a placeholder.
+  //
+  // Deliberately NOT a length or word-count bar. "+30 range." is ideal panel text —
+  // concrete, scannable, honest — and an earlier version of this check rejected it
+  // for being two words, which would only have pushed every desc toward padding.
+  const CONCRETE = /\d|veiled|regen|plated|lead|black|zebra|white|purple|blimp|brittle|acid|burn|shatter|plasma|energy|explosive|cold|glue|stun|camo|spin|sonar|obstacle|track|blast|ability|aura|range|pierce|damage/i
+  const PLACEHOLDER = /^(better|improved|stronger|faster|more|upgrade|tbd|todo|wip)\b|\bplaceholder\b/i
+  for (const d of ROSTER.map(k => OP.TOWERS[k]).filter(Boolean)) {
+    let empty = null
+    let vague = null
+    let placeholder = null
+    for (const path of d.paths) {
       for (const up of path.tiers) {
-        if (!/\d/.test(up.desc)) noNumber.push(`${k}/${path.name}/${up.name}`)
-        if (up.desc.length < 12) noNumber.push(`${k}/${up.name} (too short)`)
+        const desc = String(up.desc || '').trim()
+        if (desc.length < 4) empty = empty || `${path.name} t${up.tier}: "${desc}"`
+        if (!CONCRETE.test(desc)) vague = vague || `${path.name} t${up.tier}: "${desc}"`
+        if (PLACEHOLDER.test(desc)) placeholder = placeholder || `${path.name} t${up.tier}: "${desc}"`
       }
     }
+    t.notOk(empty, `${d.key} has no empty descriptions` + (empty ? ' — ' + empty : ''))
+    t.notOk(vague, `${d.key} descriptions all state a number or name a mechanic` + (vague ? ' — ' + vague : ''))
+    t.notOk(placeholder, `${d.key} has no placeholder text` + (placeholder ? ' — ' + placeholder : ''))
   }
   t.eq(noNumber.length, 0, noNumber.length
     ? `descriptions with no concrete numbers: ${noNumber.slice(0, 5).join(', ')}`

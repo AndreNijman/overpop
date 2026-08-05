@@ -113,6 +113,12 @@
      `build()` always emits all four, so a real map is strict while a fixture map
      stays permissive. This is load-bearing, not politeness.
 
+     Rule ORDER is also load-bearing, because the first refusal is the string the
+     UI shows: field bounds, then `blocked`, then the path margin, then removable
+     obstacles, then land/water. The margin comes before obstacles so that a rock
+     straddling the road never invites the player to pay for a clear that leaves
+     the spot unbuildable anyway.
+
      ---------------------------------------------------------------------------
      THE API
 
@@ -158,6 +164,13 @@
   }
 
   function fin (v) { return typeof v === 'number' && isFinite(v) }
+
+  // OP.MAPS is a plain object, so a bare `OP.MAPS[key]` treats every inherited
+  // Object.prototype name as a registered map: exists('constructor') was true and
+  // get('toString') handed back a Function. Every registry read goes through this.
+  function own (obj, key) {
+    return typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key)
+  }
 
   function keysOf (o) {
     try { return Object.keys(o).join(',') } catch (e) { return String(o) }
@@ -231,7 +244,7 @@
     opts = opts || {}
     if (!raw || typeof raw !== 'object') throw new Error('map: definition must be an object, got ' + raw)
     if (!raw.key || typeof raw.key !== 'string') bad(raw, 'needs a string key')
-    if (opts.checkDuplicate && OP.MAPS[raw.key]) bad(raw, 'key is already registered')
+    if (opts.checkDuplicate && own(OP.MAPS, raw.key)) bad(raw, 'key is already registered')
     if (!raw.name || typeof raw.name !== 'string') bad(raw, 'needs a display name')
     if (Maps.TIERS.indexOf(raw.tier) < 0) {
       bad(raw, 'tier must be one of ' + Maps.TIERS.join(', ') + ', got ' + raw.tier)
@@ -251,6 +264,17 @@
     const paths = raw.paths.map(function (p, pi) {
       const where = 'path ' + pi
       if (!p || typeof p !== 'object') bad(raw, where + ' must be an object, got ' + p)
+      // A Track also has `.points` — the ALREADY SMOOTHED polyline — so without
+      // this guard prepare() happily re-smooths a built map and returns different
+      // geometry (a 6-point smooth-3 lane went 21 samples/1729.70 units ->
+      // 81 samples/1737.80, and blockersAll grew by one obstacle rect per pass).
+      // A silent geometry drift under a save that only stores `key` is exactly
+      // the failure ARCHITECTURE.md §1 rebuilds tracks to avoid.
+      if (typeof p.posAt === 'function' || (OP.Track && p instanceof OP.Track)) {
+        bad(raw, where + ' is already a built Track — Maps.build() takes an authored ' +
+          'definition, not a built map. Rebuild from Maps.get(key) (or the def you ' +
+          'passed to define()); re-smoothing a smoothed polyline changes the geometry.')
+      }
       if (!Array.isArray(p.points)) bad(raw, where + ' needs a points array')
       if (p.points.length < 2) {
         bad(raw, where + ' has ' + p.points.length + ' point(s); a path needs at least two')
@@ -336,15 +360,20 @@
     return prepared.def
   }
 
-  Maps.exists = function (key) { return !!OP.MAPS[key] }
+  Maps.exists = function (key) { return own(OP.MAPS, key) }
 
   Maps.get = function (key) {
-    const def = OP.MAPS[key]
-    if (!def) throw new Error('unknown map: ' + key)
-    return def
+    if (!own(OP.MAPS, key)) throw new Error('unknown map: ' + key)
+    return OP.MAPS[key]
   }
 
-  Maps.all = function () { return OP.MAP_ORDER.map(function (k) { return OP.MAPS[k] }) }
+  Maps.all = function () {
+    const out = []
+    for (let i = 0; i < OP.MAP_ORDER.length; i++) {
+      if (own(OP.MAPS, OP.MAP_ORDER[i])) out.push(OP.MAPS[OP.MAP_ORDER[i]])
+    }
+    return out
+  }
 
   Maps.byTier = function (tier) {
     if (Maps.TIERS.indexOf(tier) < 0) {
@@ -482,16 +511,21 @@
       return { ok: false, reason: 'Blocked terrain — nothing can be built here.' }
     }
 
+    // The path margin is tested BEFORE the obstacle prompt, deliberately. A rock
+    // wide enough to straddle the road otherwise answers "Clear the Boulder first
+    // ($200)" for a spot dead-centre of the track — the player pays and still
+    // cannot build there. Ordering it this way means every "Clear the X first"
+    // names a spot that really does become buildable once X is gone.
+    if (fin(map.trackWidth) && map.trackWidth > 0 && Maps.distanceToPath(map, x, y) <= map.trackWidth) {
+      return { ok: false, reason: 'Too close to the path.' }
+    }
+
     if (Array.isArray(map.removable)) {
       const oi = Maps.obstacleAt(map, x, y)
       if (oi >= 0) {
         const o = map.removable[oi]
         return { ok: false, reason: 'Clear the ' + o.name + ' first ($' + o.cost + ').' }
       }
-    }
-
-    if (fin(map.trackWidth) && map.trackWidth > 0 && Maps.distanceToPath(map, x, y) <= map.trackWidth) {
-      return { ok: false, reason: 'Too close to the path.' }
     }
 
     const placement = (towerDef && towerDef.placement) || 'land'
@@ -519,8 +553,11 @@
     if (!map || !Array.isArray(map.removable) || !map.removable.length) {
       return { ok: false, reason: 'This map has no removable obstacles.' }
     }
-    const i = Math.trunc(Number(index))
-    if (!isFinite(i) || i < 0 || i >= map.removable.length) {
+    // A whole number only. Truncating instead would let a caller that passed 1.7
+    // charge the player for — and clear — obstacle 1, which is not what it asked
+    // for and is impossible to notice from the outside.
+    const i = Number(index)
+    if (!isFinite(i) || Math.floor(i) !== i || i < 0 || i >= map.removable.length) {
       return { ok: false, reason: 'No such obstacle.' }
     }
     if (Maps.isCleared(map, i)) return { ok: false, reason: 'That obstacle is already cleared.' }

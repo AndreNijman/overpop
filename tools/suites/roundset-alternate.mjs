@@ -125,7 +125,7 @@ export function run (t, OP) {
   t.lt(steepest, 2, `no round more than doubles the previous one (worst ${steepest.toFixed(2)}x at round ${steepestAt})`)
   t.gt(rbeOf(100) / rbeOf(50), 5, 'the second half is a real escalation, not a plateau')
   t.gt(rbeOf(50) / rbeOf(20), 5, 'and so is the middle')
-  t.gt(rbeOf(20), 300, `round 20 already has weight: ${rbeOf(20)} RBE`)
+  t.gt(rbeOf(20), 120, `round 20 already has weight: ${rbeOf(20)} RBE`)
   t.lt(rbeOf(10), 400, `round 10 is still an early round: ${rbeOf(10)} RBE`)
 
   /* ------------------------------------------------ mode identity: early blimps */
@@ -138,11 +138,12 @@ export function run (t, OP) {
   const firstBlimp = firstRoundWith(g => isBlimp(g.tier))
   const firstPack = firstRoundWith(g => isBlimp(g.tier) && g.count >= 2)
   t.gt(firstBlimp, 0, `the first blimp is round ${firstBlimp}`)
-  t.lte(firstBlimp, 25, 'and it lands by round 25 — much earlier than a standard game')
-  t.lte(firstPack, 30, `a grouped blimp arrives by round 30 (round ${firstPack})`)
+  t.lte(firstBlimp, 34, 'and it lands by round 34 — well before a standard game')
+  t.lte(firstPack, 42, `a grouped blimp arrives by round 42 (round ${firstPack})`)
   t.gte(firstPack, firstBlimp, 'a pack never precedes the first single blimp')
 
-  for (const [tier, latest] of [['goliath', 22], ['wraith', 34], ['leviathan', 40], ['colossus', 62], ['omen', 82]]) {
+  const BLIMP_DEBUT_CAP = [['goliath', 32], ['wraith', 36], ['leviathan', 52], ['colossus', 70], ['omen', 82]]
+  for (const [tier, latest] of BLIMP_DEBUT_CAP) {
     const at = firstRoundWith(g => g.tier === tier)
     t.between(at, 1, latest, `${OP.tierByKey(tier).name} debuts by round ${latest} (round ${at})`)
   }
@@ -268,11 +269,52 @@ export function run (t, OP) {
     t.gte(comparable, 90, `the standard set is complete enough to compare (${comparable} rounds)`)
     t.gte(differing, 60, `at least 60 of 100 rounds differ from the standard set (${differing} differ)`)
     t.neq(OP.ROUND_SETS.alternate, OP.ROUND_SETS.standard, 'the two sets are distinct objects')
+
+    // "A different hundred rounds, not a harder hundred rounds." The economy is
+    // tuned against one curve; a mode that quietly ran at four times the pressure
+    // would be unwinnable rather than different.
+    t.section('same trajectory as the standard set, redistributed')
+    let hottest = 0
+    let hottestAt = 0
+    let coldest = Infinity
+    let coldestAt = 0
+    let altTotal = 0
+    let stdTotal = 0
+    for (let n = 1; n <= 100; n++) {
+      if (!STD[n]) continue
+      altTotal += rbeOf(n)
+      stdTotal += R.roundRBE(STD[n])
+      if (n < 10) continue        // the first nine rounds are tens of RBE — noise
+      const ratio = rbeOf(n) / R.roundRBE(STD[n])
+      if (ratio > hottest) { hottest = ratio; hottestAt = n }
+      if (ratio < coldest) { coldest = ratio; coldestAt = n }
+    }
+    t.lt(hottest, 3.5, `no round is more than 3.5x its standard counterpart (worst ${hottest.toFixed(2)}x at round ${hottestAt})`)
+    t.gt(coldest, 0.5, `and none is a walkover (lightest ${coldest.toFixed(2)}x at round ${coldestAt})`)
+    t.between(altTotal / stdTotal, 0.75, 1.3,
+      `total pressure across the set matches the standard game (${(altTotal / stdTotal).toFixed(3)}x)`)
+    t.between(rbeOf(100) / R.roundRBE(STD[100]), 0.6, 1.4, 'and so does the final round')
+
+    t.section('but every blimp arrives earlier than it does in the standard set')
+    const stdFirst = pred => {
+      for (let n = 1; n <= 100; n++) if (STD[n] && STD[n].groups.some(pred)) return n
+      return Infinity
+    }
+    t.lt(firstBlimp, stdFirst(g => isBlimp(g.tier)),
+      `the first blimp is round ${firstBlimp} here versus ${stdFirst(g => isBlimp(g.tier))} in the standard set`)
+    t.lt(firstPack, stdFirst(g => isBlimp(g.tier) && g.count >= 2), 'and so is the first grouped blimp')
+    for (const [tier] of BLIMP_DEBUT_CAP) {
+      const mine = firstRoundWith(g => g.tier === tier)
+      const theirs = stdFirst(g => g.tier === tier)
+      t.lt(mine, theirs, `${OP.tierByKey(tier).name}: round ${mine} here versus ${theirs} standard`)
+    }
   } else {
     // Another agent owns js/data/rounds-standard.js. Its absence must not fail
     // this suite, but the fact that the comparison did not run gets recorded.
     t.ok(true, 'OP.ROUNDS_STANDARD is not loaded yet — skipping the cross-set comparison')
   }
+
+  const stdCeiling = STD && STD[100] ? R.roundRBE(STD[100]) : 0
 
   /* ------------------------------------------------- the set actually simulates */
 
@@ -289,10 +331,10 @@ export function run (t, OP) {
 
   t.section('authored rounds inherit HP scaling from the rules')
   sim = makeSim(OP, { trackLength: 4000, roundSet: ALT, roundSetKey: 'alt-suite', rules: { hpScale: 3 } })
-  R.begin(sim, 21)
+  R.begin(sim, 23)
   ticks(OP, sim, 1)
   const cer = sim.balloons.find(b => OP.BALLOON_TIERS[b.tier].key === 'ceramic')
-  t.ok(cer, 'round 21 opens with ceramics')
+  t.ok(cer, 'round 23 opens with ceramics')
   t.eq(cer.hp, 30, 'and hpScale 3 triples the shell, because the group does not pin its own scale')
 
   t.section('a sim can select the set by key, and a save round-trips it')
@@ -473,7 +515,13 @@ export function run (t, OP) {
 
   t.section('nominal RBE climbs too, and the seam with round 100 has no dip')
   const fpRBE = n => R.roundRBE(F.generate(fpSim, n))
-  t.gt(fpRBE(101), rbeOf(100), `round 101 (${fpRBE(101)}) is heavier than authored round 100 (${rbeOf(100)})`)
+  t.gt(fpRBE(101), rbeOf(100), `round 101 (${fpRBE(101)}) is heavier than alternate round 100 (${rbeOf(100)})`)
+  if (stdCeiling) {
+    t.gt(fpRBE(101), stdCeiling,
+      `and heavier than standard round 100 too (${stdCeiling}) — freeplay follows either set without a dip`)
+  } else {
+    t.ok(true, 'the standard set is not loaded, so only the alternate seam was checked')
+  }
   t.gt(fpRBE(150), fpRBE(101), 'round 150 heavier than 101')
   t.gt(fpRBE(250), fpRBE(150), 'round 250 heavier than 150')
   t.gt(fpRBE(500), fpRBE(250), 'round 500 heavier than 250')

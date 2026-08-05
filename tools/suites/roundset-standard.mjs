@@ -168,7 +168,10 @@ export function run (t, OP) {
     : `round ${firstDrop} (${rbe[firstDrop]}) is not greater than round ${firstDrop - 1} (${rbe[firstDrop - 1]})`)
 
   t.section('the growth reads as a curve, not a line')
-  const avgDelta = (lo, hi) => (rbe[hi] - rbe[lo - 1 < 1 ? 1 : lo - 1]) / (hi - lo + 1)
+  // Round 1's "previous round" is an empty board, not round 1 itself — otherwise
+  // the first decade's average understates itself and a later tuning pass chases
+  // a number that was never real.
+  const avgDelta = (lo, hi) => (rbe[hi] - (lo === 1 ? 0 : rbe[lo - 1])) / (hi - lo + 1)
   const decade = []
   for (let d = 0; d < 10; d++) decade.push(avgDelta(d * 10 + 1, d * 10 + 10))
   let flatDecade = null
@@ -205,7 +208,14 @@ export function run (t, OP) {
     ? 'every byRound entry equals Rounds.roundRBE of that round'
     : `byRound[${mismatch}] disagrees with Rounds.roundRBE`)
   t.eq(OP.roundSetRBE().total, summary.total, 'called with no argument it defaults to the standard set')
-  t.neq(OP.roundSetRBE(SET).byRound, summary.byRound, 'each call returns a fresh object rather than a shared one')
+  // Freshness, tested by trying to poison it: if the function ever memoised and
+  // handed back a shared table, a caller scribbling on the result would corrupt
+  // every later call. Comparing object identity would not catch that.
+  summary.byRound[1] = -1
+  summary.total = -1
+  const again = OP.roundSetRBE(SET)
+  t.eq(again.byRound[1], rbe[1], 'a caller mutating the result cannot corrupt the next call')
+  t.eq(again.total, sum, 'and the total is recomputed rather than shared')
 
   const tiny = { 1: { groups: [{ tier: 'red', count: 4 }] }, 2: { groups: [{ tier: 'ceramic', count: 3 }, { tier: 'blue', count: 1 }] } }
   const tinySum = OP.roundSetRBE(tiny)

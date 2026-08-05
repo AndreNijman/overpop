@@ -327,6 +327,11 @@
       outcome: sim.outcome,
       nextEntityId: sim.nextEntityId,
       heroId: sim.heroId,
+      // Map-level state the player paid for. The Tracks are rebuilt from the
+      // definition, but which removable obstacles have been cleared is a purchase,
+      // not derived geometry — without this a resumed run silently puts every
+      // paid-for rock back and un-builds the towers' sight lines.
+      cleared: sim.map && Array.isArray(sim.map.cleared) ? sim.map.cleared.slice() : [],
       stats: Object.assign({}, sim.stats),
       balloons: OP.Balloons.serialize(sim),
       projectiles: OP.Projectiles.serialize(sim),

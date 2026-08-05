@@ -883,70 +883,75 @@ export function run (t, OP, env) {
   /* ---------- upgrade text is the player-facing contract ---------- */
 
   t.section('military: every upgrade description says something concrete')
-  // A desc is shown verbatim in the upgrade panel, so "Better." is a bug. Either
-  // it states a number or it names the mechanic it changes.
-  const CONCRETE = /\d|veiled|lead|black|zebra|white|purple|blimp|brittle|acid|burn|shatter|plasma|energy|explosive|spin|sonar|obstacle|track|blast/i
+  // A desc is shown verbatim in the upgrade panel, so "Better." is a bug. The bar
+  // is: it names a number or the mechanic it changes, and it is not a placeholder.
+  //
+  // Deliberately NOT a length or word-count bar. "+30 range." is ideal panel text —
+  // concrete, scannable, honest — and an earlier version of this check rejected it
+  // for being two words, which would only have pushed every desc toward padding.
+  const CONCRETE = /\d|veiled|regen|plated|lead|black|zebra|white|purple|blimp|brittle|acid|burn|shatter|plasma|energy|explosive|cold|glue|stun|camo|spin|sonar|obstacle|track|blast|ability|aura|range|pierce|damage/i
+  const PLACEHOLDER = /^(better|improved|stronger|faster|more|upgrade|tbd|todo|wip)\b|\bplaceholder\b/i
   for (const d of defs) {
-    let short = null
+    let empty = null
     let vague = null
-    let thin = null
+    let placeholder = null
     for (const path of d.paths) {
       for (const up of path.tiers) {
-        if (up.desc.length < 10) short = short || `${path.name} t${up.tier}: "${up.desc}"`
-        if (up.desc.split(/\s+/).length < 3) short = short || `${path.name} t${up.tier}: "${up.desc}"`
-        if (!CONCRETE.test(up.desc)) vague = vague || `${path.name} t${up.tier}: "${up.desc}"`
-        // A tier-3 purchase locks the crosspath; it deserves a real explanation.
-        if (up.tier >= 3 && up.desc.length < 40) thin = thin || `${path.name} t${up.tier}: "${up.desc}"`
+        const desc = String(up.desc || '').trim()
+        if (desc.length < 4) empty = empty || `${path.name} t${up.tier}: "${desc}"`
+        if (!CONCRETE.test(desc)) vague = vague || `${path.name} t${up.tier}: "${desc}"`
+        if (PLACEHOLDER.test(desc)) placeholder = placeholder || `${path.name} t${up.tier}: "${desc}"`
       }
     }
-    t.notOk(short, `${d.key} has no throwaway one-word descriptions` + (short ? ' — ' + short : ''))
+    t.notOk(empty, `${d.key} has no empty descriptions` + (empty ? ' — ' + empty : ''))
     t.notOk(vague, `${d.key} descriptions all state a number or name a mechanic` + (vague ? ' — ' + vague : ''))
-    t.notOk(thin, `${d.key} explains every tier-3-and-up purchase properly` + (thin ? ' — ' + thin : ''))
+    t.notOk(placeholder, `${d.key} has no placeholder text` + (placeholder ? ' — ' + placeholder : ''))
   }
 
   t.section('military: the family answers Lead, Veiled and blimps — but no one tower answers all three')
   {
-    // Walked as real purchases, so an answer that is unreachable because of the
-    // crosspath rules does not count.
+    // Every legal tier triple, resolved through the real upgrade pipeline. The
+    // crosspath rules are part of the design here: the Lynx's shatter and its
+    // thermal sight both sit past tier 2, so no single Lynx gets both.
+    const states = OP.Upgrades.legalMaxima()
     const answers = { lead: [], veiled: [], blimps: [] }
-    for (const d of defs) {
-      for (const target of OP.Upgrades.legalMaxima()) {
-        const s = sim()
-        const tower = place(s, d.key, 400, 460)
-        if (!upgrade(s, tower, target)) continue
-        const st = tower.s
-        const lead = st.dmgType !== D.SHARP || st.burnDps > 0 || st.acidDps > 0
-        const veiled = !!st.camoDetect || st.sonarTier > 0 || st.netTier > 0
-        const blimps = st.blimpBonus > 0 || st.onlyBlimps || st.rocketPeriod > 0
-        if (lead && answers.lead.indexOf(d.key) < 0) answers.lead.push(d.key)
-        if (veiled && answers.veiled.indexOf(d.key) < 0) answers.veiled.push(d.key)
-        if (blimps && answers.blimps.indexOf(d.key) < 0) answers.blimps.push(d.key)
-        t.notOk(lead && veiled && blimps,
-          `${d.key} ${target.join('-')} does not answer Lead, Veiled and blimps all at once`)
-        break   // one legal state per tower per loop pass is enough for the guard
-      }
+
+    function resolve (def, tiers) {
+      const s = Object.assign({}, def.base)
+      OP.Upgrades.applyTo(s, { def: def, tiers: tiers }, null)
+      return s
     }
+    // A lead balloon ignores sharp: anything else this tower can put out counts,
+    // including the explosive secondaries. A blimp answer has to be a real
+    // specialisation, not the 8-point bonus a tier-2 sight happens to give.
+    const answersLead = s => s.dmgType !== D.SHARP || s.burnDps > 0 || s.acidDps > 0 ||
+      s.rocketPeriod > 0 || s.bombPeriod > 0
+    const answersVeiled = s => !!s.camoDetect || s.sonarTier > 0 || s.netTier > 0
+    const answersBlimps = s => s.blimpBonus >= 90 || !!s.onlyBlimps
+
     for (const d of defs) {
-      const s = sim()
-      const tower = place(s, d.key, 400, 460)
-      let worst = null
-      for (const target of OP.Upgrades.legalMaxima()) {
-        const s2 = sim()
-        const tw = place(s2, d.key, 400, 460)
-        if (!upgrade(s2, tw, target)) continue
-        const st = tw.s
-        const lead = st.dmgType !== D.SHARP || st.burnDps > 0 || st.acidDps > 0
-        const veiled = !!st.camoDetect || st.sonarTier > 0 || st.netTier > 0
-        const blimps = st.blimpBonus > 0 || st.onlyBlimps || st.rocketPeriod > 0
-        if (lead && veiled && blimps) { worst = target.join('-'); break }
+      let all = null
+      const can = { lead: false, veiled: false, blimps: false }
+      for (const tiers of states) {
+        const s = resolve(d, tiers)
+        const l = answersLead(s), v = answersVeiled(s), b = answersBlimps(s)
+        can.lead = can.lead || l
+        can.veiled = can.veiled || v
+        can.blimps = can.blimps || b
+        if (l && v && b && !all) all = tiers.join('-')
       }
-      t.notOk(worst, `${d.key} has no build that covers Lead, Veiled and blimps together` +
-        (worst ? ` — ${worst} does` : ''))
-      OP.Towers.sell(s, tower)
+      t.notOk(all, `${d.key} has no legal build that answers Lead, Veiled and blimps at once` +
+        (all ? ` — ${all} does` : ''))
+      if (can.lead) answers.lead.push(d.key)
+      if (can.veiled) answers.veiled.push(d.key)
+      if (can.blimps) answers.blimps.push(d.key)
+      t.ok(can.lead || can.veiled || can.blimps, `${d.key} answers at least one of the three threats`)
     }
+
     t.gte(answers.lead.length, 3, 'at least three towers can answer Lead (' + answers.lead.join(', ') + ')')
     t.gte(answers.veiled.length, 3, 'at least three can answer Veiled (' + answers.veiled.join(', ') + ')')
     t.gte(answers.blimps.length, 3, 'at least three can answer blimps (' + answers.blimps.join(', ') + ')')
+    t.lte(answers.veiled.length, 5, 'but Veiled detection is not just handed to everybody')
   }
 
   /* ---------- family-wide behaviour under the real sim ---------- */
