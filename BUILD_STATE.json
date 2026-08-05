@@ -594,9 +594,10 @@
           "verify": [
             "node tools/harness.mjs --suite render"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Render must never mutate sim state. Offscreen-canvas caching for static map layers."
+          "status": "done",
+          "commit": "f66259d",
+          "note": "Render must never mutate sim state. Offscreen-canvas caching for static map layers.",
+          "finished": "2026-08-05 12:52:13"
         },
         {
           "id": "P6.2",

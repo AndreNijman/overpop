@@ -38,3 +38,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:48:57` note P7.1 — js/audio.js written: 16 synthesised sounds, three music beds, hard voice cap of 18 with same-sound burst collapsing (the thing that actually matters at round 90), master limiter, gesture-gated init, event-queue driven like FX. Suite still owed.
 - `2026-08-05 12:50:22` **done** P7.1 — Synth engine + SFX bank + music beds (`371d7db`) — FORCED, verify failing
 - `2026-08-05 12:50:31` **done** P7.1 — Synth engine + SFX bank + music beds (`371d7db`)
+- `2026-08-05 12:52:13` **done** P6.1 — Render core (camera, layers, culling, canvas pooling) (`f66259d`)
