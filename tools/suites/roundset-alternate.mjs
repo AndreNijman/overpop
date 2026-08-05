@@ -207,11 +207,13 @@ export function run (t, OP) {
 
   const flankRounds = []
   for (let n = 1; n <= 100; n++) {
-    const paths = new Set(norm(ALT[n]).map(g => g.path))
-    if (paths.size > 1 && !paths.has(-1)) flankRounds.push(n)
-    else if (paths.size > 1) flankRounds.push(n)
+    const named = new Set(norm(ALT[n]).map(g => g.path).filter(p => p >= 0))
+    if (named.size > 1) flankRounds.push(n)
   }
-  t.gte(flankRounds.length, 1, `at least one round splits its groups across named paths (rounds ${flankRounds.join(',')})`)
+  t.gte(flankRounds.length, 1,
+    `at least one round pins groups to two different paths (rounds ${flankRounds.join(',')})`)
+  t.ok(flankRounds.every(n => norm(ALT[n]).every(g => g.path < 4)),
+    'and never names a path index no map could have')
 
   /* ----------------------------------------------------------- naming hygiene */
 
@@ -224,11 +226,12 @@ export function run (t, OP) {
     'GOLIATH', 'WRAITH', 'LEVIATHAN', 'COLOSSUS', 'OMEN',
     'VEILED', 'REGEN', 'PLATED', 'PURIST', 'RBE', 'HP', 'HUD', 'RNG', 'KEY', 'CAP',
     'OP', 'PROP', 'ROUNDS', 'ROUNDS_ALTERNATE', 'ROUND_SETS', 'FIRST', 'LAST_AUTHORED',
-    'MAX_BALLOONS', 'DT', 'MODES', 'DMG', 'TODO_NOTHING'
+    'MAX_BALLOONS', 'DT', 'MODES', 'DMG'
   ])
   for (const rel of ['js/data/rounds-alternate.js', 'js/core/freeplay.js']) {
     const src = readFileSync(resolve(ROOT, rel), 'utf8')
-    const tokens = [...new Set(src.match(/\b[A-Z][A-Z0-9_]+\b/g) || [])]
+    // No trailing \b, so a plural such as "OMENs" is still checked as "OMEN".
+    const tokens = [...new Set(src.match(/\b[A-Z][A-Z0-9_]+/g) || [])]
     const unexpected = tokens.filter(x => !ALLOWED_CAPS.has(x))
     t.eq(unexpected.length, 0, `${rel} contains no unexpected capitalised names`, unexpected.join(' '))
     t.ok(/^;\(function \(OP\) \{\n {2}'use strict'/.test(src), `${rel} uses the standard IIFE preamble`)
@@ -496,6 +499,7 @@ export function run (t, OP) {
   })
   run.freeplay = true
   t.eq(run.roundSet[101], undefined, 'the round set has no entry for 101')
+  const expected = F.generate(run, 101).groups.reduce((a, g) => a + g.count, 0)
   const armed = R.begin(run, 101)
   t.ok(armed, 'the runner armed something')
   t.gt(armed.groups.length, 0, 'with groups')
@@ -507,8 +511,8 @@ export function run (t, OP) {
   t.gt(run.stats.spawned, 0, 'balloons are released on the first tick')
   ticks(OP, run, 60 * 120)
   t.ok(R.allReleased(run), 'everything was eventually released')
-  t.eq(run.stats.spawned, armed.groups.reduce((a, g) => a + g.remaining + 0, 0) + run.stats.spawned - run.stats.spawned + run.stats.spawned - run.stats.spawned + run.stats.spawned,
-    'the spawn count is self-consistent')
+  t.eq(run.stats.spawned, expected, `every balloon the definition asked for was spawned (${expected})`)
+  t.lt(expected, OP.MAX_BALLOONS, 'and the round never asks for more than the entity ceiling allows')
   t.ok(run.round.done, 'and the round terminated rather than hanging')
   t.notOk(run.over, 'with lives to spare, the run continues')
   t.gt(run.stats.leaked, 0, 'the undefended round leaked')
@@ -534,8 +538,9 @@ export function run (t, OP) {
   t.eq(errs.length, 0, 'no error event was emitted', JSON.stringify(errs))
   t.notOk(chain.events.some(e => e.kind === 'error' && e.what === 'missing-round'),
     'and specifically no missing-round error — the generator, not the fallback, served it')
-  ticks(OP, chain, 30)
-  t.gt(chain.stats.spawned, 3, 'and the generated round is really spawning')
+  const spawnedBefore = chain.stats.spawned
+  ticks(OP, chain, 60)
+  t.gt(chain.stats.spawned - spawnedBefore, 0, 'and the generated round is really spawning')
 
   t.section('the missing-round fallback is what freeplay is displacing')
   // Vacuity check: with the generator removed, the very same call records the

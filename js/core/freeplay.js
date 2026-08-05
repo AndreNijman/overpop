@@ -78,14 +78,22 @@
 
   /* Entity ceilings. OP.MAX_BALLOONS is 4000 and a released blimp becomes
      thousands of children on the way down, so counts stop growing long before
-     the spawner starts refusing balloons. Reached around round 1200; blimp
-     density still climbs monotonically for every round below that. */
+     the spawner starts refusing balloons. Every cap together is 2200 balloons of
+     initial release. The first blimp cap binds around round 395; below that,
+     blimp density climbs every single round. */
   const CAP = {
-    ceramic: 400, rainbow: 80, goliath: 600, wraith: 400,
+    ceramic: 400, rainbow: 200, goliath: 600, wraith: 400,
     leviathan: 300, colossus: 200, omen: 100
   }
 
   function capped (key, n) { return Math.min(CAP[key], n) }
+
+  /* Blimp packs arrive on one tick on a rotation, but only while the pack is
+     small enough for that to read as a formation rather than a single sprite
+     with eighty blimps stacked inside it. */
+  function spacingFor (base, over, clump, count) {
+    return clump && count <= 8 ? 0 : pace(base, over)
+  }
 
   /**
    * The round definition for `roundIndex`. Same shape as an authored round:
@@ -112,26 +120,34 @@
     const shell = (over % 5 === 0 ? P.PLATED : 0)
     const blimpProps = (over % 6 === 0 ? P.VEILED : 0)
 
-    // Blimp density climbs on three different periods, so the mix keeps changing
-    // instead of every round being the previous one plus a bit.
+    /* Counts grow on five different periods, so the mix shifts as the rounds
+       climb — the GOLIATH count piles up fastest, the OMEN count slowest.
+
+       Every term here is monotonically non-decreasing in `over`, and the GOLIATH
+       term rises every single round, so both blimp density and round RBE
+       increase strictly from one freeplay round to the next. That is the reason
+       the round-to-round variety below lives in spacing, delays and properties
+       rather than in the counts: a `over % 7` term in a count looks like harmless
+       texture and actually makes round 108 lighter than round 107. */
     const counts = {
-      ceramic: capped('ceramic', 24 + Math.floor(over / 4) * 2 + (over % 11) * 4),
-      rainbow: capped('rainbow', 20 + (over % 9) * 3),
-      goliath: capped('goliath', 10 + over + (over % 7) * 2),
-      wraith: capped('wraith', 6 + Math.floor(over / 2) + (over % 5)),
+      ceramic: capped('ceramic', 24 + Math.floor(over / 2) * 3),
+      rainbow: capped('rainbow', 20 + Math.floor(over / 3) * 2),
+      goliath: capped('goliath', 10 + over * 2),
+      wraith: capped('wraith', 6 + Math.floor(over / 2)),
       leviathan: capped('leviathan', 5 + Math.floor(over / 3)),
       colossus: capped('colossus', 4 + Math.floor(over / 5)),
       omen: capped('omen', 3 + Math.floor(over / 12))
     }
 
+    // tier, count, base spacing, delay, props, arrives-as-one-tick-clump
     const plan = [
-      ['ceramic', counts.ceramic, 0.22, 0, chaff],
-      ['rainbow', counts.rainbow, 0.30, 1.5, shell],
-      ['goliath', counts.goliath, 0.45, 3, blimpProps],
-      ['wraith', counts.wraith, 1.10, 5, 0],
-      ['leviathan', counts.leviathan, 1.60, 7, 0],
-      ['colossus', counts.colossus, 2.00, 9, 0],
-      ['omen', counts.omen, 2.60, 11, 0]
+      ['ceramic', counts.ceramic, over % 2 === 0 ? 0.18 : 0.26, 0, chaff, false],
+      ['rainbow', counts.rainbow, 0.30, 1.5, shell, false],
+      ['goliath', counts.goliath, 0.45, 3 + (over % 3), blimpProps, false],
+      ['wraith', counts.wraith, 1.10, 5, 0, over % 4 === 0],
+      ['leviathan', counts.leviathan, 1.60, 7, 0, over % 3 === 0],
+      ['colossus', counts.colossus, 2.00, 9, 0, over % 5 === 0],
+      ['omen', counts.omen, 2.60, 11, 0, over % 7 === 0]
     ]
 
     const groups = []
@@ -141,7 +157,7 @@
       groups.push({
         tier: row[0],
         count: row[1],
-        spacing: pace(row[2], over),
+        spacing: spacingFor(row[2], over, row[5], row[1]),
         delay: row[3],
         path: -1,
         props: row[4],
