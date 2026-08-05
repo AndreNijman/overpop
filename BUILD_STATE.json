@@ -817,11 +817,11 @@
             "P9.1"
           ],
           "produces": [
-            "tools/playthroughs/",
+            "tools/playthroughs.mjs",
             "docs/BALANCE.md"
           ],
           "verify": [
-            "node tools/harness.mjs --playthroughs"
+            "node tools/playthroughs.mjs --rounds 60 --quiet"
           ],
           "status": "todo",
           "commit": null,
@@ -837,7 +837,7 @@
             "docs/BALANCE.md"
           ],
           "verify": [
-            "node tools/harness.mjs --playthroughs"
+            "node tools/playthroughs.mjs --rounds 100 --quiet"
           ],
           "status": "todo",
           "commit": null,
