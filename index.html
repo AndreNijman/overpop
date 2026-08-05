@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OVERPOP">
+  <meta name="application-name" content="OVERPOP">
+  <meta name="theme-color" content="#0e1410">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="OVERPOP is a free, original tower defense game you play in your browser. 25 critter towers with three-branch upgrade trees, 100 rounds of balloons and blimps, 16 maps, heroes, and eleven game modes including PURIST. No download, works offline.">
+  <title>OVERPOP — Free Browser Tower Defense Game</title>
+  <link rel="canonical" href="https://overpop.andrenijman.com/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="OVERPOP">
+  <meta property="og:title" content="OVERPOP — Free Browser Tower Defense Game">
+  <meta property="og:description" content="An original round-based tower defense game: 25 critter towers, three-branch upgrade trees, 100 rounds, 16 maps, heroes and eleven modes. Free, no download — play it in your browser.">
+  <meta property="og:url" content="https://overpop.andrenijman.com/">
+  <meta property="og:image" content="https://overpop.andrenijman.com/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OVERPOP — Free Browser Tower Defense Game">
+  <meta name="twitter:description" content="An original round-based tower defense game: 25 critter towers, three-branch upgrade trees, 100 rounds, 16 maps, heroes and eleven modes. Free, no download.">
+  <meta name="twitter:image" content="https://overpop.andrenijman.com/og-image.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "OVERPOP",
+    "url": "https://overpop.andrenijman.com/",
+    "description": "A free, original round-based tower defense game played in the browser. Twenty-five woodland-critter towers with three-branch, five-tier upgrade trees, a hundred rounds of balloons and blimps, sixteen maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and fully playable offline.",
+    "genre": ["Tower defense", "Strategy"],
+    "playMode": "SinglePlayer",
+    "gamePlatform": "Web browser",
+    "applicationCategory": "Game",
+    "operatingSystem": "Any",
+    "inLanguage": "en",
+    "image": "https://overpop.andrenijman.com/og-image.png",
+    "author": { "@type": "Person", "name": "Andre Nijman", "url": "https://andrenijman.com/" },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" }
+  }
+  </script>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Real text behind the canvas so crawlers see prose, not an empty element. -->
+  <header class="sr-only">
+    <h1>OVERPOP — free browser tower defense game</h1>
+    <p>
+      An original round-based tower defense game by
+      <a href="https://andrenijman.com/">Andre Nijman</a>. Place woodland-critter
+      towers along winding tracks, upgrade them down three branching paths, and
+      hold a hundred rounds of balloons, blimps and camouflaged threats across
+      sixteen maps. Levelling heroes, paragon towers, and eleven game modes from
+      Deflation to PURIST. Every sprite is drawn in code and every sound is
+      synthesised — no engine, no asset packs. Free, no download, works offline.
+    </p>
+    <p><a href="https://games.andrenijman.com/">More games by Andre Nijman</a></p>
+  </header>
+
+  <div id="stage">
+    <canvas id="game" width="1280" height="720" aria-label="OVERPOP game board"></canvas>
+  </div>
+
+  <div id="boot">
+    <div class="boot-mark">OVERPOP</div>
+    <div class="boot-note">loading…</div>
+  </div>
+
+  <noscript>
+    <div class="noscript">
+      <p><strong>OVERPOP needs JavaScript to run.</strong><br>Please enable JavaScript and reload.</p>
+    </div>
+  </noscript>
+
+  <!-- ORDERED SCRIPT MANIFEST — load order is dependency order.
+       Classic scripts, no modules: nothing resolves this for us, and
+       `harness.mjs --suite scriptorder` fails if this list drifts from
+       sw.js's PRECACHE or from what exists on disk. -->
+
+  <!-- foundations -->
+  <script src="js/core/const.js"></script>
+  <script src="js/core/rng.js"></script>
+  <script src="js/core/math.js"></script>
+
+  <!-- static data the core reads -->
+  <script src="js/data/damage-types.js"></script>
+  <script src="js/data/balloons.js"></script>
+
+  <!-- simulation core -->
+  <script src="js/core/track.js"></script>
+  <script src="js/core/grid.js"></script>
+  <script src="js/core/effects.js"></script>
+  <script src="js/core/damage.js"></script>
+  <script src="js/core/balloons.js"></script>
+  <script src="js/core/projectiles.js"></script>
+  <script src="js/core/targeting.js"></script>
+  <script src="js/core/buffs.js"></script>
+  <script src="js/core/upgrades.js"></script>
+  <script src="js/core/towers.js"></script>
+  <script src="js/core/paragon.js"></script>
+  <script src="js/core/heroes.js"></script>
+  <script src="js/core/economy.js"></script>
+  <script src="js/core/rounds.js"></script>
+  <script src="js/core/freeplay.js"></script>
+  <script src="js/core/maps.js"></script>
+  <script src="js/core/sim.js"></script>
+
+  <!-- content data -->
+  <script src="js/data/rounds-standard.js"></script>
+  <script src="js/data/rounds-alternate.js"></script>
+  <script src="js/data/difficulties.js"></script>
+  <script src="js/data/modes.js"></script>
+  <script src="js/data/maps-beginner.js"></script>
+  <script src="js/data/maps-intermediate.js"></script>
+  <script src="js/data/maps-advanced.js"></script>
+  <script src="js/data/maps-expert.js"></script>
+
+  <!-- tower roster -->
+  <script src="js/towers/primary.js"></script>
+  <script src="js/towers/military.js"></script>
+  <script src="js/towers/magic.js"></script>
+  <script src="js/towers/support.js"></script>
+  <script src="js/towers/paragons.js"></script>
+  <script src="js/towers/heroes.js"></script>
+
+  <!-- presentation -->
+  <script src="js/render/camera.js"></script>
+  <script src="js/render/sprites-terrain.js"></script>
+  <script src="js/render/sprites-balloons.js"></script>
+  <script src="js/render/sprites-towers.js"></script>
+  <script src="js/render/fx.js"></script>
+  <script src="js/render/renderer.js"></script>
+  <script src="js/audio.js"></script>
+
+  <!-- shell -->
+  <script src="js/save.js"></script>
+  <script src="js/ui/input.js"></script>
+  <script src="js/ui/menus.js"></script>
+  <script src="js/ui/hud.js"></script>
+  <script src="js/ui/shop.js"></script>
+  <script src="js/ui/tower-panel.js"></script>
+  <script src="js/ui/bestiary.js"></script>
+  <script src="js/ui/results.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

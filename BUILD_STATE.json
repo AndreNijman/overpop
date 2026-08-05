@@ -43,10 +43,11 @@
           "verify": [
             "node tools/state.mjs grep ARCHITECTURE.md 'Tower module contract'"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "e011403",
           "note": "Must define: track model, balloon layer model, damage/immunity matrix, tower module shape, projectile contract, fixed-step order. Frozen before any fan-out.",
-          "started": "2026-08-05 05:01:02"
+          "started": "2026-08-05 05:01:02",
+          "finished": "2026-08-05 05:02:47"
         },
         {
           "id": "P0.3",
@@ -70,9 +71,10 @@
             "node tools/state.mjs grep CNAME 'overpop.andrenijman.com'",
             "node tools/state.mjs grep index.html '<h1>'"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "Classic <script src> only — no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix)."
+          "note": "Classic <script src> only — no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
+          "started": "2026-08-05 11:22:26"
         },
         {
           "id": "P0.4",

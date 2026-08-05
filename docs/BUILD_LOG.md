@@ -4,3 +4,6 @@ Append-only. Written by `tools/state.mjs`.
 
 - `2026-08-05 04:59:06` **done** P0.1 — Build state machine + resume tooling (`8a20bb8`)
 - `2026-08-05 05:01:02` **start** P0.2 — ARCHITECTURE.md — frozen engine contract
+- `2026-08-05 05:02:47` **done** P0.2 — ARCHITECTURE.md — frozen engine contract (`e011403`)
+- `2026-08-05 11:22:01` **start** P0.3 — Static site furniture (index.html, style.css, CNAME, SEO, PWA)
+- `2026-08-05 11:22:26` **start** P0.3 — Static site furniture (index.html, style.css, CNAME, SEO, PWA)
