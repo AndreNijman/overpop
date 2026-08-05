@@ -282,7 +282,10 @@
     const cheapest = cheapestPrice(sim)
     const lowCash = cheapest > 0 && sim.cash < cheapest
     const startLives = rules.startLives > 0 ? rules.startLives : 150
-    const lowLives = sim.lives <= Math.max(1, Math.ceil(startLives * 0.2))
+    // Proportional OR absolute. A purely proportional rule means a Relentless run
+    // (one life) never sees the warning at all, while 2 of 200 does — and a player
+    // down to a handful of lives is in trouble however many they began with.
+    const lowLives = sim.lives <= Math.max(1, Math.ceil(startLives * 0.2)) || sim.lives <= 5
 
     // Low cash and low lives must be obvious without reading a number, so each
     // gets a tinted field behind it as well as a colour.

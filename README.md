@@ -11,7 +11,7 @@ open it in Chrome and choose *Add to Home screen* to install it as an app.
 > procedurally on canvas) and every sound (synthesised with WebAudio) was created
 > from scratch for this project. It contains **no assets, names, or text from any
 > commercial game.** Towers are woodland critters with original names; the blimp
-> class is GOLIATH / LEVIATHAN / COLOSSUS / WRAITH / OMEN. Game mechanics are not
+> class, in RBE order, is GOLIATH / WRAITH / LEVIATHAN / COLOSSUS / OMEN. Mechanics are not
 > protectable; names and characters are, and none are borrowed here.
 
 ## What's in it
@@ -19,8 +19,16 @@ open it in Chrome and choose *Add to Home screen* to install it as an app.
 - **25 towers** across four families — Primary, Military, Magic, Support — each
   with a **three-branch, five-tier upgrade tree** (375 upgrades total) and real
   crosspath rules: at most one branch past tier 2, at most two branches touched.
-- **Paragon tier** for a subset of towers: sacrifice your investment in a tower
-  type to fuse a degree-scaled ultimate version.
+- **Paragon tier** for six of the twenty-five towers: sacrifice your investment in
+  a tower type to fuse a single degree-scaled tier-6 version of it, where the
+  degree (1–100) comes from the cash, upgrade tiers and pops you gave up. The six,
+  and nothing else, are:
+  - `acorn-fox` → **Stonecrown Vulpine** — a wide fan of ricocheting stone acorns
+  - `frost-hare` → **Rimecrown Hare** — freezes and holds a whole track corner
+  - `longshot-lynx` → **Horizonshot Lynx** — a steering round per threat, map-wide
+  - `howitzer-mole` → **Bastion Mole** — a scattered salvo on its own aim point
+  - `elder-owl` → **Eclipse Owl** — a closed ring of detonating bolts
+  - `berry-warren` → **Thornhold Warren** — pays out a fortune, and finally fights
 - **8 heroes**, one per game, levelling to 20 off pops and round survival, each
   with a distinct mechanical identity rather than a stat curve.
 - **100 rounds** of balloons and blimps plus **endless freeplay** beyond, with a
@@ -84,15 +92,21 @@ Two documents matter if you're reading the source:
 The sim is deterministic, so the game can be tested without playing it:
 
 ```sh
-node tools/harness.mjs --list           # available suites
-node tools/harness.mjs --all            # full suite
-node tools/harness.mjs --playthroughs   # scripted builds vs rounds 1-100
-node tools/smoke.mjs                    # headless browser boot, console must be clean
+node tools/harness.mjs --list                 # available suites
+node tools/harness.mjs --all                  # every suite
+node tools/smoke.mjs                          # real browser boot and play
+node tools/playthroughs.mjs --rounds 100      # difficulty x mode matrix
+node tools/state.mjs verify all               # do all completed build steps still pass?
 ```
 
-Playthroughs assert in both directions: a reference build has to survive, and a
-deliberately bad build has to leak. Determinism is checked by running the same
-seed twice and comparing simulation checksums.
+Playthroughs assert in both directions: a reference build has to hold, and a
+deliberately inadequate build has to leak. Asserting only the first would be
+satisfied by a game where nothing can ever leak. Determinism is checked by running
+the same seed twice, and by saving mid-run and confirming the reloaded game stays in
+lockstep with the one that was never interrupted.
+
+**[`docs/VERIFICATION.md`](docs/VERIFICATION.md)** explains each layer and — more
+usefully — what it cannot catch.
 
 ## Licence & credits
 
