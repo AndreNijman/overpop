@@ -138,12 +138,14 @@ export function run (t, OP, env) {
   } else {
     const mapScreen = names.find(n => /map/i.test(n))
     if (mapScreen && typeof Menus.go === 'function') {
-      Menus.go(mapScreen)
+      Menus.go(app, mapScreen)
       const ctx = recorder()
       Menus.draw(ctx, app)
-      const blob = ctx.texts.join(' | ')
+      // Headings are letter-spaced (one fillText per character), so compare against
+      // the concatenation rather than a separator-joined blob.
+      const blob = ctx.texts.join('').toUpperCase()
       let named = 0
-      for (const m of maps) if (blob.indexOf(m.name) >= 0) named++
+      for (const m of maps) if (blob.indexOf(m.name.toUpperCase().replace(/\s+/g, '')) >= 0) named++
       t.gt(named, 0, `the map screen names real maps (${named} of ${maps.length} visible)`)
     } else {
       t.ok(true, 'no map screen registered under a recognisable name — skipped')

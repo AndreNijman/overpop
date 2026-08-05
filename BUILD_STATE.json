@@ -723,9 +723,10 @@
           "verify": [
             "node tools/harness.mjs --suite ui-menus"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": ""
+          "status": "done",
+          "commit": "78cc1f0",
+          "note": "",
+          "finished": "2026-08-05 15:02:03"
         },
         {
           "id": "P8.3",
@@ -760,9 +761,10 @@
           "verify": [
             "node tools/harness.mjs --suite ui-menus"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": ""
+          "status": "done",
+          "commit": "78cc1f0",
+          "note": "",
+          "finished": "2026-08-05 15:02:03"
         },
         {
           "id": "P8.5",
