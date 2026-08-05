@@ -153,24 +153,30 @@ export function run (t, OP) {
     return { spot: best, dist: bestD, legal: legal }
   }
 
+  // The two weakest tiers, whatever the roster calls them — never the literals.
+  const WEAK = OP.BALLOON_TIERS[0].key
+  const NEXT = OP.BALLOON_TIERS[1].key
+
+  function liveBalloons (sim) {
+    let n = 0
+    for (let i = 0; i < sim.balloons.length; i++) if (sim.balloons[i].alive) n++
+    return n
+  }
+
   /**
-   * Release `reds` red then `blues` blue balloons on one lane and run until the
-   * board is clear. Returns the sim so the caller can assert on stats.
+   * Release `a` of the weakest tier then `b` of the next, one every 12 ticks, and
+   * run until the board is clear. Returns the sim so the caller can assert on it.
    */
-  function playStream (sim, pathIndex, reds, blues) {
+  function playStream (sim, pathIndex, a, b) {
     let sent = 0
-    const total = reds + blues
+    const total = a + b
     for (let tick = 0; tick < 60 * 240; tick++) {
       if (sent < total && tick % 12 === 0) {
-        OP.Balloons.spawn(sim, { tier: sent < reds ? 'red' : 'blue', path: pathIndex, t: 0 })
+        OP.Balloons.spawn(sim, { tier: sent < a ? WEAK : NEXT, path: pathIndex, t: 0 })
         sent++
       }
       OP.Sim.step(sim)
-      if (sent >= total) {
-        let live = false
-        for (let i = 0; i < sim.balloons.length; i++) if (sim.balloons[i].alive) { live = true; break }
-        if (!live) break
-      }
+      if (sent >= total && liveBalloons(sim) === 0) break
     }
     return sim
   }
@@ -370,8 +376,11 @@ export function run (t, OP) {
         t.between(p.length, spec.lenLo, spec.lenHi,
           `${key} lane ${i} is ${p.length.toFixed(0)} units long (${spec.tier} band ${spec.lenLo}-${spec.lenHi})`)
       })
-      t.between(map.trackWidth, 24, 40, `${key} trackWidth is ${map.trackWidth}`)
-      t.gt(map.trackWidth, 14, `${key} trackWidth clears a typical tower radius — the footprint is not added at check time`)
+      // The margin is measured from the centreline and the tower footprint is NOT
+      // added at check time, so trackWidth alone has to cover the painted road
+      // plus a typical tower radius (~14).
+      t.between(map.trackWidth, 24, 40,
+        `${key} trackWidth is ${map.trackWidth} — wide enough to cover road plus a tower radius, narrow enough to leave ground`)
     }
   }
 
@@ -447,8 +456,8 @@ export function run (t, OP) {
     .slice(0, 4)
   t.gte(attackers.length, 3, `found ${attackers.length} land attackers to test with: ${attackers.join(', ')}`)
 
-  const REDS = 30, BLUES = 10
-  const wantLayers = REDS + BLUES * 2
+  const NWEAK = 30, NNEXT = 10
+  const TOTAL = NWEAK + NNEXT
   for (const key of ALL) {
     const laneCount = built[key].paths.length
     for (let pi = 0; pi < laneCount; pi++) {
@@ -467,11 +476,15 @@ export function run (t, OP) {
       t.gte(placed.length, 3,
         `${key} lane ${pi}: ${placed.length} real towers found legal ground beside the road (${placed.join(', ')})`)
 
-      playStream(sim, pi, REDS, BLUES)
+      playStream(sim, pi, NWEAK, NNEXT)
+      // Nothing alive plus nothing leaked is the airtight form of "they all got
+      // popped", and it does not depend on how many layers a tier happens to have.
+      t.eq(sim.stats.spawned, TOTAL, `${key} lane ${pi}: the whole stream was released (${sim.stats.spawned}/${TOTAL})`)
       t.gt(sim.stats.shotsFired, 0, `${key} lane ${pi}: the towers actually fired (${sim.stats.shotsFired} shots)`)
-      t.gte(sim.stats.layersPopped, wantLayers,
-        `${key} lane ${pi}: all ${REDS} red and ${BLUES} blue balloons popped (${sim.stats.layersPopped}/${wantLayers} layers)`)
       t.eq(sim.stats.leaked, 0, `${key} lane ${pi}: nothing reached the exit (${sim.stats.leaked} leaked)`)
+      t.eq(liveBalloons(sim), 0, `${key} lane ${pi}: the board came back empty`)
+      t.gte(sim.stats.layersPopped, TOTAL,
+        `${key} lane ${pi}: ${sim.stats.layersPopped} layers popped for ${TOTAL} ${WEAK}/${NEXT} balloons`)
       t.eq(sim.lives, sim.rules.startLives, `${key} lane ${pi}: lives untouched (${sim.lives})`)
     }
   }
@@ -623,13 +636,15 @@ export function run (t, OP) {
       const after = Maps.canPlace(fresh, LAND, o.x, o.y)
       t.ok(after.ok, `${key} "${o.name}": clearing it makes the spot buildable` + (after.ok ? '' : ` — ${after.reason}`))
 
-      // A real tower goes there, paid for, which is the claim that matters.
+      // A real tower goes there, paid for, which is the claim that matters. No
+      // conditional around it: an obstacle parked so close to the edge that
+      // nothing fits where it stood is a map bug, so that is asserted rather
+      // than skipped.
       const towerDef = OP.TOWERS[attackers[0]]
-      const room = o.r >= towerDef.footprint && inFieldFor(towerDef, o.x, o.y)
-      if (room) {
-        t.ok(OP.Towers.place(sim, attackers[0], o.x, o.y),
-          `${key} "${o.name}": a paid-for ${towerDef.name} now stands where it was`)
-      }
+      t.ok(inFieldFor(towerDef, o.x, o.y),
+        `${key} "${o.name}" sits far enough inside the field for a tower to replace it`)
+      t.ok(OP.Towers.place(sim, attackers[0], o.x, o.y),
+        `${key} "${o.name}": a paid-for ${towerDef.name} now stands where it was`)
 
       // The other build of the same map is untouched — `cleared` is per-map state.
       t.notOk(Maps.isCleared(built[key], i),
@@ -687,8 +702,9 @@ export function run (t, OP) {
       // Give the sim something to checksum: towers, balloons and a few ticks.
       const def = OP.TOWERS[attackers[0]]
       const spot = spotNearTrack(sim, map, def, 0, map.paths[0].length * 0.5, def.base.range * 0.7)
-      if (spot) OP.Towers.place(sim, attackers[0], spot.x, spot.y)
-      for (let i = 0; i < 6; i++) OP.Balloons.spawn(sim, { tier: 'green', path: 0, t: i * 60 })
+      t.ok(spot && OP.Towers.place(sim, attackers[0], spot.x, spot.y),
+        `${key}: a tower and a live round are on the board, so the checksum has something to protect`)
+      for (let i = 0; i < 6; i++) OP.Balloons.spawn(sim, { tier: NEXT, path: 0, t: i * 60 })
       OP.Sim.run(sim, 90)
 
       const mapSnap = JSON.stringify({ cleared: map.cleared, palette: map.palette, water: map.water,

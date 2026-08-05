@@ -494,9 +494,10 @@
           "verify": [
             "node tools/harness.mjs --suite paragon-roster"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one — say which in the README."
+          "status": "done",
+          "commit": "190dfb1",
+          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one — say which in the README.",
+          "finished": "2026-08-05 15:22:28"
         }
       ]
     },
@@ -744,9 +745,10 @@
           "verify": [
             "node tools/harness.mjs --suite ui-game"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Touch and mouse. Upgrade panel must show crosspath locks honestly."
+          "status": "done",
+          "commit": "190dfb1",
+          "note": "Touch and mouse. Upgrade panel must show crosspath locks honestly.",
+          "finished": "2026-08-05 15:22:24"
         },
         {
           "id": "P8.4",

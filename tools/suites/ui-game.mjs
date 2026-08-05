@@ -254,6 +254,10 @@ export function run (t, OP, env) {
   const idle = sim()
   const idleApp = wireShell(makeApp(idle))
   t.ok(byId(HUD.build(idleApp), 'hud.start'), 'idle: the button is there')
+  const idleDense = drawDense(HUD, idleApp)
+  t.ok(idleDense.includes('NEXT ROUND RBE'), 'and the round to come is priced in RBE')
+  const nextRBE = OP.Rounds.roundRBE(idle.roundSet[idle.roundIndex + 1])
+  t.ok(idleDense.includes(OP.M.compact(nextRBE)), `showing ${OP.M.compact(nextRBE)} for the next round`)
   OP.Sim.startRound(idle, 3)
   t.notOk(byId(HUD.build(idleApp), 'hud.start'), 'mid-round: it is replaced by the progress readout')
   t.ok(drawDense(HUD, idleApp).includes('ROUND 3'), 'which names the round in flight')
@@ -997,6 +1001,17 @@ export function run (t, OP, env) {
   for (let i = 0; i < 60; i++) { HUD.draw(recorder(), iApp); Shop.draw(recorder(), iApp) }
   t.eq(OP.Sim.checksum(is2), idleSum, 'the checksum is unchanged')
   t.eq(JSON.stringify(OP.Sim.serialize(is2)), idleSnap, 'and the serialised sim is identical')
+
+  t.section('nor does drawing a shop full of mode-forbidden towers')
+  // This is the path that asks Towers.canPlace for its refusal wording, so it is
+  // the one most likely to reach into the sim by accident.
+  const bs = sim({ mode: 'primary-only', cash: 500 })
+  const bApp = wireShell(makeApp(bs))
+  const blockSum = OP.Sim.checksum(bs)
+  const blockSnap = JSON.stringify(OP.Sim.serialize(bs))
+  for (let i = 0; i < 40; i++) Shop.draw(recorder(), bApp)
+  t.eq(OP.Sim.checksum(bs), blockSum, 'the checksum is unchanged')
+  t.eq(JSON.stringify(OP.Sim.serialize(bs)), blockSnap, 'and the serialised sim is identical')
 
   t.section('drawing past the authored rounds does not consume randomness')
   const fs2 = sim()

@@ -56,3 +56,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 15:02:03` **done** P8.4 — Bestiary/almanac + end-of-game screens (`78cc1f0`)
 - `2026-08-05 15:03:02` **done** P2.2 — Alternate wave set + freeplay generator (rounds 101+) (`800e8d7`)
 - `2026-08-05 15:13:57` **done** P10.1 — PWA icons 192/512 (`846c693`)
+- `2026-08-05 15:22:24` **done** P8.3 — In-game HUD, shop, upgrade panel, targeting controls (`190dfb1`)
+- `2026-08-05 15:22:28` **done** P3.5 — Paragon system + paragon tier for a subset (`190dfb1`)
