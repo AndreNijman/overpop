@@ -81,11 +81,11 @@
       blurb: 'The old ring road runs right around the commons, and the whole middle is yours.',
       trackWidth: 36,
 
-      // The duck pond, dead centre. Deliberately the only water in the tier that
-      // sits inside a tower's reach of nothing at all: it is there so a water
-      // tower has somewhere to stand, and it costs the player no ground they
-      // wanted.
-      water: [{ cx: 640, cy: 350, r: 62 }],
+      // The duck pond. Set inside the ring rather than dead centre, and close
+      // enough to the southern pass that a water tower standing in it actually
+      // reaches the road — a pond nothing can shoot from is scenery, and the
+      // suite refuses one.
+      water: [{ cx: 620, cy: 515, r: 58 }],
 
       // Three quarters of a ring, entered from the top and leaving by the west
       // edge, so the road closes past its own entrance. Everything inside the
@@ -153,7 +153,9 @@
       blurb: 'The shortest run in the valley, and nothing here covers two legs at once.',
       trackWidth: 34,
 
-      water: [{ cx: 480, cy: 170, r: 52 }],
+      // Tucked into the elbow of the first descent, where one water tower covers
+      // both the entry leg and the top of the dive.
+      water: [{ cx: 270, cy: 155, r: 50 }],
 
       // The counterweight to Windrow Fields, and the reason both belong in the
       // same tier. A wide zig-zag: the legs splay far enough apart that no legal

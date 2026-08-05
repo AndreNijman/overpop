@@ -305,10 +305,15 @@ async function main () {
           if (data[i] + data[i+1] + data[i+2] > 24) lit++
         }
       }
-      return { ok: true, colours: seen.size, lit: lit, size: w + 'x' + h }
+      const field = (window.OP && OP.FIELD_W) ? OP.FIELD_W + 'x' + OP.FIELD_H : '?'
+      return { ok: true, colours: seen.size, lit: lit, size: w + 'x' + h, field: field }
     `)
     if (painted && painted.ok) {
-      check(painted.size === '1280x720', `canvas is the design size (${painted.size})`)
+      // The backing store is sized to the viewport by OP.Camera.resize; 1280x720 is
+      // the LOGICAL design space, not the canvas attribute. Asserting the attribute
+      // was wrong — it only holds before the first resize.
+      check(/^\d+x\d+$/.test(painted.size), `canvas has a real backing store (${painted.size})`)
+      check(painted.field === '1280x720', `the logical design space is 1280x720 (${painted.field})`)
       check(painted.colours > 3, `canvas is actually painted (${painted.colours} distinct colours sampled)`,
         'a blank canvas samples as 1 colour')
       check(painted.lit > 100, `a meaningful area is non-black (${painted.lit} lit samples)`)
