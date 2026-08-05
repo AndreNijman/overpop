@@ -5,8 +5,13 @@
 // upgrade really hits a VEILED balloon, that the slow really slows, that the
 // boomerang really turns around, that the burst really reloads.
 
+import { readFileSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { assertFamily, arena } from './_towerfamily.mjs'
 import { makeSim } from './_fixture.mjs'
+
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 export const name = 'towers-primary'
 export const needs = ['js/towers/primary.js']
@@ -22,10 +27,27 @@ export function run (t, OP, env) {
   // floor's own docs say `keys` is the escape hatch for exactly that.
   assertFamily(t, OP, 'primary', { expect: 7, keys: ROSTER })
 
-  t.section('primary: the file declared its own roster')
-  const declared = (OP.FAMILY_ROSTERS.primary || []).slice().sort()
-  t.deep(declared, ROSTER.slice().sort(),
-    'js/towers/primary.js set OP.FAMILY_ROSTERS.primary to all seven keys')
+  t.section('primary: the file declares its own roster')
+  // Read the source rather than OP.FAMILY_ROSTERS. Several suites (towerfloor,
+  // towers, paragon, heroes) evaluate js/towers/_TEMPLATE.js into the shared
+  // bundle context, and that file reassigns OP.FAMILY_ROSTERS.primary to
+  // ['template-critter']. The declaration in *this* file is what is under test,
+  // and its source is the only record of it another suite cannot overwrite.
+  const source = readFileSync(resolve(REPO, 'js/towers/primary.js'), 'utf8')
+  const decl = source.match(/OP\.FAMILY_ROSTERS\.primary\s*=\s*\[([^\]]*)\]/)
+  if (t.ok(decl, 'js/towers/primary.js assigns OP.FAMILY_ROSTERS.primary')) {
+    const listed = (decl[1].match(/'[^']+'/g) || []).map(x => x.slice(1, -1))
+    t.eq(new Set(listed).size, listed.length, 'with no duplicate keys')
+    t.deep(listed.slice().sort(), ROSTER.slice().sort(), 'listing exactly the seven primary keys')
+  }
+  // The runtime value, still checked — but tolerant of that one documented
+  // clobber and nothing else, so a genuinely wrong roster still fails here.
+  const live = OP.FAMILY_ROSTERS.primary || []
+  const clobbered = live.length === 1 && live[0] === 'template-critter'
+  const sameSet = live.length === ROSTER.length && ROSTER.every(k => live.indexOf(k) >= 0)
+  t.ok(clobbered || sameSet, clobbered
+    ? 'OP.FAMILY_ROSTERS.primary was overwritten by _TEMPLATE.js, which is expected under --all'
+    : `OP.FAMILY_ROSTERS.primary holds the seven primary keys at runtime (${live.join(', ')})`)
 
   const D = OP.DMG
   const M = OP.M
@@ -217,7 +239,7 @@ export function run (t, OP, env) {
       ownerId: -1, behaviour: 'primary-acorn-ricochet',
       data: { bounces: 2 }
     })
-    OP.Projectiles.step(s)
+    for (let i = 0; i < 20 && p.hits.size === 0 && p.alive; i++) OP.Projectiles.step(s)
     t.eq(p.hits.size, 1, 'the bouncing acorn hit exactly one balloon')
     t.eq(p.data.bounces, 1, 'and spent one of its two bounces')
     t.gte(p.pierce, 1, 'the bounce refunded the pierce, so the acorn is still travelling')
@@ -320,6 +342,12 @@ export function run (t, OP, env) {
     t.gt(run.sim.kindsSeen['primary-cone-shard'] || 0, 0,
       `and ${run.sim.kindsSeen['primary-cone-shard']} shards were actually emitted`)
     t.ok(OP.PROJ_KINDS['primary-cone-shard'], 'the shard art kind is declared, so it renders')
+    // The shards inherit the bomb's damage type, so the cluster branch must NOT
+    // be a stealth answer to Black. Only Ironwood Slug on branch 0 is.
+    const clusterBlack = trial('cannon-boar', [0, 3, 0], 'black', { count: 24, gap: 8 })
+    t.gt(clusterBlack.sim.kindsSeen['primary-cone-shard'] || 0, 0, 'the cones scatter over Black balloons too')
+    t.eq(clusterBlack.sim.stats.popped, 0,
+      'but they are still explosive, so Black is still immune — Ironwood Slug remains the only answer to it')
   }
 
   t.section('cannon-boar: the single-target branch is the blimp answer')
@@ -332,9 +360,13 @@ export function run (t, OP, env) {
     OP.Balloons.spawn(s, { tier: 'goliath', path: 0, t: 300 })
     OP.Grid.rebuild(s.grid, s.balloons)
     OP.Sim.run(s, 240)
-    t.gt(s.stats.damageDealt, 200, `and chews ${s.stats.damageDealt} hull off a GOLIATH in four seconds`)
-    const res = OP.Towers.activate(s, tower)
-    t.ok(res.ok, 'Timber Breaker activates')
+    t.gte(s.stats.damageDealt, 200, `and chews ${s.stats.damageDealt} hull off a GOLIATH in four seconds`)
+    t.gt(s.stats.popped, 0, 'which is its whole 200-point hull — the blimp came apart')
+    for (let i = 0; i < 4; i++) OP.Balloons.spawn(s, { tier: 'goliath', path: 0, t: 300 + i * 10 })
+    OP.Grid.rebuild(s.grid, s.balloons)
+    const before = s.stats.shotsFired
+    t.ok(OP.Towers.activate(s, tower).ok, 'Timber Breaker activates')
+    t.gt(s.stats.shotsFired - before, 0, 'and launches siege slugs at the blimps')
   }
 
   /* ==================================================================
@@ -414,11 +446,30 @@ export function run (t, OP, env) {
   {
     const st = statsAt('frost-hare', [3, 0, 0])
     t.gt(st.stunTime, 0, `a 3-0-0 Hare freezes for ${st.stunTime}s`)
-    const run = trial('frost-hare', [3, 0, 0], 'ceramic', { count: 10, gap: 16, ticks: 150 })
-    const frozen = run.sim.balloons.filter(b => b.alive && OP.Effects.has(b, 'stun'))
-    t.gt(frozen.length, 0, `${frozen.length} ceramics are frozen solid`)
-    t.ok(frozen.some(b => b.speedMul === 0), 'and at least one has stopped moving entirely')
+    // A freeze is brief by design, so watch the whole run rather than its end.
+    function watch (tiers) {
+      const s = board()
+      const tower = put(s, 'frost-hare')
+      build(s, tower, tiers)
+      for (let i = 0; i < 10; i++) OP.Balloons.spawn(s, { tier: 'ceramic', path: 0, t: 230 + i * 16 })
+      let stunned = 0, halted = 0
+      for (let i = 0; i < 150; i++) {
+        OP.Sim.step(s)
+        for (const b of s.balloons) {
+          if (!b.alive) continue
+          if (OP.Effects.has(b, 'stun')) stunned++
+          if (b.speedMul === 0) halted++
+        }
+      }
+      return { stunned, halted, tower }
+    }
+    const frozen = watch([3, 0, 0])
+    const unfrozen = watch([2, 0, 0])
+    t.gt(frozen.stunned, 0, `a 3-0-0 Hare froze ceramics on ${frozen.stunned} balloon-ticks`)
+    t.gt(frozen.halted, 0, 'and stopped them moving entirely while frozen')
     t.eq(statsAt('frost-hare', [2, 0, 0]).stunTime, 0, 'a 2-0-0 Hare cannot freeze at all')
+    t.eq(unfrozen.stunned, 0, 'and never stuns anything')
+    t.eq(unfrozen.halted, 0, 'so nothing it chills ever comes to a complete stop')
   }
 
   t.section('frost-hare: blimps resist the slow rather than ignoring it, and never freeze')
@@ -486,10 +537,11 @@ export function run (t, OP, env) {
     OP.Sim.step(s)
     t.eq(s.projectiles.length, 0, 'with the Snail sold and the board clear of shots')
     const before = s.stats.damageDealt
+    const shotsBefore = s.stats.shotsFired
     OP.Sim.run(s, 60)
     t.gt(s.stats.damageDealt - before, 0,
       `the corrosion still did ${s.stats.damageDealt - before} damage over the next second`)
-    t.eq(s.stats.shotsFired, s.stats.shotsFired, 'with nothing firing at all')
+    t.eq(s.stats.shotsFired, shotsBefore, 'with nothing at all firing during that second')
   }
 
   t.section('sap-snail: Sap Splash reaches balloons the shot never touched')
@@ -648,10 +700,13 @@ export function run (t, OP, env) {
     OP.Grid.rebuild(s.grid, s.balloons)
     OP.Sim.run(s, 300)
     t.gt(s.stats.damageDealt, st.damage, `and it put ${s.stats.damageDealt} into a GOLIATH's hull in 5 seconds`)
+    for (let i = 0; i < 4; i++) OP.Balloons.spawn(s, { tier: 'goliath', path: 0, t: 300 + i * 10 })
+    OP.Grid.rebuild(s.grid, s.balloons)
     const before = s.stats.shotsFired
     t.ok(OP.Towers.activate(s, tower).ok, 'Fan The Hammer activates')
     t.gt(s.stats.shotsFired - before, 0, 'and fires extra rounds')
     t.eq(tower.data.reload, 0, 'and refills the cylinder as it does')
+    t.eq(tower.data.left, tower.s.burst, 'leaving a full cylinder behind')
   }
 
   t.section('sixgun-stoat: sharp cannot touch Lead here either')

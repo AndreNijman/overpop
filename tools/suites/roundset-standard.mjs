@@ -28,6 +28,15 @@ export function run (t, OP) {
   const countOf = n => groupsOf(n).reduce((s, g) => s + g.count, 0)
   const rbeOf = n => R.roundRBE(SET[n])
 
+  /* A missing personality round must not abort the rest of the suite — the whole
+     point of a hundred-round audit is to see every failure in one run, not the
+     first one. */
+  function pick (list, label) {
+    if (list && list.length) return list[0]
+    t.fail(`no ${label} round exists to exercise`, 'the data-level assertion above has the detail')
+    return null
+  }
+
   /* Aggregate scans report the FIRST offending round in the message. One
      assertion per rule beats one hundred near-identical assertions: the failure
      message carries the round number, so it is no less diagnostic. */
@@ -132,8 +141,17 @@ export function run (t, OP) {
   /* ---------- the RBE curve ---------- */
 
   t.section('the curve starts small and ends enormous')
+  // An unknown tier key throws out of OP.balloonRBE. Catching it here keeps that
+  // one authoring slip from swallowing the other ninety-nine rounds' worth of
+  // findings; the tier-validity scan above already named it.
   const rbe = {}
-  for (const n of nums) rbe[n] = rbeOf(n)
+  let rbeThrew = null
+  for (const n of nums) {
+    try { rbe[n] = rbeOf(n) } catch (e) { rbe[n] = 0; if (rbeThrew === null) rbeThrew = n + ': ' + e.message }
+  }
+  t.ok(rbeThrew === null, rbeThrew === null
+    ? 'every round can be costed from the balloon tree'
+    : 'a round could not be costed — round ' + rbeThrew)
 
   t.lt(rbe[1], 25, `round 1 is a handful of reds (${rbe[1]} RBE)`)
   t.gte(rbe[1], 5, 'but it is not empty')
@@ -275,10 +293,12 @@ export function run (t, OP) {
   t.ok(walls.every(n => n > firstAt.ceramic), 'and it is not the round ceramics are introduced')
 
   t.section('a round that is one blimp, alone')
-  const solo = nums.filter(n => countOf(n) === 1 && OP.tierByKey(groupsOf(n)[0].tier).blimp)
+  const solo = nums.filter(n => countOf(n) === 1 && OP.BALLOON_INDEX[groupsOf(n)[0].tier] !== undefined &&
+    OP.tierByKey(groupsOf(n)[0].tier).blimp)
   t.gte(solo.length, 1, `exactly one balloon, and it is a blimp: round ${solo.join(',') || 'none'}`)
   t.ok(solo.includes(firstAt.goliath), 'the first GOLIATH is the one that arrives alone')
-  t.gte(R.roundDuration(SET[solo[0]]), 3, 'and it still takes long enough to see coming')
+  const soloRound = pick(solo, 'lone-blimp')
+  if (soloRound) t.gte(R.roundDuration(SET[soloRound]), 3, 'and it still takes long enough to see coming')
 
   t.section('a camo-heavy round')
   const camoShare = n => {
@@ -382,20 +402,28 @@ export function run (t, OP) {
   t.eq(runs[1].sim.stats.spawned, countOf(1), 'round 1 releases its handful of reds')
   t.ok(runs[1].sim.balloons.every(b => OP.BALLOON_TIERS[b.tier].key === 'red'), 'all of them red')
 
-  const soloRun = releaseRound(solo[0])
-  t.eq(soloRun.sim.stats.spawned, 1, 'the lone-blimp round releases exactly one balloon')
-  t.ok(OP.BALLOON_TIERS[soloRun.sim.balloons[0].tier].blimp, 'and it is a blimp')
-  t.gt(soloRun.ran, 60, 'after a delay of more than a second, so it is not sprung on the player')
+  if (soloRound) {
+    const soloRun = releaseRound(soloRound)
+    t.eq(soloRun.sim.stats.spawned, 1, 'the lone-blimp round releases exactly one balloon')
+    t.ok(OP.BALLOON_TIERS[soloRun.sim.balloons[0].tier].blimp, 'and it is a blimp')
+    t.gt(soloRun.ran, 60, 'after a delay of more than a second, so it is not sprung on the player')
+  }
 
-  const wallRun = releaseRound(walls[0])
-  const wallGroup = groupsOf(walls[0]).find(g => g.tier === 'ceramic' && g.spacing === 0)
-  let peak = 0
-  for (const b of wallRun.sim.balloons) if (OP.BALLOON_TIERS[b.tier].key === 'ceramic') peak++
-  t.gte(peak, wallGroup.count, 'the ceramic wall is on the board all at once, not trickled')
+  const wallRound = pick(walls, 'ceramic-wall')
+  if (wallRound) {
+    const wallRun = releaseRound(wallRound)
+    const wallGroup = groupsOf(wallRound).find(g => g.tier === 'ceramic' && g.spacing === 0)
+    let peak = 0
+    for (const b of wallRun.sim.balloons) if (OP.BALLOON_TIERS[b.tier].key === 'ceramic') peak++
+    t.gte(peak, wallGroup.count, 'the ceramic wall is on the board all at once, not trickled')
+  }
 
-  const camoRun = releaseRound(camo[0])
-  const veiledLive = camoRun.sim.balloons.filter(b => b.props & P.VEILED).length
-  t.gte(veiledLive / camoRun.sim.balloons.length, 0.7, 'the camo round really does arrive mostly veiled')
+  const camoRound = pick(camo, 'camo-heavy')
+  if (camoRound) {
+    const camoRun = releaseRound(camoRound)
+    const veiledLive = camoRun.sim.balloons.filter(b => b.props & P.VEILED).length
+    t.gte(veiledLive / camoRun.sim.balloons.length, 0.7, 'the camo round really does arrive mostly veiled')
+  }
 
   const lastRun = releaseRound(100)
   t.eq(lastRun.sim.stats.spawned, countOf(100), 'round 100 releases every one of its balloons')
@@ -421,14 +449,22 @@ export function run (t, OP) {
   t.ok(traceA.length > 0, 'and something was actually released')
 
   t.section('authored properties reach the balloons')
-  const veilRun = releaseRound(propFirst.VEILED)
-  t.ok(veilRun.sim.balloons.some(b => b.props & P.VEILED), 'the VEILED introduction spawns veiled balloons')
-  t.ok(veilRun.sim.balloons.some(b => !(b.props & P.VEILED)), 'alongside ordinary ones, so detection is a choice not a wall')
-  const regenRun = releaseRound(propFirst.REGEN)
-  t.ok(regenRun.sim.balloons.some(b => b.props & P.REGEN), 'the REGEN introduction spawns regrowing balloons')
-  const platedRun = releaseRound(propFirst.PLATED)
-  const plated = platedRun.sim.balloons.filter(b => b.props & P.PLATED)
-  t.gt(plated.length, 0, 'the PLATED introduction spawns plated balloons')
-  t.eq(plated[0].hp, OP.tierByKey(OP.BALLOON_TIERS[plated[0].tier].key).hp * 2,
-    'and a plated layer really does carry double HP')
+  if (propFirst.VEILED) {
+    const veilRun = releaseRound(propFirst.VEILED)
+    t.ok(veilRun.sim.balloons.some(b => b.props & P.VEILED), 'the VEILED introduction spawns veiled balloons')
+    t.ok(veilRun.sim.balloons.some(b => !(b.props & P.VEILED)), 'alongside ordinary ones, so detection is a choice not a wall')
+  }
+  if (propFirst.REGEN) {
+    const regenRun = releaseRound(propFirst.REGEN)
+    t.ok(regenRun.sim.balloons.some(b => b.props & P.REGEN), 'the REGEN introduction spawns regrowing balloons')
+  }
+  if (propFirst.PLATED) {
+    const platedRun = releaseRound(propFirst.PLATED)
+    const plated = platedRun.sim.balloons.filter(b => b.props & P.PLATED)
+    t.gt(plated.length, 0, 'the PLATED introduction spawns plated balloons')
+    if (plated.length) {
+      t.eq(plated[0].hp, OP.BALLOON_TIERS[plated[0].tier].hp * 2,
+        'and a plated layer really does carry double HP')
+    }
+  }
 }

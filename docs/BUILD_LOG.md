@@ -43,3 +43,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:55:23` **done** P2.3 — Difficulties + game modes matrix (`9a067d8`)
 - `2026-08-05 12:55:23` **done** P8.1 — Save system + settings + profile progression (`9a067d8`)
 - `2026-08-05 13:01:40` **done** P3.3 — Magic family (6 towers) (`3c93d13`)
+- `2026-08-05 13:03:00` **done** P2.1 — Standard round set 1-100 + RBE table (`10bf9ee`)
+- `2026-08-05 13:03:00` **done** P3.4 — Support family (5 towers) (`10bf9ee`)

@@ -865,8 +865,11 @@
           const target = pickBoostTarget(sim, tower, s, d.boost)
           if (target) {
             d.boost.push({ id: target.id, t: s.boostTime })
-            d.cd = s.boostPeriod
             changed = true
+            // Fill every slot before starting the recharge, or a shrew with two
+            // toolkits would never actually have two towers wound up at once —
+            // the first would lapse before the second was ever started.
+            d.cd = d.boost.length >= s.boostCount ? s.boostPeriod : 0
           } else {
             d.cd = 0.25       // nothing worth winding up; look again shortly
           }

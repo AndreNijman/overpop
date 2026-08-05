@@ -318,10 +318,10 @@
         name: 'Emberscript',
         tiers: [
           { name: 'Warm Ink', cost: 225,
-            desc: '+1 damage.',
+            desc: '+1 damage: bolts hit for 3 instead of 2.',
             apply: function (s) { s.damage += 1 } },
           { name: 'Kindling Glyph', cost: 475,
-            desc: 'Attacks 20% faster.',
+            desc: 'Attacks 20% faster, dropping the gap between bolts to 0.6s.',
             apply: function (s) { s.cooldown *= 0.80 } },
           { name: 'Emberscript', cost: 1200,
             desc: 'Damage becomes fire and sets balloons alight: 4 burn damage per second for 3 seconds. Purple ignores fire entirely.',
@@ -354,7 +354,7 @@
         name: 'Summoning',
         tiers: [
           { name: 'Chalk Circle', cost: 200,
-            desc: '+18 range.',
+            desc: '+18 range, out to 148 units.',
             apply: function (s) { s.range += 18 } },
           { name: 'Bound Sigil', cost: 425,
             desc: '+1 damage and +22 range.',
@@ -472,10 +472,10 @@
         name: 'Arcane Fury',
         tiers: [
           { name: 'Sharper Focus', cost: 1540,
-            desc: '+2 damage.',
+            desc: '+2 damage: 6 a bolt instead of 4.',
             apply: function (s) { s.damage += 2 } },
           { name: 'Quickened Word', cost: 3360,
-            desc: 'Attacks 25% faster.',
+            desc: 'Attacks 25% faster — a bolt every 0.22s.',
             apply: function (s) { s.cooldown *= 0.75 } },
           { name: 'Arclight', cost: 7840,
             desc: '+4 damage and +2 pierce.',
@@ -503,7 +503,7 @@
         name: 'Farsight',
         tiers: [
           { name: 'Wide Eyes', cost: 1680,
-            desc: '+30 range.',
+            desc: '+30 range, out to 180 units.',
             apply: function (s) { s.range += 30 } },
           { name: 'Night Vision', cost: 3640,
             desc: 'Sees Veiled balloons, and +20 range. Owls hunt at night.',
@@ -603,7 +603,7 @@
         name: 'Windthrow',
         tiers: [
           { name: 'Weighted Stars', cost: 248,
-            desc: '+1 damage.',
+            desc: '+1 damage on every star: 2 each instead of 1.',
             apply: function (s) { s.damage += 1 } },
           { name: 'Shoving Stars', cost: 550,
             desc: 'Stars shove balloons 15 units back down the track. Blimps are far too heavy to move.',
@@ -633,7 +633,7 @@
         name: 'Sabotage',
         tiers: [
           { name: 'Quiet Paws', cost: 275,
-            desc: 'Attacks 15% faster.',
+            desc: 'Attacks 15% faster, throwing a pair every 0.47s.',
             apply: function (s) { s.cooldown *= 0.85 } },
           { name: 'Smoke Pouch', cost: 578,
             desc: '+18 range and another 10% attack speed.',
@@ -895,7 +895,7 @@
         name: "Season's Growth",
         tiers: [
           { name: 'First Shoots', cost: 630,
-            desc: '+1 damage.',
+            desc: '+1 damage: thorns hit for 4 instead of 3.',
             apply: function (s) { s.damage += 1 } },
           { name: "Season's Growth", cost: 1470,
             desc: 'Gains +1 damage for every 6 seconds a round has been running, up to +4. Resets when the next round starts.',
@@ -922,7 +922,7 @@
         name: 'Wall Of Thorns',
         tiers: [
           { name: 'Bramble Skin', cost: 672,
-            desc: '+12 range.',
+            desc: '+12 range, out to 147 units.',
             apply: function (s) { s.range += 12 } },
           { name: 'Thorn Ring', cost: 1540,
             desc: 'A ring of thorns around the stag deals 2 damage to everything within 60 units, twice a second. No aiming, no projectile.',
@@ -953,7 +953,7 @@
         name: 'Storm Caller',
         tiers: [
           { name: 'Rain Scent', cost: 616,
-            desc: '+20 range.',
+            desc: '+20 range, out to 155 units.',
             apply: function (s) { s.range += 20 } },
           { name: 'Gathering Clouds', cost: 1400,
             desc: '+1 damage and 15% faster attacks.',
@@ -1056,7 +1056,7 @@
         name: 'Undertow',
         tiers: [
           { name: 'Cold Spray', cost: 495,
-            desc: '+1 damage.',
+            desc: '+1 damage: the jet hits for 3 instead of 2.',
             apply: function (s) { s.damage += 1 } },
           { name: 'Undertow', cost: 1155,
             desc: 'The jet shoves balloons 20 units back down the track. Blimps are too heavy to move.',
@@ -1130,7 +1130,7 @@
         name: 'Tidecaller',
         tiers: [
           { name: 'Deeper Well', cost: 484,
-            desc: '+22 range.',
+            desc: '+22 range, out to 147 units.',
             apply: function (s) { s.range += 22 } },
           { name: 'Wave Crest', cost: 1100,
             desc: '+1 damage and 15% faster attacks.',

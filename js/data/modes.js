@@ -122,11 +122,14 @@
       key: 'reverse',
       name: 'Reverse',
       blurb: 'Every track runs backwards. The same map, with entry and exit swapped and all your good placements in the wrong half.',
-      // A map-level flag. The consumer is OP.Maps.reversePaths(map), which returns a
-      // copy whose polylines run exit-to-entry; the shell calls it at game start
-      // when this flag is set, before the map is handed to Sim.create. The sim keeps
-      // using one scalar t per balloon and nothing downstream changes — which is why
-      // Reverse costs one flag instead of a second movement path.
+      // A map-level flag, not something the sim reads. The consumer is
+      // OP.Maps.reversePaths(map), which returns a copy whose polylines run
+      // exit-to-entry; the shell calls it at game start when this flag is set,
+      // BEFORE the map is handed to Sim.create (js/main.js, App.startGame). The sim
+      // keeps using one scalar t per balloon and nothing downstream changes — which
+      // is why Reverse costs one flag instead of a second movement path. The flag
+      // does also land on sim.rules, where it is inert; it is saved and restored
+      // with the rest of the ruleset so a resumed Reverse run can rebuild its map.
       rules: { reversePaths: true }
     },
 
@@ -211,15 +214,24 @@
    * config.roundSetKey, and OP.Sim.resolveRules only ever looks at mode.rules. A
    * shell that hands Sim.create a bare { difficulty, mode } therefore starts
    * Alternate Waves on the standard round table and nothing complains — the same
-   * class of silent nothing as a misspelt rule name. Every game start goes through
-   * here.
+   * class of silent nothing as a misspelt rule name.
+   *
+   * Every game start must therefore bridge mode -> roundSetKey. As of this step the
+   * shipped shell (js/main.js, App.startGame) hand-rolls that bridge instead of
+   * calling this function, so the same fact is written in two places; the modes
+   * suite pins both so neither can quietly drop it. Collapsing App.startGame onto
+   * this function belongs to whichever step next touches main.js.
+   *
+   * `extra` is copied, never mutated. The positional mode and difficulty always
+   * win over any of the same names in `extra`; roundSetKey is the one field `extra`
+   * may override, mirroring the explicit-overrides layer of resolveRules.
    *
    * Unknown keys fall back to the defaults rather than throwing, because the inputs
    * are menu selections and a stale save should load rather than blow up.
    *
    * @param {string} modeKey
    * @param {string} difficultyKey
-   * @param {object} [extra] merged first, so an explicit roundSetKey still wins
+   * @param {object} [extra] copied first, so an explicit roundSetKey still wins
    * @returns {object} config for OP.Sim.create
    */
   OP.modeConfig = function (modeKey, difficultyKey, extra) {
@@ -228,11 +240,37 @@
     const config = Object.assign({}, extra || {})
     config.difficulty = diff
     config.mode = mode
-    if (config.roundSetKey === undefined) {
+    // Falsy, not just undefined. A caller that hands over roundSetKey: null or ''
+    // — a half-populated save, a form field nobody filled in — must still get the
+    // mode's own table. Sim.create would take a null here and quietly fall back to
+    // 'standard', which is exactly the silent nothing this function exists to stop.
+    if (!config.roundSetKey) {
       config.roundSetKey = MODES[mode].roundSetKey || 'standard'
     }
     return config
   }
+
+  /* ---------- immutability ---------- */
+
+  /* The registry is handed out by reference. OP.Sim.resolveRules copies fields off
+     entry.rules onto a fresh ruleset, so any array or object VALUE lands on
+     sim.rules as the very instance this registry holds — sim.rules.families for
+     Primary Only IS MODES['primary-only'].rules.families. Nothing mutates it today,
+     but a single push() through sim.rules would retune every game started for the
+     rest of the session, and the corruption would outlive the run that caused it.
+     Freezing turns that into a throw at the mutation site. */
+  function deepFreeze (obj) {
+    Object.freeze(obj)
+    for (const k of Object.keys(obj)) {
+      const v = obj[k]
+      if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v)
+    }
+    return obj
+  }
+
+  deepFreeze(MODES)
+  Object.freeze(OP.MODE_ORDER)
+  deepFreeze(MODE_MIN_DIFFICULTY)
 
   OP.MODES = MODES
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

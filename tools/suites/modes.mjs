@@ -75,7 +75,19 @@ export function run (t, OP, env) {
     t.ok(typeof e.name === 'string' && e.name.length >= 4, `${e.key} has a display name`)
     t.ok(typeof e.blurb === 'string' && e.blurb.length >= 40, `${e.key} has a non-trivial blurb`)
     t.neq(e.blurb, e.name, `${e.key} blurb is not just the name again`)
-    t.ok(/[a-z]/.test(e.blurb) && /\s/.test(e.blurb), `${e.key} blurb reads as a sentence`)
+    // "reads as a sentence" spelled out, because a lone /[a-z]/ passes on "a".
+    // The menu renders these verbatim, so the shape is part of the contract.
+    const words = e.blurb.trim().split(/\s+/)
+    t.gte(words.length, 10, `${e.key} blurb is prose, not a label`, e.blurb)
+    t.ok(/^[A-Z]/.test(e.blurb), `${e.key} blurb opens with a capital`, e.blurb)
+    t.ok(/[.!?]$/.test(e.blurb), `${e.key} blurb is punctuated to the end`, e.blurb)
+    t.notOk(/\b(TODO|TBD|FIXME|lorem|placeholder|xxx)\b/i.test(e.blurb), `${e.key} blurb is finished copy`)
+    t.notOk(/\b(\w+) \1\b/i.test(e.blurb), `${e.key} blurb has no doubled word`, e.blurb)
+    // A blurb that just restates the key tells the player nothing they cannot read
+    // off the button. Require at least one word that is not in the display name.
+    const nameWords = new Set(e.name.toLowerCase().split(/\s+/))
+    t.gte(words.filter(w => !nameWords.has(w.toLowerCase().replace(/[^a-z]/g, ''))).length, 8,
+      `${e.key} blurb says something the name does not`, e.blurb)
   }
 
   t.section('no borrowed proper nouns anywhere in the matrix')
@@ -88,6 +100,27 @@ export function run (t, OP, env) {
     const found = (blob.match(BANNED_ANY) || blob.match(BANNED_CAPS) || [])[0]
     t.notOk(found, `${e.key} uses no borrowed proper nouns` + (found ? ` — found "${found}"` : ''))
   }
+
+  // §11 bans a borrowed name "including in comments", and both these files are
+  // mostly comment: the design notes explaining why each mode is a config delta run
+  // longer than the data. Reading the entries back through JSON.stringify cannot see
+  // any of that, so the two files are scanned whole, as text.
+  const DATA_FILES = ['js/data/difficulties.js', 'js/data/modes.js']
+  for (const rel of DATA_FILES) {
+    t.ok(env.present.indexOf(rel) >= 0, `${rel} ships in the bundle`)
+    const src = readFileSync(resolve(ROOT, rel), 'utf8')
+    const hit = (src.match(BANNED_ANY) || src.match(BANNED_CAPS) || [])[0]
+    t.notOk(hit, `${rel} names no commercial game anywhere, comments included` + (hit ? ` — found "${hit}"` : ''))
+    const commentChars = (src.match(/\/\*[\s\S]*?\*\//g) || []).concat(src.match(/\/\/[^\n]*/g) || [])
+      .reduce((n, s) => n + s.length, 0)
+    t.gt(commentChars, 800,
+      `${rel} carries the design prose the scan above is there to police`, `${commentChars} comment chars`)
+  }
+  // The scan has teeth: the same two regexes catch a planted name.
+  const PLANTED = 'js/data/modes.js // a Dart Monkey pops a Bloon'
+  t.ok(BANNED_ANY.test(PLANTED) , 'the file scanner would catch a borrowed noun dropped into a comment')
+  t.ok(BANNED_CAPS.test('spawns a MOAB at round 40'), 'and the case-sensitive one catches the acronyms')
+  t.notOk(BANNED_CAPS.test('a bad build leaks'), 'while ordinary lowercase English is left alone')
 
   t.section('entries carry no stray top-level fields')
   // ARCHITECTURE §8 sketches the flat shape { lives, cash, rounds } but
@@ -111,12 +144,17 @@ export function run (t, OP, env) {
 
   // Rule fields the engine honours that defaultRules() does not pre-declare.
   // Keeping this list here rather than in the data means an author cannot legalise
-  // their own typo by adding it. Exactly two, and each one is justified below.
+  // their own typo by adding it. Every entry has to earn its place twice below:
+  // it must be genuinely absent from defaultRules(), and a named file in the
+  // shipped bundle has to be shown reading it. Nothing is admitted on a promise.
   const EXTRA = ['heroXpMul', 'reversePaths']
-  // Of those, the ones no engine site reads from sim.rules YET, with what will.
-  // (OP.Maps.reversePaths(map) is the consumer; the shell calls it at game start
-  // when the flag is set, before the map reaches Sim.create.)
-  const PENDING = { reversePaths: 'read by the shell at game start -> OP.Maps.reversePaths(map)' }
+  // The file that consumes each one, asserted by name. A substring scan over the
+  // whole bundle is satisfied by a comment, so for each field the reader is pinned
+  // to the exact file and the exact expression that acts on it.
+  const CONSUMER = {
+    heroXpMul: { file: 'js/core/heroes.js', needles: ['rules.heroXpMul', 'Heroes.xpRate'] },
+    reversePaths: { file: 'js/main.js', needles: ['rules.reversePaths', 'Maps.reversePaths('] }
+  }
 
   /** Rule keys on `obj` that the engine would silently ignore. */
   function unknownKeys (obj) {
@@ -133,17 +171,36 @@ export function run (t, OP, env) {
   }
 
   t.gt(KNOWN.size, 10, 'Economy.defaultRules() declares a real vocabulary')
-  t.eq(EXTRA.length, 2, 'exactly two rule fields live outside defaultRules()')
+
+  // EXTRA is derived from the data, not asserted against itself. Every rule key
+  // any difficulty or mode actually names, minus the engine's own vocabulary, must
+  // be exactly EXTRA — which fails in both directions: a data file that invents a
+  // twelfth field, and an EXTRA entry no data file uses (so the gate quietly
+  // stopped covering something).
+  const namedRuleKeys = new Set()
+  for (const k of DIFF_KEYS) for (const f of Object.keys(D[k].rules)) namedRuleKeys.add(f)
+  for (const k of MODE_KEYS) for (const f of Object.keys(M[k].rules)) namedRuleKeys.add(f)
+  const outsideVocabulary = [...namedRuleKeys].filter(f => !KNOWN.has(f)).sort()
+  t.deep(outsideVocabulary, EXTRA.slice().sort(),
+    'the rule fields the data names outside defaultRules() are exactly the documented extras')
+  t.gt(namedRuleKeys.size, EXTRA.length,
+    'and the data names real engine fields too, so the check above is not comparing two empty sets')
+
   for (const k of EXTRA) {
     t.notOk(KNOWN.has(k), `${k} is genuinely absent from defaultRules() — otherwise drop it from EXTRA`)
-    const site = readsRuleField(k)
-    t.ok(site || PENDING[k], `${k} is either read by the shipped bundle (${site}) or documented as pending (${PENDING[k] || 'no'})`)
+    const spec = CONSUMER[k]
+    t.ok(spec, `${k} names the file that consumes it`)
+    const src = spec ? readFileSync(resolve(ROOT, spec.file), 'utf8') : ''
+    for (const needle of (spec ? spec.needles : [])) {
+      t.ok(src.indexOf(needle) >= 0, `${spec.file} contains "${needle}", so ${k} has a live consumer`)
+    }
+    t.ok(env.present.indexOf(spec ? spec.file : '') >= 0,
+      `and ${spec ? spec.file : '?'} actually ships in the bundle`)
   }
-  t.ok(readsRuleField('heroXpMul'), 'heroXpMul is read somewhere in the shipped bundle')
-  t.ok(readFileSync(resolve(ROOT, 'js/core/heroes.js'), 'utf8').indexOf('rules.heroXpMul') >= 0,
-    'and the reader is OP.Heroes.xpRate')
+  t.eq(readsRuleField('heroXpMul'), 'js/core/heroes.js', 'heroXpMul is read by the heroes module')
   t.notOk(readsRuleField('heroXpMull'), 'the scanner does not report a field nothing reads')
-  t.deep(Object.keys(PENDING), ['reversePaths'], 'only reversePaths is forward-declared')
+  t.notOk(readsRuleField('spacingMul'), 'and it does not report the density field Onslaught deliberately omits')
+  t.deep(Object.keys(CONSUMER).sort(), EXTRA.slice().sort(), 'every extra has a named consumer, and no consumer is orphaned')
 
   // Prove the gate rejects what it is supposed to reject. A checker that passes
   // everything is worse than no checker, because it reads as coverage.
@@ -534,6 +591,65 @@ export function run (t, OP, env) {
   t.eq(simFor('medium', 'standard').roundSetKey, 'standard', 'while Standard plays the standard table')
   t.eq(JSON.parse(JSON.stringify(S.serialize(altSim))).roundSetKey, 'alternate',
     'and the key is what the save records, so a resumed run keeps the same waves')
+
+  t.section('the key resolves to a REGISTERED table, not the silent standard fallback')
+  // The assertions above only prove a string survived a copy: Sim.create writes
+  // config.roundSetKey onto the sim verbatim, and then resolves the table with
+  //   OP.ROUND_SETS[key] || OP.ROUNDS_STANDARD
+  // so an unregistered key gives a sim that SAYS "alternate" and PLAYS standard.
+  // That is precisely the silent-nothing this suite exists to catch, and reading
+  // the key back cannot see it. The table itself has to be compared.
+  const altKey = M['alternate-waves'].roundSetKey
+  const stdTable = OP.ROUND_SETS[ 'standard' ]
+  t.ok(OP.ROUND_SETS && OP.ROUND_SETS[altKey], `the declared key "${altKey}" is registered in OP.ROUND_SETS`)
+  t.ok(stdTable, 'and so is "standard", the fallback it must not be confused with')
+  t.eq(altSim.roundSet, OP.ROUND_SETS[altKey], 'the sim holds exactly the registered alternate table')
+  t.neq(altSim.roundSet, stdTable, 'which is not the standard table — no silent fallback')
+  t.neq(altSim.roundSet, OP.ROUNDS_STANDARD, 'nor the last-resort ROUNDS_STANDARD reference')
+  t.eq(simFor('medium', 'standard').roundSet, stdTable, 'while Standard really is on the standard table')
+
+  // Identity is necessary but not sufficient: two distinct objects could still hold
+  // identical data, which would make Alternate Waves a mode that changes nothing.
+  const altTable = OP.ROUND_SETS[altKey]
+  let differing = 0, missingAlt = [], missingStd = []
+  for (let r = 1; r <= 100; r++) {
+    if (!altTable[r]) missingAlt.push(r)
+    if (!stdTable[r]) missingStd.push(r)
+    if (altTable[r] && stdTable[r] &&
+        JSON.stringify(altTable[r]) !== JSON.stringify(stdTable[r])) differing++
+  }
+  t.eq(missingStd.length, 0, 'the standard table covers rounds 1-100', missingStd.join(','))
+  t.eq(missingAlt.length, 0, 'and so does the alternate table', missingAlt.join(','))
+  t.gt(differing, 50, 'most rounds genuinely differ, so Alternate Waves is not a relabelled reprint',
+    `${differing}/100 differ`)
+  t.neq(JSON.stringify(altTable[1]), JSON.stringify(stdTable[1]), 'including round 1, the first thing a player sees')
+
+  // Every difficulty x Alternate Waves must have data for every round it will play.
+  // Relentless runs to 100 and Deflation opens on 31, so the mode is only safe if
+  // the alternate table spans the union of every difficulty's range.
+  const uncovered = []
+  for (const dk of DIFF_KEYS) {
+    for (const mk of MODE_KEYS) {
+      const r = S.resolveRules({ difficulty: dk, mode: mk })
+      const table = mk === 'alternate-waves' ? altTable : stdTable
+      for (let n = r.firstRound; n <= r.lastRound; n++) {
+        if (!table[n]) { uncovered.push(`${dk} x ${mk} round ${n}`); break }
+      }
+    }
+  }
+  t.eq(uncovered.length, 0, 'every difficulty x mode has round data for every round it will play',
+    uncovered.slice(0, 6).join('; '))
+
+  // And the round runner actually spawns from the alternate table, not just holds it.
+  const altRun = simFor('medium', 'alternate-waves')
+  OP.Rounds.begin(altRun, 1)
+  for (let i = 0; i < 240 && !altRun.round.done; i++) OP.Rounds.tick(altRun)
+  t.gt(altRun.stats.spawned, 0, 'beginning round 1 on Alternate Waves releases balloons')
+  const stdRun = simFor('medium', 'standard')
+  OP.Rounds.begin(stdRun, 1)
+  for (let i = 0; i < 240 && !stdRun.round.done; i++) OP.Rounds.tick(stdRun)
+  t.neq(altRun.stats.spawned, stdRun.stats.spawned,
+    'and releases a different number of them than round 1 of the standard table')
 
   // Pins the trap: Sim.create does NOT read mode.roundSetKey. Every game start has
   // to route through modeConfig or Alternate Waves silently plays standard waves.

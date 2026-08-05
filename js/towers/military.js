@@ -466,7 +466,7 @@
             apply: function (s) { s.cooldown *= 0.80 } },
           { name: 'Quick Hands', cost: 900, desc: 'Another 18% faster attack.',
             apply: function (s) { s.cooldown *= 0.82 } },
-          { name: 'Semi-Automatic', cost: 2150, desc: '35% faster attack and +1 damage.',
+          { name: 'Semi-Automatic', cost: 2150, desc: '35% faster attack and +1 damage — a little over two rounds a second.',
             apply: function (s) { s.cooldown *= 0.65; s.damage += 1 } },
           { name: 'Full Automatic', cost: 9000, desc: '45% faster attack and +3 damage. Roughly four rounds a second.',
             apply: function (s) { s.cooldown *= 0.55; s.damage += 3 } },
@@ -486,13 +486,13 @@
           { name: 'Field Glasses', cost: 380, desc: '+1 pierce and 30% faster rounds.',
             apply: function (s) { s.pierce += 1; s.projSpeed *= 1.30 } },
           { name: 'Split Focus', cost: 855, desc: 'Engages 2 separate balloons per shot instead of putting both rounds into one.',
-            apply: function (s) { s.multiTarget = true; s.shots = 2 } },
+            apply: function (s) { s.multiTarget = true; s.shots = Math.max(s.shots, 2); s.spread = Math.max(s.spread, 0.08) } },
           { name: 'Thermal Sight', cost: 2025, desc: 'Sees Veiled balloons, and engages 3 separate balloons per shot.',
-            apply: function (s) { s.camoDetect = true; s.multiTarget = true; s.shots = 3 } },
+            apply: function (s) { s.camoDetect = true; s.multiTarget = true; s.shots = Math.max(s.shots, 3) } },
           { name: "Spotter's Net", cost: 8550, desc: '4 balloons per shot, +6 damage, +2 pierce. Every other Longshot Lynx on the map — at any distance — sees Veiled balloons and deals 15% more damage.',
-            apply: function (s) { s.shots = 4; s.damage += 6; s.pierce += 2; s.netTier = 1 } },
+            apply: function (s) { s.shots = Math.max(s.shots, 4); s.damage += 6; s.pierce += 2; s.netTier = 1 } },
           { name: 'Command Nest', cost: 66600, desc: '5 balloons per shot and +20 damage. Every other Longshot Lynx gains Veiled detection, 30% more damage and attacks 20% faster.',
-            apply: function (s) { s.shots = 5; s.damage += 20; s.netTier = 2 } }
+            apply: function (s) { s.shots = Math.max(s.shots, 5); s.damage += 20; s.netTier = 2 } }
         ]
       }
     ],
@@ -596,7 +596,7 @@
             apply: function (s) { s.damage += 1 } },
           { name: 'Twin Spears', cost: 650, desc: 'Throws 2 spears per shot in a narrow arc.',
             apply: function (s) { s.shots = 2; s.spread = 0.16 } },
-          { name: 'Hardened Shafts', cost: 1550, desc: '+2 damage and +2 pierce per spear.',
+          { name: 'Hardened Shafts', cost: 1550, desc: '+2 damage and +2 pierce per spear, so one throw clears a whole clump.',
             apply: function (s) { s.damage += 2; s.pierce += 2 } },
           { name: 'Deep Volley', cost: 6500, desc: '4 spears per shot and +4 damage.',
             apply: function (s) { s.shots = 4; s.spread = Math.max(s.spread, 0.34); s.damage += 4 } },
@@ -1172,25 +1172,23 @@
         tiers: [
           { name: 'Searchlight', cost: 440, desc: '+30 range.',
             apply: function (s) { s.range += 30 } },
-          { name: 'Night Vision', cost: 1000, desc: 'Sees Veiled balloons.',
+          { name: 'Night Vision', cost: 1000, desc: 'Sees Veiled balloons, and will chase them — including the WRAITH blimp, which is Veiled from the moment it arrives.',
             apply: function (s) { s.camoDetect = true } },
           { name: 'Missile Rack', cost: 2375, desc: 'Adds a homing missile every 2s: 22 damage in a 30-unit explosive blast.',
             apply: function (s) { s.rocketPeriod = 2.0; s.rocketCount = 1; s.rocketDamage = 22; s.rocketBlast = 30 } },
-          { name: 'Anti-Blimp Missiles', cost: 9975, desc: '2 missiles every 1.5s for 70 damage, and +120 damage against blimps.',
+          { name: 'Cluster Missiles', cost: 9975, desc: '2 missiles every 1.5s for 70 explosive damage each, in a 38-unit blast. It has no anti-blimp bonus — bring the Otter or the Magpie for those.',
             apply: function (s) {
               s.rocketPeriod = 1.5
               s.rocketCount = 2
               s.rocketDamage += 48
               s.rocketBlast += 8
-              s.blimpBonus += 120
             } },
-          { name: 'Escort Flight', cost: 77700, desc: '4 missiles every 1.1s for 260 damage, +600 against blimps, +30 damage on the guns.',
+          { name: 'Escort Flight', cost: 77700, desc: '4 missiles every 1.1s for 260 explosive damage each, a 52-unit blast, and +30 damage on the guns.',
             apply: function (s) {
               s.rocketPeriod = 1.1
               s.rocketCount = 4
               s.rocketDamage += 190
               s.rocketBlast += 14
-              s.blimpBonus += 600
               s.damage += 30
             } }
         ]
@@ -1324,7 +1322,7 @@
             apply: function (s) { s.damage += 3 } },
           { name: 'Wide Frag', cost: 825, desc: '54-unit blast and +4 pierce, so one shell covers more of the track.',
             apply: function (s) { s.blastRadius += 12; s.pierce += 4 } },
-          { name: 'Shaped Charge', cost: 1950, desc: '+10 damage and a 64-unit blast.',
+          { name: 'Shaped Charge', cost: 1950, desc: '+10 damage and a 64-unit blast, which covers most of a track corner.',
             apply: function (s) { s.damage += 10; s.blastRadius += 10 } },
           { name: 'Bunker Buster', cost: 8250, desc: '+34 damage, +8 pierce. Ability: Saturation Fire — eight shells scattered across the aim point at once. 35s cooldown.',
             apply: function (s) {

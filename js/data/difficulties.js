@@ -108,5 +108,25 @@
     return OP.DIFFICULTY_ORDER.indexOf(key)
   }
 
+  /* ---------- immutability ---------- */
+
+  /* Same reasoning as js/data/modes.js: OP.Sim.resolveRules copies field VALUES off
+     entry.rules onto a fresh ruleset, so any array or object a difficulty names
+     would land on sim.rules as this registry's own instance. Every field here is a
+     number today, so there is nothing aliasable yet — freezing is what keeps that
+     true when someone adds the first array. A mutation through sim.rules would
+     otherwise retune every game started later in the session. */
+  function deepFreeze (obj) {
+    Object.freeze(obj)
+    for (const k of Object.keys(obj)) {
+      const v = obj[k]
+      if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v)
+    }
+    return obj
+  }
+
+  deepFreeze(DIFFICULTIES)
+  Object.freeze(OP.DIFFICULTY_ORDER)
+
   OP.DIFFICULTIES = DIFFICULTIES
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))
