@@ -18,27 +18,53 @@
           "id": "P0.1",
           "title": "Build state machine + resume tooling",
           "deps": [],
-          "produces": ["BUILD_STATE.json", "tools/state.mjs", "RESUME.md"],
-          "verify": ["node tools/state.mjs selftest"],
-          "status": "in_progress",
-          "commit": null,
-          "note": ""
+          "produces": [
+            "BUILD_STATE.json",
+            "tools/state.mjs",
+            "RESUME.md"
+          ],
+          "verify": [
+            "node tools/state.mjs selftest"
+          ],
+          "status": "done",
+          "commit": "8a20bb8",
+          "note": "",
+          "finished": "2026-08-05 04:59:06"
         },
         {
           "id": "P0.2",
           "title": "ARCHITECTURE.md — frozen engine contract",
-          "deps": ["P0.1"],
-          "produces": ["ARCHITECTURE.md"],
-          "verify": ["node tools/state.mjs grep ARCHITECTURE.md 'Tower module contract'"],
-          "status": "todo",
+          "deps": [
+            "P0.1"
+          ],
+          "produces": [
+            "ARCHITECTURE.md"
+          ],
+          "verify": [
+            "node tools/state.mjs grep ARCHITECTURE.md 'Tower module contract'"
+          ],
+          "status": "in_progress",
           "commit": null,
-          "note": "Must define: track model, balloon layer model, damage/immunity matrix, tower module shape, projectile contract, fixed-step order. Frozen before any fan-out."
+          "note": "Must define: track model, balloon layer model, damage/immunity matrix, tower module shape, projectile contract, fixed-step order. Frozen before any fan-out.",
+          "started": "2026-08-05 05:01:02"
         },
         {
           "id": "P0.3",
           "title": "Static site furniture (index.html, style.css, CNAME, SEO, PWA)",
-          "deps": ["P0.2"],
-          "produces": ["index.html", "style.css", "CNAME", "robots.txt", "sitemap.xml", "manifest.webmanifest", "sw.js", "f16cf9b1e74a180a712e99589444e835.txt", ".gitignore"],
+          "deps": [
+            "P0.2"
+          ],
+          "produces": [
+            "index.html",
+            "style.css",
+            "CNAME",
+            "robots.txt",
+            "sitemap.xml",
+            "manifest.webmanifest",
+            "sw.js",
+            "f16cf9b1e74a180a712e99589444e835.txt",
+            ".gitignore"
+          ],
           "verify": [
             "node tools/state.mjs grep index.html 'overpop.andrenijman.com'",
             "node tools/state.mjs grep CNAME 'overpop.andrenijman.com'",
@@ -51,9 +77,15 @@
         {
           "id": "P0.4",
           "title": "README.md with explicit scope + non-affiliation disclaimer",
-          "deps": ["P0.2"],
-          "produces": ["README.md"],
-          "verify": ["node tools/state.mjs grep README.md 'Ninja Kiwi'"],
+          "deps": [
+            "P0.2"
+          ],
+          "produces": [
+            "README.md"
+          ],
+          "verify": [
+            "node tools/state.mjs grep README.md 'Ninja Kiwi'"
+          ],
           "status": "todo",
           "commit": null,
           "note": "State what is in scope and what is honestly cut. Mirror the EA/PopCap disclaimer style from the pvz repo."
@@ -68,9 +100,16 @@
         {
           "id": "P1.1",
           "title": "Seeded RNG + math/geometry helpers",
-          "deps": ["P0.2"],
-          "produces": ["js/core/rng.js", "js/core/math.js"],
-          "verify": ["node tools/harness.mjs --suite rng"],
+          "deps": [
+            "P0.2"
+          ],
+          "produces": [
+            "js/core/rng.js",
+            "js/core/math.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite rng"
+          ],
           "status": "todo",
           "commit": null,
           "note": "sfc32 or mulberry32. Determinism is the foundation of the whole verification story."
@@ -78,9 +117,15 @@
         {
           "id": "P1.2",
           "title": "Track model — polyline with scalar distance t",
-          "deps": ["P1.1"],
-          "produces": ["js/core/track.js"],
-          "verify": ["node tools/harness.mjs --suite track"],
+          "deps": [
+            "P1.1"
+          ],
+          "produces": [
+            "js/core/track.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite track"
+          ],
           "status": "todo",
           "commit": null,
           "note": "t = distance travelled along path. First/Last targeting = max/min t. Leak = t >= length. Children spawn at parent t. Supports multiple concurrent paths + entry/exit pairs."
@@ -88,9 +133,16 @@
         {
           "id": "P1.3",
           "title": "Balloon layer model + child cascade",
-          "deps": ["P1.2"],
-          "produces": ["js/core/balloons.js", "js/data/balloons.js"],
-          "verify": ["node tools/harness.mjs --suite balloons"],
+          "deps": [
+            "P1.2"
+          ],
+          "produces": [
+            "js/core/balloons.js",
+            "js/data/balloons.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite balloons"
+          ],
           "status": "todo",
           "commit": null,
           "note": "A balloon is a layer index, not an entity. Blimp class carries HP. Properties: veiled (camo), regen, plated (fortified). Ladder: red..ceramic, then GOLIATH/LEVIATHAN/COLOSSUS/WRAITH/OMEN."
@@ -98,9 +150,16 @@
         {
           "id": "P1.4",
           "title": "Damage-type x immunity matrix (data-driven)",
-          "deps": ["P1.3"],
-          "produces": ["js/core/damage.js", "js/data/damage-types.js"],
-          "verify": ["node tools/harness.mjs --suite damage"],
+          "deps": [
+            "P1.3"
+          ],
+          "produces": [
+            "js/core/damage.js",
+            "js/data/damage-types.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite damage"
+          ],
           "status": "todo",
           "commit": null,
           "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains — a table."
@@ -108,9 +167,15 @@
         {
           "id": "P1.5",
           "title": "Projectiles — per-projectile hit sets, pierce, pooling",
-          "deps": ["P1.4"],
-          "produces": ["js/core/projectiles.js"],
-          "verify": ["node tools/harness.mjs --suite projectiles"],
+          "deps": [
+            "P1.4"
+          ],
+          "produces": [
+            "js/core/projectiles.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite projectiles"
+          ],
           "status": "todo",
           "commit": null,
           "note": "A projectile must never hit the same balloon twice; pierce counts DISTINCT balloons. Swept collision, not per-frame AABB."
@@ -118,9 +183,16 @@
         {
           "id": "P1.6",
           "title": "Spatial grid + targeting priorities",
-          "deps": ["P1.5"],
-          "produces": ["js/core/grid.js", "js/core/targeting.js"],
-          "verify": ["node tools/harness.mjs --suite targeting"],
+          "deps": [
+            "P1.5"
+          ],
+          "produces": [
+            "js/core/grid.js",
+            "js/core/targeting.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite targeting"
+          ],
           "status": "todo",
           "commit": null,
           "note": "First/Last/Close/Strong + tower-specific extras. Camo detection gating. Line-of-sight for blocked maps."
@@ -128,9 +200,16 @@
         {
           "id": "P1.7",
           "title": "Fixed-timestep sim loop + entity orchestration",
-          "deps": ["P1.6"],
-          "produces": ["js/core/sim.js"],
-          "verify": ["node tools/harness.mjs --suite sim", "node tools/harness.mjs --suite determinism"],
+          "deps": [
+            "P1.6"
+          ],
+          "produces": [
+            "js/core/sim.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite sim",
+            "node tools/harness.mjs --suite determinism"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Accumulator, fixed dt. Documented update order. Determinism checksum must match across two runs of the same seed."
@@ -138,9 +217,18 @@
         {
           "id": "P1.8",
           "title": "Economy, lives, round runner, status effects",
-          "deps": ["P1.7"],
-          "produces": ["js/core/economy.js", "js/core/rounds.js", "js/core/effects.js"],
-          "verify": ["node tools/harness.mjs --suite economy", "node tools/harness.mjs --suite rounds"],
+          "deps": [
+            "P1.7"
+          ],
+          "produces": [
+            "js/core/economy.js",
+            "js/core/rounds.js",
+            "js/core/effects.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite economy",
+            "node tools/harness.mjs --suite rounds"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Cash per pop scaled by difficulty, leak damage by RBE, freeze/glue/stun stacking rules."
@@ -148,9 +236,18 @@
         {
           "id": "P1.9",
           "title": "Tower module contract + _TEMPLATE.js + upgrade-tree engine",
-          "deps": ["P1.8"],
-          "produces": ["js/core/towers.js", "js/core/upgrades.js", "js/towers/_TEMPLATE.js"],
-          "verify": ["node tools/harness.mjs --suite towers", "node tools/harness.mjs --suite crosspath"],
+          "deps": [
+            "P1.8"
+          ],
+          "produces": [
+            "js/core/towers.js",
+            "js/core/upgrades.js",
+            "js/towers/_TEMPLATE.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite towers",
+            "node tools/harness.mjs --suite crosspath"
+          ],
           "status": "todo",
           "commit": null,
           "note": "3 paths x 5 tiers, crosspath rules (one path to 3+ locks others at 2; only one path past 2). Abilities with cooldowns. THIS IS THE FROZEN CONTRACT for the P3 fan-out."
@@ -158,9 +255,16 @@
         {
           "id": "P1.10",
           "title": "Headless verification harness",
-          "deps": ["P1.9"],
-          "produces": ["tools/harness.mjs", "tools/loadgame.mjs"],
-          "verify": ["node tools/harness.mjs --list"],
+          "deps": [
+            "P1.9"
+          ],
+          "produces": [
+            "tools/harness.mjs",
+            "tools/loadgame.mjs"
+          ],
+          "verify": [
+            "node tools/harness.mjs --list"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Loads the classic-script browser bundle into a Node sandbox so the same code is tested. Suites + seeded round playthroughs + determinism checksums."
@@ -175,9 +279,15 @@
         {
           "id": "P2.1",
           "title": "Standard round set 1-100 + RBE table",
-          "deps": ["P1.10"],
-          "produces": ["js/data/rounds-standard.js"],
-          "verify": ["node tools/harness.mjs --suite roundset-standard"],
+          "deps": [
+            "P1.10"
+          ],
+          "produces": [
+            "js/data/rounds-standard.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite roundset-standard"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Monotonic RBE growth, correct first-appearance rounds per balloon type, blimp introductions."
@@ -185,9 +295,17 @@
         {
           "id": "P2.2",
           "title": "Alternate wave set + freeplay generator (rounds 101+)",
-          "deps": ["P2.1"],
-          "produces": ["js/data/rounds-alternate.js", "js/core/freeplay.js"],
-          "verify": ["node tools/harness.mjs --suite roundset-alternate", "node tools/harness.mjs --suite freeplay"],
+          "deps": [
+            "P2.1"
+          ],
+          "produces": [
+            "js/data/rounds-alternate.js",
+            "js/core/freeplay.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite roundset-alternate",
+            "node tools/harness.mjs --suite freeplay"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Freeplay must scale HP/speed without ever generating an unwinnable-by-construction wave."
@@ -195,9 +313,16 @@
         {
           "id": "P2.3",
           "title": "Difficulties + game modes matrix",
-          "deps": ["P2.2"],
-          "produces": ["js/data/difficulties.js", "js/data/modes.js"],
-          "verify": ["node tools/harness.mjs --suite modes"],
+          "deps": [
+            "P2.2"
+          ],
+          "produces": [
+            "js/data/difficulties.js",
+            "js/data/modes.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite modes"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Easy/Medium/Hard/Relentless. Modes: Standard, Primary Only, Military Only, Magic Only, Deflation, Onslaught, Half Cash, Double HP Blimps, Alternate Waves, Reverse, PURIST."
@@ -212,9 +337,15 @@
         {
           "id": "P3.1",
           "title": "Primary family (7 towers)",
-          "deps": ["P2.3"],
-          "produces": ["js/towers/primary/"],
-          "verify": ["node tools/harness.mjs --suite towers-primary"],
+          "deps": [
+            "P2.3"
+          ],
+          "produces": [
+            "js/towers/primary/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite towers-primary"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat."
@@ -222,9 +353,15 @@
         {
           "id": "P3.2",
           "title": "Military family (7 towers)",
-          "deps": ["P2.3"],
-          "produces": ["js/towers/military/"],
-          "verify": ["node tools/harness.mjs --suite towers-military"],
+          "deps": [
+            "P2.3"
+          ],
+          "produces": [
+            "js/towers/military/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite towers-military"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon."
@@ -232,9 +369,15 @@
         {
           "id": "P3.3",
           "title": "Magic family (6 towers)",
-          "deps": ["P2.3"],
-          "produces": ["js/towers/magic/"],
-          "verify": ["node tools/harness.mjs --suite towers-magic"],
+          "deps": [
+            "P2.3"
+          ],
+          "produces": [
+            "js/towers/magic/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite towers-magic"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt."
@@ -242,9 +385,15 @@
         {
           "id": "P3.4",
           "title": "Support family (5 towers)",
-          "deps": ["P2.3"],
-          "produces": ["js/towers/support/"],
-          "verify": ["node tools/harness.mjs --suite towers-support"],
+          "deps": [
+            "P2.3"
+          ],
+          "produces": [
+            "js/towers/support/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite towers-support"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Berry Warren, Caltrop Beetle, Warren Hall, Tinker Shrew, Falconer Ferret. Buff aggregation must be idempotent and order-independent."
@@ -252,9 +401,19 @@
         {
           "id": "P3.5",
           "title": "Paragon system + paragon tier for a subset",
-          "deps": ["P3.1", "P3.2", "P3.3", "P3.4"],
-          "produces": ["js/core/paragon.js", "js/towers/paragons/"],
-          "verify": ["node tools/harness.mjs --suite paragon"],
+          "deps": [
+            "P3.1",
+            "P3.2",
+            "P3.3",
+            "P3.4"
+          ],
+          "produces": [
+            "js/core/paragon.js",
+            "js/towers/paragons/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite paragon"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one — say which in the README."
@@ -269,9 +428,15 @@
         {
           "id": "P4.1",
           "title": "Hero framework (XP curve, 20 levels, one-per-game rule)",
-          "deps": ["P3.5"],
-          "produces": ["js/core/heroes.js"],
-          "verify": ["node tools/harness.mjs --suite heroes"],
+          "deps": [
+            "P3.5"
+          ],
+          "produces": [
+            "js/core/heroes.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite heroes"
+          ],
           "status": "todo",
           "commit": null,
           "note": "XP from pops + round-passive. Level thresholds scale with difficulty."
@@ -279,9 +444,15 @@
         {
           "id": "P4.2",
           "title": "Hero roster (8 heroes)",
-          "deps": ["P4.1"],
-          "produces": ["js/towers/heroes/"],
-          "verify": ["node tools/harness.mjs --suite hero-roster"],
+          "deps": [
+            "P4.1"
+          ],
+          "produces": [
+            "js/towers/heroes/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite hero-roster"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Each with a distinct mechanical identity, not just stat curves."
@@ -296,9 +467,15 @@
         {
           "id": "P5.1",
           "title": "Map format + loader + placement masks",
-          "deps": ["P1.10"],
-          "produces": ["js/core/maps.js"],
-          "verify": ["node tools/harness.mjs --suite maps"],
+          "deps": [
+            "P1.10"
+          ],
+          "produces": [
+            "js/core/maps.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite maps"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Land/water/blocked masks, line-of-sight obstacles, multi-path, removable obstacles."
@@ -306,9 +483,16 @@
         {
           "id": "P5.2",
           "title": "16 maps (beginner -> expert)",
-          "deps": ["P5.1", "P2.3"],
-          "produces": ["js/data/maps/"],
-          "verify": ["node tools/harness.mjs --suite map-roster"],
+          "deps": [
+            "P5.1",
+            "P2.3"
+          ],
+          "produces": [
+            "js/data/maps/"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite map-roster"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Every map must be provably completable: harness plays a reference build on it."
@@ -323,9 +507,16 @@
         {
           "id": "P6.1",
           "title": "Render core (camera, layers, culling, canvas pooling)",
-          "deps": ["P1.10"],
-          "produces": ["js/render/renderer.js", "js/render/camera.js"],
-          "verify": ["node tools/harness.mjs --suite render-contract"],
+          "deps": [
+            "P1.10"
+          ],
+          "produces": [
+            "js/render/renderer.js",
+            "js/render/camera.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite render-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Render must never mutate sim state. Offscreen-canvas caching for static map layers."
@@ -333,9 +524,16 @@
         {
           "id": "P6.2",
           "title": "Balloon + blimp sprites, pop FX, damage FX",
-          "deps": ["P6.1"],
-          "produces": ["js/render/sprites-balloons.js", "js/render/fx.js"],
-          "verify": ["node tools/harness.mjs --suite render-contract"],
+          "deps": [
+            "P6.1"
+          ],
+          "produces": [
+            "js/render/sprites-balloons.js",
+            "js/render/fx.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite render-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Must read at 20px. Veiled/regen/plated need distinct silhouettes, not just tints."
@@ -343,9 +541,15 @@
         {
           "id": "P6.3",
           "title": "Critter tower sprites (25 towers x visible tier states)",
-          "deps": ["P6.1"],
-          "produces": ["js/render/sprites-towers.js"],
-          "verify": ["node tools/harness.mjs --suite render-contract"],
+          "deps": [
+            "P6.1"
+          ],
+          "produces": [
+            "js/render/sprites-towers.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite render-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Silhouette must change as upgrades land, so the board is readable at a glance."
@@ -353,9 +557,16 @@
         {
           "id": "P6.4",
           "title": "Map terrain painter",
-          "deps": ["P6.1", "P5.1"],
-          "produces": ["js/render/sprites-terrain.js"],
-          "verify": ["node tools/harness.mjs --suite render-contract"],
+          "deps": [
+            "P6.1",
+            "P5.1"
+          ],
+          "produces": [
+            "js/render/sprites-terrain.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite render-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": ""
@@ -370,9 +581,15 @@
         {
           "id": "P7.1",
           "title": "Synth engine + SFX bank + music beds",
-          "deps": ["P1.10"],
-          "produces": ["js/audio.js"],
-          "verify": ["node tools/harness.mjs --suite audio-contract"],
+          "deps": [
+            "P1.10"
+          ],
+          "produces": [
+            "js/audio.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite audio-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Voice limiting is mandatory — round 90 fires hundreds of pops per second."
@@ -387,9 +604,15 @@
         {
           "id": "P8.1",
           "title": "Save system + settings + profile progression",
-          "deps": ["P1.10"],
-          "produces": ["js/save.js"],
-          "verify": ["node tools/harness.mjs --suite save"],
+          "deps": [
+            "P1.10"
+          ],
+          "produces": [
+            "js/save.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite save"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Versioned schema with migrations. Mid-round save/resume must round-trip a live sim exactly."
@@ -397,9 +620,16 @@
         {
           "id": "P8.2",
           "title": "Title, map select, difficulty/mode select",
-          "deps": ["P8.1", "P5.2"],
-          "produces": ["js/ui/menus.js"],
-          "verify": ["node tools/harness.mjs --suite ui-contract"],
+          "deps": [
+            "P8.1",
+            "P5.2"
+          ],
+          "produces": [
+            "js/ui/menus.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite ui-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": ""
@@ -407,9 +637,18 @@
         {
           "id": "P8.3",
           "title": "In-game HUD, shop, upgrade panel, targeting controls",
-          "deps": ["P8.1", "P3.5"],
-          "produces": ["js/ui/hud.js", "js/ui/shop.js", "js/ui/tower-panel.js"],
-          "verify": ["node tools/harness.mjs --suite ui-contract"],
+          "deps": [
+            "P8.1",
+            "P3.5"
+          ],
+          "produces": [
+            "js/ui/hud.js",
+            "js/ui/shop.js",
+            "js/ui/tower-panel.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite ui-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Touch and mouse. Upgrade panel must show crosspath locks honestly."
@@ -417,9 +656,17 @@
         {
           "id": "P8.4",
           "title": "Bestiary/almanac + end-of-game screens",
-          "deps": ["P8.2", "P8.3"],
-          "produces": ["js/ui/bestiary.js", "js/ui/results.js"],
-          "verify": ["node tools/harness.mjs --suite ui-contract"],
+          "deps": [
+            "P8.2",
+            "P8.3"
+          ],
+          "produces": [
+            "js/ui/bestiary.js",
+            "js/ui/results.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite ui-contract"
+          ],
           "status": "todo",
           "commit": null,
           "note": ""
@@ -427,9 +674,19 @@
         {
           "id": "P8.5",
           "title": "Boot wiring — main.js + ordered script list",
-          "deps": ["P8.4", "P6.4", "P7.1", "P4.2"],
-          "produces": ["js/main.js"],
-          "verify": ["node tools/harness.mjs --suite boot", "node tools/harness.mjs --suite scriptorder"],
+          "deps": [
+            "P8.4",
+            "P6.4",
+            "P7.1",
+            "P4.2"
+          ],
+          "produces": [
+            "js/main.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite boot",
+            "node tools/harness.mjs --suite scriptorder"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Script order in index.html must match dependency order — classic scripts, no module resolution to save us."
@@ -444,9 +701,15 @@
         {
           "id": "P9.1",
           "title": "Full-suite green + determinism checksums",
-          "deps": ["P8.5"],
-          "produces": ["docs/VERIFICATION.md"],
-          "verify": ["node tools/harness.mjs --all"],
+          "deps": [
+            "P8.5"
+          ],
+          "produces": [
+            "docs/VERIFICATION.md"
+          ],
+          "verify": [
+            "node tools/harness.mjs --all"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Same seed twice -> identical checksum."
@@ -454,9 +717,16 @@
         {
           "id": "P9.2",
           "title": "Scripted playthroughs: rounds 1-100 x difficulties x key modes",
-          "deps": ["P9.1"],
-          "produces": ["tools/playthroughs/", "docs/BALANCE.md"],
-          "verify": ["node tools/harness.mjs --playthroughs"],
+          "deps": [
+            "P9.1"
+          ],
+          "produces": [
+            "tools/playthroughs/",
+            "docs/BALANCE.md"
+          ],
+          "verify": [
+            "node tools/harness.mjs --playthroughs"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Reference builds must survive; a deliberately bad build must leak. Both directions matter."
@@ -464,9 +734,15 @@
         {
           "id": "P9.3",
           "title": "Browser smoke test (headless chromium, console-error free)",
-          "deps": ["P9.2"],
-          "produces": ["tools/smoke.mjs"],
-          "verify": ["node tools/smoke.mjs"],
+          "deps": [
+            "P9.2"
+          ],
+          "produces": [
+            "tools/smoke.mjs"
+          ],
+          "verify": [
+            "node tools/smoke.mjs"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Boots index.html from file://, plays rounds via injected input, asserts zero console errors + frame budget."
@@ -474,9 +750,15 @@
         {
           "id": "P9.4",
           "title": "Adversarial review pass on spine + content",
-          "deps": ["P9.3"],
-          "produces": ["docs/REVIEW.md"],
-          "verify": ["node tools/state.mjs grep docs/REVIEW.md 'CONFIRMED'"],
+          "deps": [
+            "P9.3"
+          ],
+          "produces": [
+            "docs/REVIEW.md"
+          ],
+          "verify": [
+            "node tools/state.mjs grep docs/REVIEW.md 'CONFIRMED'"
+          ],
           "status": "todo",
           "commit": null,
           "note": ""
@@ -491,9 +773,16 @@
         {
           "id": "P10.1",
           "title": "PWA icons 192/512",
-          "deps": ["P9.3"],
-          "produces": ["icons/icon-192.png", "icons/icon-512.png"],
-          "verify": ["node tools/state.mjs exists icons/icon-192.png icons/icon-512.png"],
+          "deps": [
+            "P9.3"
+          ],
+          "produces": [
+            "icons/icon-192.png",
+            "icons/icon-512.png"
+          ],
+          "verify": [
+            "node tools/state.mjs exists icons/icon-192.png icons/icon-512.png"
+          ],
           "status": "todo",
           "commit": null,
           "note": ""
@@ -501,9 +790,16 @@
         {
           "id": "P10.2",
           "title": "og-image.png (1200x630) + hub screenshot (1000x525)",
-          "deps": ["P9.3"],
-          "produces": ["og-image.png", "docs/overpop-hub-shot.png"],
-          "verify": ["node tools/state.mjs exists og-image.png docs/overpop-hub-shot.png"],
+          "deps": [
+            "P9.3"
+          ],
+          "produces": [
+            "og-image.png",
+            "docs/overpop-hub-shot.png"
+          ],
+          "verify": [
+            "node tools/state.mjs exists og-image.png docs/overpop-hub-shot.png"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Hub shot must be exactly 1000x525 to match topout.png/defenders.png aspect-ratio."
@@ -518,9 +814,15 @@
         {
           "id": "P11.1",
           "title": "Create private repo + push build branch + merge to main",
-          "deps": ["P10.1", "P10.2", "P9.4"],
+          "deps": [
+            "P10.1",
+            "P10.2",
+            "P9.4"
+          ],
           "produces": [],
-          "verify": ["gh repo view AndreNijman/overpop --json name -q .name"],
+          "verify": [
+            "gh repo view AndreNijman/overpop --json name -q .name"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Private, matching pvz/topout/games-site."
@@ -528,9 +830,13 @@
         {
           "id": "P11.2",
           "title": "Enable Pages (main root) + custom domain",
-          "deps": ["P11.1"],
+          "deps": [
+            "P11.1"
+          ],
           "produces": [],
-          "verify": ["gh api repos/AndreNijman/overpop/pages -q .cname"],
+          "verify": [
+            "gh api repos/AndreNijman/overpop/pages -q .cname"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Publish from main root, legacy build — CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
@@ -538,9 +844,13 @@
         {
           "id": "P11.3",
           "title": "Cloudflare DNS record (grey cloud)",
-          "deps": ["P11.2"],
+          "deps": [
+            "P11.2"
+          ],
           "produces": [],
-          "verify": ["node tools/state.mjs dns overpop.andrenijman.com"],
+          "verify": [
+            "node tools/state.mjs dns overpop.andrenijman.com"
+          ],
           "status": "todo",
           "commit": null,
           "note": "CNAME overpop -> andrenijman.github.io, proxy OFF (required for GitHub to issue the Let's Encrypt cert). Token at ~/special.txt. If GitHub's domain check fails mid-edit, remove and re-add the custom domain to force a recheck."
@@ -548,9 +858,13 @@
         {
           "id": "P11.4",
           "title": "Enforce HTTPS + verify live",
-          "deps": ["P11.3"],
+          "deps": [
+            "P11.3"
+          ],
           "produces": [],
-          "verify": ["node tools/state.mjs live https://overpop.andrenijman.com/"],
+          "verify": [
+            "node tools/state.mjs live https://overpop.andrenijman.com/"
+          ],
           "status": "todo",
           "commit": null,
           "note": ""
@@ -558,9 +872,13 @@
         {
           "id": "P11.5",
           "title": "games-site hub: card + meta + JSON-LD + sitemap",
-          "deps": ["P11.4"],
+          "deps": [
+            "P11.4"
+          ],
           "produces": [],
-          "verify": ["node tools/state.mjs hubcard"],
+          "verify": [
+            "node tools/state.mjs hubcard"
+          ],
           "status": "todo",
           "commit": null,
           "note": "Not just a card: meta description, og:description, twitter:description all currently name only TOPOUT and Garden Defenders 2. JSON-LD needs itemListElement position 3. sitemap lastmod bump. overpop.png at 1000x525."
@@ -568,7 +886,9 @@
         {
           "id": "P11.6",
           "title": "Memory notes + journal",
-          "deps": ["P11.5"],
+          "deps": [
+            "P11.5"
+          ],
           "produces": [],
           "verify": [],
           "status": "todo",
@@ -578,7 +898,9 @@
         {
           "id": "P11.7",
           "title": "DEFERRED — portfolio games section card",
-          "deps": ["P11.6"],
+          "deps": [
+            "P11.6"
+          ],
           "produces": [],
           "verify": [],
           "status": "blocked",
