@@ -274,9 +274,13 @@
     const C = colours()
     const rules = sim.rules || {}
 
-    /* ----- the top strip: what the run is worth right now ----- */
+    /* ----- the top strip: what the run is worth right now -----
+       Maps are authored to the field edges, so every panel in the interface sits
+       over live board. The big fills are therefore smoked rather than opaque:
+       text drawn on top stays at full alpha and reads normally, while a balloon
+       passing behind is still perceptible instead of vanishing. */
 
-    marks.push(U.box(L.top.x, L.top.y, L.top.w, L.top.h, { fill: C.panel }))
+    marks.push(U.box(L.top.x, L.top.y, L.top.w, L.top.h, { fill: C.panel, alpha: 0.93 }))
     marks.push(U.rule(L.top.x, L.top.y + L.top.h - 1, L.top.w, { colour: C.line }))
 
     const cheapest = cheapestPrice(sim)
@@ -330,7 +334,7 @@
 
     /* ----- the bottom strip: everything you press between rounds ----- */
 
-    marks.push(U.box(L.bottom.x, L.bottom.y, L.bottom.w, L.bottom.h, { fill: C.panel }))
+    marks.push(U.box(L.bottom.x, L.bottom.y, L.bottom.w, L.bottom.h, { fill: C.panel, alpha: 0.93 }))
     marks.push(U.rule(L.bottom.x, L.bottom.y, L.bottom.w, { colour: C.line }))
 
     const by = L.bottom.y + 5
@@ -400,7 +404,7 @@
     const U = ui(); const C = colours()
     const r = L.hero
 
-    marks.push(U.box(r.x, r.y, r.w, r.h, { fill: C.panel, stroke: C.line }))
+    marks.push(U.box(r.x, r.y, r.w, r.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
     marks.push(U.text(r.x + 12, r.y + 22, U.clipText(displayName(hero), 13, r.w - 90),
       { size: 13, colour: C.ink, weight: '600' }))
 

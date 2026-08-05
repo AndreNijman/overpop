@@ -222,7 +222,9 @@
     const x0 = S.x + padX
     const innerW = S.w - padX * 2
 
-    marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line }))
+    // Smoked, not opaque: maps run to the field edge, so the sidebar always sits
+    // over live board and a balloon crossing behind it must not simply vanish.
+    marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
     marks.push(U.tracked(x0, S.y + 22, 'BUILD', { size: 11, colour: C.moss, track: 0.3 }))
     marks.push(U.text(S.x + S.w - padX, S.y + 22, M.money(sim.cash), { size: 12, colour: C.ink, align: 'right', weight: '600' }))
     marks.push(U.rule(x0, S.y + 30, innerW, { colour: C.line }))

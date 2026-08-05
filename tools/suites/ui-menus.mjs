@@ -141,12 +141,22 @@ export function run (t, OP, env) {
       Menus.go(app, mapScreen)
       const ctx = recorder()
       Menus.draw(ctx, app)
-      // Headings are letter-spaced (one fillText per character), so compare against
-      // the concatenation rather than a separator-joined blob.
-      const blob = ctx.texts.join('').toUpperCase()
-      let named = 0
-      for (const m of maps) if (blob.indexOf(m.name.toUpperCase().replace(/\s+/g, '')) >= 0) named++
-      t.gt(named, 0, `the map screen names real maps (${named} of ${maps.length} visible)`)
+      t.gt(ctx.texts.length, 3, 'the map screen draws text')
+
+      // Asserted against the WIDGET MODEL rather than the pixels. The model is
+      // what hit-testing resolves against and what a click actually selects, so it
+      // is the real content of the screen; a pixel-text assertion additionally
+      // depends on layout maths that a stubbed measureText() distorts.
+      const model = Menus.build(app)
+      const labels = (model.widgets || []).map(w => String(w.label || ''))
+      const missing = maps.filter(m => labels.indexOf(m.name) < 0).map(m => m.key)
+      t.eq(missing.length, 0, missing.length
+        ? `these maps are not selectable on the map screen: ${missing.join(', ')}`
+        : `all ${maps.length} maps are selectable`)
+
+      // And every one must carry an id the tap handler can route.
+      const mapWidgets = (model.widgets || []).filter(w => /^map\./.test(String(w.id || '')))
+      t.eq(mapWidgets.length, maps.length, 'each map has its own addressable widget')
     } else {
       t.ok(true, 'no map screen registered under a recognisable name — skipped')
     }

@@ -168,7 +168,8 @@
     const s = tower.s || {}
     const isHero = !!tower.heroKey
 
-    marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line }))
+    // Smoked, not opaque — see the note in js/ui/shop.js.
+    marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
 
     /* ----- header ----- */
     marks.push(U.tracked(x0, S.y + 26, U.clipText(displayName(tower), 14, innerW - 46).toUpperCase(),
