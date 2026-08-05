@@ -417,9 +417,10 @@
           "verify": [
             "node tools/harness.mjs --suite towers-primary"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat. MUST declare OP.FAMILY_ROSTERS.primary and its suite MUST call assertFamily(t, OP, \"primary\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
+          "status": "done",
+          "commit": "b593b00",
+          "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat. MUST declare OP.FAMILY_ROSTERS.primary and its suite MUST call assertFamily(t, OP, \"primary\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "finished": "2026-08-05 13:11:42"
         },
         {
           "id": "P3.2",
@@ -434,9 +435,10 @@
           "verify": [
             "node tools/harness.mjs --suite towers-military"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon. MUST declare OP.FAMILY_ROSTERS.military and its suite MUST call assertFamily(t, OP, \"military\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
+          "status": "done",
+          "commit": "b593b00",
+          "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon. MUST declare OP.FAMILY_ROSTERS.military and its suite MUST call assertFamily(t, OP, \"military\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "finished": "2026-08-05 13:11:43"
         },
         {
           "id": "P3.3",
@@ -489,7 +491,7 @@
             "js/towers/paragons.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite paragon"
+            "node tools/harness.mjs --suite paragon-roster"
           ],
           "status": "todo",
           "commit": null,
@@ -514,9 +516,10 @@
           "verify": [
             "node tools/harness.mjs --suite heroes"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "XP from pops + round-passive. Level thresholds scale with difficulty."
+          "status": "done",
+          "commit": "b593b00",
+          "note": "XP from pops + round-passive. Level thresholds scale with difficulty.",
+          "finished": "2026-08-05 13:11:58"
         },
         {
           "id": "P4.2",
@@ -572,7 +575,8 @@
             "js/data/maps-expert.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite map-roster"
+            "node tools/harness.mjs --suite map-roster-early",
+            "node tools/harness.mjs --suite map-roster-late"
           ],
           "status": "todo",
           "commit": null,
@@ -615,7 +619,7 @@
             "js/render/fx.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite sprites"
+            "node tools/harness.mjs --suite sprites-balloons"
           ],
           "status": "todo",
           "commit": null,
@@ -631,7 +635,7 @@
             "js/render/sprites-towers.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite sprites"
+            "node tools/harness.mjs --suite sprites-towers"
           ],
           "status": "todo",
           "commit": null,
@@ -648,7 +652,7 @@
             "js/render/sprites-terrain.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite sprites"
+            "node tools/harness.mjs --suite sprites-terrain"
           ],
           "status": "todo",
           "commit": null,
@@ -713,7 +717,7 @@
             "js/ui/menus.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite ui"
+            "node tools/harness.mjs --suite ui-menus"
           ],
           "status": "todo",
           "commit": null,
@@ -732,7 +736,7 @@
             "js/ui/tower-panel.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite ui"
+            "node tools/harness.mjs --suite ui-game"
           ],
           "status": "todo",
           "commit": null,
@@ -750,7 +754,7 @@
             "js/ui/results.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite ui"
+            "node tools/harness.mjs --suite ui-menus"
           ],
           "status": "todo",
           "commit": null,

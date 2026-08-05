@@ -847,15 +847,17 @@ export function run (t, OP, env) {
   // The sim never reads sim.rules.reversePaths; the shell applies it to the map
   // before Sim.create. Reproduced here, because a mode whose only assertion is
   // "the flag is true" is a mode that could be a no-op forever.
-  function shellMap (modeKey) {
-    const base = { key: 'test', paths: [straightTrack(OP, 1200)] }
+  function shellMap (modeKey, base) {
     const def = M[modeKey]
     return (def && def.rules && def.rules.reversePaths) ? OP.Maps.reversePaths(base) : base
   }
-  const plainMap = shellMap('standard')
-  const revMap = shellMap('reverse')
-  t.eq(plainMap.paths[0], plainMap.paths[0], 'Standard hands the map through untouched')
-  t.notOk(plainMap.reversed, 'and does not mark it reversed')
+  const builtMap = { key: 'test', paths: [straightTrack(OP, 1200)] }
+  const plainMap = shellMap('standard', builtMap)
+  const revMap = shellMap('reverse', builtMap)
+  t.eq(plainMap, builtMap, 'Standard hands the built map straight through, same object')
+  t.neq(revMap, builtMap, 'while Reverse hands over a copy, never mutating the built map')
+  t.notOk(builtMap.reversed, 'and the original is not marked reversed afterwards')
+  t.notOk(plainMap.reversed, 'nor is the Standard map')
   t.ok(revMap.reversed, 'Reverse marks the map reversed')
   t.neq(revMap.paths[0], plainMap.paths[0], 'and hands over a different Track object')
   const fwd = plainMap.paths[0], back = revMap.paths[0]

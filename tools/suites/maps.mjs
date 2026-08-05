@@ -84,6 +84,8 @@ export function run (t, OP) {
   t.eq(Maps.get(straightKey), sDef, 'get() returns it')
   t.ok(Maps.exists(straightKey), 'exists() agrees')
   t.ok(Maps.all().some(d => d.key === straightKey), 'all() lists it')
+  t.deep(Maps.all().map(d => d.key), OP.MAP_ORDER.slice(),
+    'all() is MAP_ORDER, in order and with no holes — the map picker renders this list')
   t.deep(sDef.water, [], 'an unauthored water list normalises to an empty array')
   t.deep(sDef.blocked, [], 'so does blocked')
   t.deep(sDef.blockers, [], 'so do LOS blockers')
@@ -93,6 +95,43 @@ export function run (t, OP) {
   t.eq(sDef.palette.water, Maps.DEFAULT_PALETTE.water, 'and unauthored palette keys fall back to the default')
   t.eq(Object.keys(Maps.DEFAULT_PALETTE).every(k => typeof sDef.palette[k] === 'string'), true,
     'every palette key the painter reads is present')
+  t.neq(sDef.palette, Maps.DEFAULT_PALETTE,
+    'the merge produced a fresh object, so one map cannot repaint the shared default')
+  t.eq(Maps.DEFAULT_PALETTE.grass !== '#123456', true, 'and the default really was not overwritten')
+
+  t.section('the exported constants the authoring spec quotes')
+  t.deep(Maps.TIERS, ['beginner', 'intermediate', 'advanced', 'expert'], 'TIERS is the documented ladder')
+  t.eq(Maps.MAX_PATHS, 3, 'MAX_PATHS matches the cap define() enforces')
+  t.eq(Maps.MAX_SMOOTH, 24, 'and MAX_SMOOTH the smoothing cap')
+  t.eq(Maps.TIERS.every(tier => Maps.byTier(tier) && true), true, 'every declared tier is queryable')
+
+  t.section('an extra palette key is passed through untouched, so P6 can add one')
+  const extraPal = Maps.define(straightDef({ key: 'suite-palextra', palette: { shoreline: '#8899aa' } }))
+  t.eq(extraPal.palette.shoreline, '#8899aa', 'the unknown key survived')
+  t.eq(extraPal.palette.grass, Maps.DEFAULT_PALETTE.grass, 'without displacing the known ones')
+  t.eq(Maps.build('suite-palextra').palette.shoreline, '#8899aa', 'and it reaches the built map')
+
+  t.section('OP.defineMap is the alias map files are authored against')
+  t.eq(typeof OP.defineMap, 'function', 'the alias exists')
+  const viaAlias = OP.defineMap(straightDef({ key: 'suite-alias' }))
+  t.eq(Maps.get('suite-alias'), viaAlias, 'and registers exactly like Maps.define')
+  t.ok(Maps.all().some(d => d.key === 'suite-alias'), 'landing in the roster too')
+  rejects(t, () => OP.defineMap(straightDef({ key: 'suite-alias' })), 'suite-alias',
+    'the alias enforces the same duplicate check')
+
+  t.section('the registry answers for OWN keys only, never Object.prototype')
+  // OP.MAPS is a plain object, so a bare `OP.MAPS[key]` lookup reports every
+  // inherited name as a registered map — exists('constructor') read true and
+  // get('toString') handed back a Function.
+  for (const inherited of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+    t.notOk(Maps.exists(inherited), 'exists("' + inherited + '") is false')
+  }
+  rejects(t, () => Maps.get('toString'), 'toString', 'get("toString")')
+  t.notOk(Maps.all().some(d => !d || typeof d.key !== 'string'), 'all() has no phantom entries')
+  t.noThrow(() => Maps.define(straightDef({ key: 'constructor', name: 'Constructor' })),
+    'and a map may legitimately be keyed "constructor" — it was not "already registered"')
+  t.eq(Maps.get('constructor').name, 'Constructor', 'which then reads back as itself, not as Object')
+  t.notOk(Maps.exists('toStringTag'), 'a near-miss inherited name is still unknown')
 
   t.section('define deep-copies, so a later edit to the literal cannot rewrite a shipped map')
   const mutable = straightDef({ key: 'suite-copy' })

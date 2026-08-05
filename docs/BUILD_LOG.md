@@ -45,3 +45,6 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 13:01:40` **done** P3.3 — Magic family (6 towers) (`3c93d13`)
 - `2026-08-05 13:03:00` **done** P2.1 — Standard round set 1-100 + RBE table (`10bf9ee`)
 - `2026-08-05 13:03:00` **done** P3.4 — Support family (5 towers) (`10bf9ee`)
+- `2026-08-05 13:11:42` **done** P3.1 — Primary family (7 towers) (`b593b00`)
+- `2026-08-05 13:11:44` **done** P3.2 — Military family (7 towers) (`b593b00`)
+- `2026-08-05 13:11:58` **done** P4.1 — Hero framework (XP curve, 20 levels, one-per-game rule) (`b593b00`)

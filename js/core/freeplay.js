@@ -77,13 +77,14 @@
   }
 
   /* Entity ceilings. OP.MAX_BALLOONS is 4000 and a released blimp becomes
-     thousands of children on the way down, so counts stop growing long before
-     the spawner starts refusing balloons. Every cap together is 2200 balloons of
-     initial release. The first blimp cap binds around round 395; below that,
-     blimp density climbs every single round. */
+     hundreds of children on the way down, so counts stop growing long before the
+     spawner starts refusing balloons: every cap together is 1730 balloons of
+     initial release, leaving more than half the pool for the cascade. The first
+     blimp cap binds around round 345; below that, blimp density climbs every
+     single round. */
   const CAP = {
-    ceramic: 400, rainbow: 200, goliath: 600, wraith: 400,
-    leviathan: 300, colossus: 200, omen: 100
+    ceramic: 300, rainbow: 150, goliath: 500, wraith: 300,
+    leviathan: 250, colossus: 150, omen: 80
   }
 
   function capped (key, n) { return Math.min(CAP[key], n) }

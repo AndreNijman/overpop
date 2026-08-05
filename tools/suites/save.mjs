@@ -30,6 +30,11 @@ const COUNTERS = ['gamesPlayed', 'gamesWon', 'roundsCleared', 'totalPops', 'tota
 
 function isObj (v) { return !!v && typeof v === 'object' && !Array.isArray(v) }
 
+/** Own-property test. Needed rather than `k in o` or truthiness throughout the
+    hostile-key sections: the whole point there is telling a real stored key from
+    one inherited off Object.prototype. */
+function own (o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k) }
+
 /** Every field a profile must have, with a usable type and range. */
 function completeProfile (OP, p) {
   if (!isObj(p)) return false
@@ -386,9 +391,15 @@ export function run (t, OP, env) {
   plant(S.PROFILE_KEY, '{"schemaVersion":1,"completions":{"constructor":{"toString":{"valueOf":true}}}}')
   const inherited = S.load()
   t.eq(own(inherited.completions, 'constructor'), true, 'a map key named "constructor" became a real own key')
-  t.eq(inherited.completions.constructor.toString.valueOf, true, 'and its whole branch survived intact')
+  const cBranch = inherited.completions.constructor
+  t.eq(own(cBranch, 'toString'), true, 'its difficulty level is an own key too, not the inherited function')
+  t.eq(own(cBranch.toString, 'valueOf'), true, 'and so is the leaf')
+  t.eq(cBranch.toString.valueOf, true, 'with the completion flag itself intact')
+  // On a build that wrote through the inherited value instead, this leaf landed on
+  // the shared Object.toString function object.
+  t.eq(typeof S.defaults().constructor.toString.valueOf, 'function',
+    'and nothing was written onto the global Object.toString')
   t.eq(S.defaults().toString(), '[object Object]', 'while Object.prototype.toString still works')
-  t.eq(S.defaults().valueOf, Object.getPrototypeOf(S.migrate({})).valueOf, 'and valueOf was not replaced')
   t.eq(jsonUnsafe(inherited), '', 'and the profile is still pure JSON')
   t.eq(S.save(inherited), true, 'it stores')
   t.eq(own(S.load().completions, 'constructor'), true, 'and survives a full round-trip')

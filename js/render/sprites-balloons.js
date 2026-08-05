@@ -689,9 +689,13 @@
    */
   function preview (ctx, key, x, y, opts) {
     opts = opts || {}
-    const tier = OP.tierByKey(key)
+    // A UI helper: the bestiary or a tooltip may ask for a key that no longer
+    // exists after a retune. Report false rather than throwing and taking the
+    // whole frame down.
+    if (OP.BALLOON_INDEX[key] === undefined) return false
     const fn = SPRITES[key]
     if (!fn) return false
+    const tier = OP.tierByKey(key)
     const props = opts.props || 0
     const full = OP.layerHP(tier, props | tier.props)
     const fake = {
