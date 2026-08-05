@@ -719,6 +719,14 @@ export function run (t, OP) {
 
       const mapSnap = JSON.stringify({ cleared: map.cleared, palette: map.palette, water: map.water,
         blocked: map.blocked, blockers: map.blockers, trackWidth: map.trackWidth })
+
+      // Prove the instrument works before trusting it: one real tick must move the
+      // checksum. Without this, "unchanged after painting" would also pass for a
+      // sim whose state the checksum cannot see at all.
+      const probe = OP.Sim.checksum(sim)
+      OP.Sim.step(sim)
+      t.neq(OP.Sim.checksum(sim), probe, `${key}: one sim tick does move the checksum, so it is watching something`)
+
       const before = OP.Sim.checksum(sim)
       let calls = 0
       for (let i = 0; i < 8; i++) {
