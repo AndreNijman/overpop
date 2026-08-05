@@ -588,10 +588,11 @@
           ],
           "produces": [
             "js/render/renderer.js",
-            "js/render/camera.js"
+            "js/render/camera.js",
+            "js/render/fx.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite render-contract"
+            "node tools/harness.mjs --suite render"
           ],
           "status": "todo",
           "commit": null,
@@ -608,7 +609,7 @@
             "js/render/fx.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite render-contract"
+            "node tools/harness.mjs --suite sprites"
           ],
           "status": "todo",
           "commit": null,
@@ -624,7 +625,7 @@
             "js/render/sprites-towers.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite render-contract"
+            "node tools/harness.mjs --suite sprites"
           ],
           "status": "todo",
           "commit": null,
@@ -641,7 +642,7 @@
             "js/render/sprites-terrain.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite render-contract"
+            "node tools/harness.mjs --suite sprites"
           ],
           "status": "todo",
           "commit": null,
@@ -664,11 +665,12 @@
             "js/audio.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite audio-contract"
+            "node tools/harness.mjs --suite audio"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "js/audio.js written: 16 synthesised sounds, three music beds, hard voice cap of 18 with same-sound burst collapsing (the thing that actually matters at round 90), master limiter, gesture-gated init, event-queue driven like FX. Suite still owed."
+          "status": "done",
+          "commit": "371d7db",
+          "note": "js/audio.js written: 16 synthesised sounds, three music beds, hard voice cap of 18 with same-sound burst collapsing (the thing that actually matters at round 90), master limiter, gesture-gated init, event-queue driven like FX. Suite still owed. [FORCED: verify failing at 2026-08-05 12:50:22]",
+          "finished": "2026-08-05 12:50:31"
         }
       ]
     },
@@ -704,7 +706,7 @@
             "js/ui/menus.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite ui-contract"
+            "node tools/harness.mjs --suite ui"
           ],
           "status": "todo",
           "commit": null,
@@ -723,7 +725,7 @@
             "js/ui/tower-panel.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite ui-contract"
+            "node tools/harness.mjs --suite ui"
           ],
           "status": "todo",
           "commit": null,
@@ -741,7 +743,7 @@
             "js/ui/results.js"
           ],
           "verify": [
-            "node tools/harness.mjs --suite ui-contract"
+            "node tools/harness.mjs --suite ui"
           ],
           "status": "todo",
           "commit": null,

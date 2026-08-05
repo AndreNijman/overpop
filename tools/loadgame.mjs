@@ -184,7 +184,13 @@ export function loadGame ({ silent = true, stopOnError = true } = {}) {
   }
 
   const sandbox = {
-    console: silent ? { ...console, log () {}, info () {}, debug () {} } : console,
+    // warn/error are silenced too in quiet mode: several suites deliberately
+    // exercise the engine's own warning paths (a missing sprite, a throwing
+    // layer), and their output would drown the assertion results. The suites
+    // assert those paths through return values instead.
+    console: silent
+      ? { ...console, log () {}, info () {}, debug () {}, warn () {}, error () {} }
+      : console,
     document: doc,
     performance: { now: () => Number(process.hrtime.bigint() / 1000n) / 1000 },
     requestAnimationFrame: () => 0,

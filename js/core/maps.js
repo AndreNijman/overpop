@@ -588,8 +588,11 @@
     return out
   }
 
+  // undefined / null pass straight through: a fixture map that declares no water
+  // must stay permissive after reversal, and an empty array is NOT the same thing
+  // (see the guard table at the top of this file).
   function copyList (list) {
-    if (!Array.isArray(list)) return Array.isArray(list) ? [] : (list === undefined ? undefined : [])
+    if (!Array.isArray(list)) return list
     return list.map(function (o) { return Object.assign({}, o) })
   }
 
