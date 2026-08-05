@@ -533,9 +533,10 @@
           "verify": [
             "node tools/harness.mjs --suite hero-roster"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Each with a distinct mechanical identity, not just stat curves."
+          "status": "done",
+          "commit": "647bdd7",
+          "note": "Each with a distinct mechanical identity, not just stat curves.",
+          "finished": "2026-08-05 14:53:52"
         }
       ]
     },
