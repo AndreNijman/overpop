@@ -325,6 +325,34 @@ export function run (t, OP, env) {
       t.ok(heroDense.includes('no ability'), 'a hero with no ability says so rather than drawing a dead button')
     }
 
+    t.section('the second ability is its own button, on its own cooldown')
+    // Slot 2 reads hero.ability2Cd and routes to Heroes.activateSecond. A copy-paste
+    // that read abilityCd would render a plausible-looking wrong number, so both
+    // fields are moved independently here.
+    if (!hero.s.ability2) {
+      t.fail('no hero reaches a second ability', 'expected s.ability2 by level ' + OP.Heroes.MAX_LEVEL)
+    } else {
+      const ab2 = byId(HUD.build(hApp), 'hud.ability2.' + hero.id)
+      t.ok(ab2, 'the second ability has its own button')
+      t.eq(ab2.keepId, hero.id, 'stamped with the hero')
+      t.eq(ab2.arg, 2, 'and marked as the second slot')
+      t.ok(drawDense(HUD, hApp).includes(hero.s.ability2.name), 'named on screen')
+
+      hero.abilityCd = 3
+      hero.ability2Cd = 9.5
+      const bothDense = drawDense(HUD, hApp)
+      t.ok(bothDense.includes('9.5s'), 'slot 2 counts down its own cooldown')
+      t.ok(bothDense.includes('3.0s'), 'while slot 1 shows a different one')
+
+      hero.abilityCd = 0
+      hero.ability2Cd = 0
+      const res2 = OP.Heroes.canActivateSecond(hs, hero)
+      t.ok(res2.ok, 'the engine says the second ability is ready')
+      HUD.activate(hApp, byId(HUD.build(hApp), 'hud.ability2.' + hero.id))
+      t.gt(hero.ability2Cd, 0, 'pressing it went through Heroes.activateSecond')
+      t.eq(hero.abilityCd, 0, 'and left the first ability alone')
+    }
+
     t.section('an XP change moves the hero panel')
     const before = drawDense(HUD, hApp)
     hero.level = 3
@@ -745,6 +773,10 @@ export function run (t, OP, env) {
     t.ok(gDense.includes('PARAGON'), 'labelled')
     t.ok(gDense.includes('degree ' + preview.degree), 'showing the degree it would produce')
     t.ok(gDense.includes(OP.M.money(preview.cost)), 'and what it costs')
+    // The count belongs on screen BEFORE the first press, not only once armed:
+    // this is the number that decides whether the trade is worth it.
+    t.ok(gDense.includes('Consumes ' + preview.sacrifices.length),
+      `and how many towers it eats (${preview.sacrifices.length}) without arming it first`)
 
     t.section('promoting takes two presses, and says what it consumes')
     Panel.state.confirmParagon = -1
@@ -753,9 +785,9 @@ export function run (t, OP, env) {
     t.eq(Panel.state.confirmParagon, promote.id, 'it arms a confirmation for that tower')
     const armed = drawDense(Panel, gApp)
     t.ok(armed.includes('CONFIRM'), 'the button asks again')
-    t.ok(armed.includes('consumes ' + preview.sacrifices.length) ||
-         armed.includes('Consumes ' + preview.sacrifices.length),
-    `and says it consumes ${preview.sacrifices.length} tower(s)`)
+    t.ok(armed.includes('Consumes ' + preview.sacrifices.length),
+      `still saying it consumes ${preview.sacrifices.length} tower(s)`)
+    t.ok(armed.includes('cannot be undone'), 'and that it cannot be undone')
     const towersWere = gs.towers.length
     Panel.activate(gApp, byId(Panel.build(gApp), 'panel.paragon'))
     t.gt(promote.paragonDegree, 0, 'the second press promoted it through Paragon.promote')

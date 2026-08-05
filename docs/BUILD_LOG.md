@@ -58,3 +58,6 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 15:13:57` **done** P10.1 — PWA icons 192/512 (`846c693`)
 - `2026-08-05 15:22:24` **done** P8.3 — In-game HUD, shop, upgrade panel, targeting controls (`190dfb1`)
 - `2026-08-05 15:22:28` **done** P3.5 — Paragon system + paragon tier for a subset (`190dfb1`)
+- `2026-08-05 15:32:34` **done** P8.5 — Boot wiring — main.js + ordered script list (`d697f8a`)
+- `2026-08-05 15:32:53` **done** P9.1 — Full-suite green + determinism checksums (`d697f8a`)
+- `2026-08-05 15:33:24` **done** P9.3 — Browser smoke test (headless chromium, console-error free) (`d697f8a`)

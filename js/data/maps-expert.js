@@ -185,7 +185,7 @@
       blockers: GAP_WALLS,
 
       removable: [
-        { x: 250, y: 400, r: 30, cost: 320, name: 'Thorn Bale', blocksLOS: true },
+        { x: 290, y: 380, r: 30, cost: 320, name: 'Thorn Bale', blocksLOS: true },
         { x: 990, y: 360, r: 30, cost: 320, name: 'Bramble Mound', blocksLOS: true },
         { x: 500, y: 90, r: 26, cost: 220, name: 'Split Stump' }
       ],
@@ -328,9 +328,9 @@
 
       removable: [
         { x: 620, y: 130, r: 28, cost: 340, name: 'Verge Boulder', blocksLOS: true },
-        { x: 620, y: 610, r: 28, cost: 340, name: 'Gorse Clump', blocksLOS: true },
+        { x: 720, y: 600, r: 28, cost: 340, name: 'Gorse Clump', blocksLOS: true },
         { x: 155, y: 400, r: 26, cost: 280, name: 'Hedge Stub' },
-        { x: 1163, y: 420, r: 26, cost: 280, name: 'Field Gate' }
+        { x: 1163, y: 560, r: 26, cost: 280, name: 'Field Gate' }
       ],
 
       palette: {

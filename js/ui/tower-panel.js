@@ -451,18 +451,30 @@
     const preview = paragonPreview(sim, tower)
     const bottom = S.y + S.h - 26
 
-    // Keep the footer pinned to the bottom when the panel above it is short, but
-    // never let it climb into the section above when it is tall.
-    let fy = Math.min(Math.max(y, bottom - 40), S.y + S.h - 46)
     const confirmingParagon = preview.ok && state.confirmParagon === tower.id
 
-    // Only when the section above actually left room; the button's own sub-line
-    // carries the count regardless, so nothing is lost on a crowded panel.
-    if (confirmingParagon && fy - 24 > y) {
-      marks.push(U.text(x0, fy - 22, 'Consumes ' + preview.sacrifices.length +
-        ' other ' + (preview.sacrifices.length === 1 ? 'tower' : 'towers') +
-        ' · degree ' + preview.degree, { size: 9, colour: C.warn }))
-      marks.push(U.text(x0, fy - 10, 'This cannot be undone.', { size: 9, colour: C.bad }))
+    /* What a paragon would cost in TOWERS is the fact a player most needs before
+       pressing, so the line is part of the layout rather than drawn into whatever
+       gap happens to be left: the space is reserved in the cursor first, which is
+       what stops a crowded panel — a tier-5 tower with an ability, i.e. exactly
+       the tower that can take a paragon — from dropping it. */
+    const eaten = preview.ok ? preview.sacrifices.length : 0
+    const info = []
+    if (preview.ok) {
+      info.push({
+        text: 'Consumes ' + eaten + ' other ' + (eaten === 1 ? 'tower' : 'towers') +
+          ' · degree ' + preview.degree,
+        colour: confirmingParagon ? C.warn : C.dim
+      })
+      if (confirmingParagon) info.push({ text: 'This cannot be undone.', colour: C.bad })
+    }
+
+    // Keep the footer pinned to the bottom when the panel above it is short, but
+    // never let it climb into the section above when it is tall.
+    let fy = Math.min(Math.max(y + info.length * 12 + 4, bottom - 40), S.y + S.h - 46)
+    for (let i = 0; i < info.length; i++) {
+      marks.push(U.text(x0, fy - 6 - (info.length - 1 - i) * 12,
+        U.clipText(info[i].text, 9, innerW), { size: 9, colour: info[i].colour }))
     }
 
     /* Selling is a rule, not a preference: PURIST removes it, so the button is

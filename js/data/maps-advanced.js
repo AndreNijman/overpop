@@ -201,14 +201,14 @@
       blocked: [
         { x: 0, y: 175, w: 110, h: 150 },
         { x: 1170, y: 430, w: 110, h: 165 },
-        { x: 470, y: 195, w: 190, h: 110 },     // the cut-peat bank
+        { x: 470, y: 195, w: 130, h: 110 },     // the cut-peat bank
         { cx: 430, cy: 590, r: 38 }             // a drowned stump
       ].concat(FEN_WALLS),
 
       blockers: FEN_WALLS,
 
       removable: [
-        { x: 620, y: 250, r: 30, cost: 240, name: 'Sunken Hurdle', blocksLOS: true },
+        { x: 640, y: 250, r: 30, cost: 240, name: 'Sunken Hurdle', blocksLOS: true },
         { x: 1130, y: 480, r: 30, cost: 260, name: 'Peat Stack', blocksLOS: true },
         { x: 1120, y: 250, r: 26, cost: 180, name: 'Willow Snag' },
         { x: 680, y: 520, r: 28, cost: 220, name: 'Alder Root' }
@@ -337,7 +337,7 @@
       blockers: REACH_WALLS,
 
       removable: [
-        { x: 500, y: 300, r: 32, cost: 280, name: 'Driftwood Jam', blocksLOS: true },
+        { x: 330, y: 180, r: 32, cost: 280, name: 'Driftwood Jam', blocksLOS: true },
         { x: 790, y: 390, r: 30, cost: 260, name: 'Otter Lodge', blocksLOS: true },
         { x: 1180, y: 540, r: 28, cost: 200, name: 'Shale Slab' },
         { x: 150, y: 620, r: 26, cost: 180, name: 'Reed Bale' }

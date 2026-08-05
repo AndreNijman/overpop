@@ -101,7 +101,17 @@
    * balloon HP, then is scaled by difficulty and mode.
    */
   Economy.roundBonus = function (sim, roundIndex) {
-    const base = OP.ROUND_END_BONUS + roundIndex * 2
+    // Scales with the round's OWN weight, not just its number.
+    //
+    // A flat `base + round * 2` fell behind almost immediately: balloon RBE grows
+    // superlinearly while income grew linearly, so by the early teens a reasonable
+    // build could no longer afford to keep pace and died there — measured, not
+    // guessed (see docs/BALANCE.md). Tying part of the payout to the round's RBE
+    // makes income track the threat by construction, so the curve cannot silently
+    // drift out of step again when round data is retuned.
+    const def = OP.Rounds && OP.Rounds.definition ? OP.Rounds.definition(sim, roundIndex) : null
+    const rbe = def ? OP.Rounds.roundRBE(def) : 0
+    const base = OP.ROUND_END_BONUS + roundIndex * 3 + rbe * 0.22
     return Math.floor(base * sim.rules.roundBonusMul)
   }
 

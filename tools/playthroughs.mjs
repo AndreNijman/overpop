@@ -71,33 +71,49 @@ function pickMaps () {
    is too easy. */
 
 function coverageSpots (map, count) {
-  // Sample points along every path, then step off the track to find legal ground.
-  const spots = []
+  /* Spots are INTERLEAVED ACROSS PATHS, nearest-to-the-road first.
+
+     The earlier version emitted every spot for path 0, then every spot for path 1.
+     Since placement walks the list in order, the first few towers all landed on one
+     lane — and balloons never change lane, so on a two- or three-path map the other
+     lanes were undefended from round 1. That produced leaks from round 3 across half
+     the matrix and read as "the game is too hard" when it was the build being
+     measured that was wrong. A real player covers every lane first. */
   const paths = map.paths
-  const perPath = Math.max(2, Math.ceil(count / paths.length))
+  const perPath = Math.max(3, Math.ceil(count / paths.length))
+
+  // Build one ordered list per path, then round-robin them together.
+  const lanes = []
   for (let p = 0; p < paths.length; p++) {
     const track = paths[p]
+    const lane = []
     for (let i = 0; i < perPath; i++) {
       const t = (i + 0.5) / perPath * track.length
       const at = track.posAt(t)
       const ang = track.angleAt(t)
-      // Try both sides, increasing distance, until something is placeable.
-      for (const side of [1, -1]) {
-        for (let d = 34; d <= 130; d += 12) {
-          spots.push({
+      for (let d = 34; d <= 130; d += 12) {
+        for (const side of [1, -1]) {
+          lane.push({
             x: OP.M.clamp(at.x + Math.cos(ang + Math.PI / 2) * d * side, 24, OP.FIELD_W - 24),
             y: OP.M.clamp(at.y + Math.sin(ang + Math.PI / 2) * d * side, 24, OP.FIELD_H - 24)
           })
         }
       }
     }
+    lanes.push(lane)
+  }
+
+  const spots = []
+  const longest = Math.max.apply(null, lanes.map(l => l.length))
+  for (let i = 0; i < longest; i++) {
+    for (let p = 0; p < lanes.length; p++) if (lanes[p][i]) spots.push(lanes[p][i])
   }
   return spots
 }
 
 /** Buy whatever fits, cheapest-useful-first, upgrading as cash allows. */
 function playReference (sim, map) {
-  const spots = coverageSpots(map, 26)
+  const spots = coverageSpots(map, 40)
   const allowed = OP.TOWER_ORDER.filter(k => OP.Economy.towerAllowed(sim, OP.TOWERS[k]))
   if (!allowed.length) return { placed: 0, note: 'no tower family is allowed in this mode' }
 
@@ -106,12 +122,15 @@ function playReference (sim, map) {
   const byCost = allowed.slice().sort((a, b) => OP.TOWERS[a].cost - OP.TOWERS[b].cost)
 
   let placed = 0
-  let spotIndex = 0
   const own = []
 
+  // Spots are re-scanned from the start on every attempt. The earlier version kept
+  // a monotonic cursor, so once the opening towers had walked past the good ground
+  // near the entry there was nowhere left to build and the "reference" build ended
+  // up no stronger than the one-tower build it is supposed to be measured against.
   function tryPlace (key) {
-    while (spotIndex < spots.length) {
-      const s = spots[spotIndex++]
+    for (let i = 0; i < spots.length; i++) {
+      const s = spots[i]
       if (!OP.Towers.canPlace(sim, key, s.x, s.y).ok) continue
       const tower = OP.Towers.place(sim, key, s.x, s.y)
       if (tower) { own.push(tower); placed++; return tower }
@@ -119,8 +138,9 @@ function playReference (sim, map) {
     return null
   }
 
-  // Opening: a handful of cheap towers so round 1 is covered.
-  for (let i = 0; i < 4; i++) tryPlace(byCost[i % Math.min(3, byCost.length)])
+  // Opening: spend most of the starting cash rather than saving it. A defence that
+  // is not on the board during round 1 is not a defence.
+  for (let i = 0; i < 6; i++) tryPlace(byCost[i % Math.min(4, byCost.length)])
 
   return {
     placed: placed,
@@ -137,8 +157,9 @@ function playReference (sim, map) {
             const legal = OP.Upgrades.canBuy(tower, path)
             if (!legal.ok) continue
             const cost = OP.Upgrades.nextCost(sim, tower, path)
-            // Keep a reserve so a sudden blimp round is not met with an empty bank.
-            if (cost > sim.cash - 150) continue
+            // A small reserve only — a player who banks cash through a round they
+            // could have upgraded for is playing worse, not safer.
+            if (cost > sim.cash - 40) continue
             if (OP.Upgrades.buy(sim, tower, path).ok) { bought = true; break }
           }
           if (bought) break
@@ -149,7 +170,7 @@ function playReference (sim, map) {
         let addedOne = false
         for (let i = byCost.length - 1; i >= 0; i--) {
           const key = byCost[i]
-          if (OP.Economy.price(sim, OP.TOWERS[key].cost) > sim.cash - 150) continue
+          if (OP.Economy.price(sim, OP.TOWERS[key].cost) > sim.cash - 40) continue
           if (tryPlace(key)) { addedOne = true; break }
         }
         if (!addedOne) return
@@ -203,8 +224,11 @@ function runGame (mapKey, difficulty, mode, strategy, maxRounds) {
     const leaked = sim.stats.leaked - before
     if (leaked > 0) leaksByRound[round] = leaked
 
-    if (!res.completed) { stalled = round; break }
+    // A round that ends because the player DIED did not stall — runRound simply
+    // stops when sim.over. Conflating the two reported every ordinary loss as a
+    // hang, which buried the real signal.
     if (sim.over) break
+    if (!res.completed) { stalled = round; break }
     if (plan.spend) plan.spend()
     round++
   }
