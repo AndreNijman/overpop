@@ -159,6 +159,13 @@
    */
   Heroes.place = function (sim, key, x, y, opts) {
     opts = opts || {}
+    if (!OP.HEROES[key]) return null
+
+    // `free` waives the COST, not the invariants. One hero per map is a rule of the
+    // game, not a price — letting free placement bypass it meant an insta-placement
+    // or a test could put eight heroes on one board.
+    if (sim.heroId >= 0) return null
+
     if (!opts.free) {
       const check = Heroes.canPlace(sim, key, x, y)
       if (!check.ok) return null

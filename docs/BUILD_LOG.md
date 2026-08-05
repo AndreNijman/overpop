@@ -48,3 +48,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 13:11:42` **done** P3.1 — Primary family (7 towers) (`b593b00`)
 - `2026-08-05 13:11:44` **done** P3.2 — Military family (7 towers) (`b593b00`)
 - `2026-08-05 13:11:58` **done** P4.1 — Hero framework (XP curve, 20 levels, one-per-game rule) (`b593b00`)
+- `2026-08-05 14:51:45` **done** P6.2 — Balloon + blimp sprites, pop FX, damage FX (`4fddd83`)
+- `2026-08-05 14:51:46` **done** P6.4 — Map terrain painter (`4fddd83`)

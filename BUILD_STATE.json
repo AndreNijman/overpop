@@ -621,9 +621,10 @@
           "verify": [
             "node tools/harness.mjs --suite sprites-balloons"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Must read at 20px. Veiled/regen/plated need distinct silhouettes, not just tints."
+          "status": "done",
+          "commit": "4fddd83",
+          "note": "Must read at 20px. Veiled/regen/plated need distinct silhouettes, not just tints.",
+          "finished": "2026-08-05 14:51:45"
         },
         {
           "id": "P6.3",
@@ -654,9 +655,10 @@
           "verify": [
             "node tools/harness.mjs --suite sprites-terrain"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": ""
+          "status": "done",
+          "commit": "4fddd83",
+          "note": "",
+          "finished": "2026-08-05 14:51:46"
         }
       ]
     },
