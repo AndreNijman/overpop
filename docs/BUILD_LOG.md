@@ -35,3 +35,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:30:02` **start** P1.12 — Hero and paragon frameworks + validated templates
 - `2026-08-05 12:36:52` **done** P1.12 — Hero and paragon frameworks + validated templates (`89b59d7`)
 - `2026-08-05 12:42:26` note P9.3 — tools/smoke.mjs written and working: drives chrome-headless-shell over CDP using Node's built-in WebSocket, zero deps. Browser path pinned in tools/.chrome-path (Chrome for Testing 151 at ~/.local/share/overpop-tools/). Captures console errors, exceptions, failed requests, canvas-painted check, a real playthrough, input, and frame budget.
+- `2026-08-05 12:48:57` note P7.1 — js/audio.js written: 16 synthesised sounds, three music beds, hard voice cap of 18 with same-sound burst collapsing (the thing that actually matters at round 90), master limiter, gesture-gated init, event-queue driven like FX. Suite still owed.

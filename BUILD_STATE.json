@@ -668,7 +668,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Voice limiting is mandatory — round 90 fires hundreds of pops per second."
+          "note": "js/audio.js written: 16 synthesised sounds, three music beds, hard voice cap of 18 with same-sound burst collapsing (the thing that actually matters at round 90), master limiter, gesture-gated init, event-queue driven like FX. Suite still owed."
         }
       ]
     },
