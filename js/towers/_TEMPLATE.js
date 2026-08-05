@@ -21,7 +21,8 @@
  * 3. Upgrade costs must not decrease down a branch. defineTower throws otherwise.
  *
  * 4. Never mutate another tower. Register a buff (see `buffs` below) so
- *    resolution stays order-independent.
+ *    resolution stays order-independent. Inside `buffs`, `tower.s` is swapped to
+ *    the UNBUFFED stat block for you, so aura geometry is order-free by default.
  *
  * 5. Damage type is how you answer immunities. Lead ignores sharp; the fix is an
  *    upgrade that sets `s.dmgType = OP.DMG.SHATTER`, not a special case.
@@ -30,6 +31,12 @@
  *
  * 7. Every `desc` string is shown verbatim in the upgrade panel. Write them for a
  *    player, and say the actual numbers.
+ *
+ * 8. Declare every projectile `kind` with OP.declareProjKind(). Undeclared kinds
+ *    render as nothing, and the family suite fails on them.
+ *
+ * 9. Upgrade costs must sit inside OP.Upgrades.COST_LADDER for their tier, as a
+ *    multiple of the tower's own base cost. The family suite audits this.
  */
 
 ;(function (OP) {
@@ -37,6 +44,13 @@
 
   const M = OP.M
   const D = OP.DMG
+
+  /* ---------- projectile art kinds, declared once ----------
+     Every `kind` a tower emits must be declared, or the renderer has nothing to
+     draw and the harness fails the family. */
+
+  OP.declareProjKind('template-dart', { shape: 'dart', tint: '#c9a227', size: 4, trail: true })
+  OP.declareProjKind('template-spike', { shape: 'spike', tint: '#9fe8c6', size: 5, spin: true })
 
   /* ---------- projectile behaviour, registered once by key ---------- */
 
@@ -87,6 +101,12 @@
       }
     }
   }
+
+  /* ---------- declare the roster ----------
+     One line per family file, listing every tower key it registers. The family
+     floor suite audits exactly this list. */
+
+  OP.FAMILY_ROSTERS.primary = ['template-critter']
 
   /* ---------- the tower ---------- */
 
@@ -206,6 +226,8 @@
         id: 'template-morale:' + tower.id,
         sourceId: tower.id,
         x: tower.x, y: tower.y,
+        // Inside `buffs()`, `tower.s` is deliberately the UNBUFFED stat block
+        // (base + upgrades), so aura geometry cannot depend on placement order.
         radius: tower.s.range,
         priority: 0,
         excludeSelf: true,

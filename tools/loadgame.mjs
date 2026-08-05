@@ -232,10 +232,17 @@ export function loadGame ({ silent = true, stopOnError = true } = {}) {
   // js/towers/_TEMPLATE.js satisfies the contract even though index.html does
   // not load it. The template is what every content agent copies, so a broken
   // template is a broken fan-out.
+  // Idempotent: several suites may each need the template loaded, and the bundle
+  // context is shared across a whole harness run. Re-evaluating would throw on
+  // the registry's own duplicate-key guards.
+  const extraLoaded = new Set()
   function evalFile (rel) {
+    if (extraLoaded.has(rel)) return false
     const abs = resolve(ROOT, rel)
     if (!existsSync(abs)) throw new Error('evalFile: no such file ' + rel)
     vm.runInContext(readFileSync(abs, 'utf8'), ctx, { filename: rel, timeout: 30_000 })
+    extraLoaded.add(rel)
+    return true
   }
 
   return { OP: sandbox.OP || {}, order, missing, present, ctx: sandbox, errors, canvas, evalFile }

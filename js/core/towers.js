@@ -109,34 +109,89 @@
    * Rebuild `tower.s` from scratch. Called on place, on upgrade, and whenever the
    * buff set changes — never per tick.
    */
+  function shallowClone (src) {
+    const out = {}
+    for (const key in src) {
+      const v = src[key]
+      out[key] = Array.isArray(v) ? v.slice() : v
+    }
+    return out
+  }
+
   Towers.restat = function (sim, tower) {
     const def = tower.def
-    const s = {}
-    for (const key in def.base) {
-      const v = def.base[key]
-      s[key] = Array.isArray(v) ? v.slice() : v
-    }
+    const s = shallowClone(def.base)
 
     OP.Upgrades.applyTo(s, tower, sim)
+
+    // Snapshot the stats BEFORE buffs. Aura geometry must be derived from this,
+    // never from `tower.s` — otherwise two mutually-overlapping support towers
+    // register different aura radii depending on which was placed first, because
+    // the second one computes its radius with the first one's range buff already
+    // applied. `def.buffs` is documented to read `tower.sBase`.
+    tower.sBase = shallowClone(s)
+
     OP.Buffs.apply(sim, tower, s)
 
     if (tower.paragonDegree > 0 && OP.Paragon && OP.Paragon.applyStats) {
       OP.Paragon.applyStats(s, tower, sim)
     }
 
-    // Guard rails the content phases cannot accidentally breach.
-    if (!(s.cooldown > 0)) s.cooldown = 1 / 240
-    if (s.damage < 0) s.damage = 0
-    if (s.pierce < 1) s.pierce = 1
-    if (s.shots < 1) s.shots = 1
-    if (!(s.range > 0)) s.range = 1
+    // Guard rails the content phases cannot accidentally breach. The game keeps
+    // running on a clamped value, but the clamp is RECORDED — a silently repaired
+    // NaN is an authoring bug that would otherwise never surface, so the family
+    // floor asserts this list is empty.
+    const warn = []
+    if (!(s.cooldown > 0)) { warn.push('cooldown was ' + s.cooldown); s.cooldown = 1 / 240 }
+    if (!(s.damage >= 0)) { warn.push('damage was ' + s.damage); s.damage = 0 }
+    if (!(s.pierce >= 1)) { warn.push('pierce was ' + s.pierce); s.pierce = 1 }
+    if (!(s.shots >= 1)) { warn.push('shots was ' + s.shots); s.shots = 1 }
+    if (!(s.range > 0)) { warn.push('range was ' + s.range); s.range = 1 }
+    if (!isFinite(s.projSpeed)) { warn.push('projSpeed was ' + s.projSpeed); s.projSpeed = 1 }
+    tower.statWarnings = warn.length ? warn : null
 
     tower.s = s
     return s
   }
 
+  /**
+   * Call a tower's `buffs` hook with its UNBUFFED stats visible as `tower.s`.
+   *
+   * Aura geometry must not depend on other towers' buffs, or two overlapping
+   * support towers register different radii depending on placement order. Rather
+   * than trusting every content author to remember to read `sBase`, the swap is
+   * done here so reading `tower.s` inside `buffs()` is simply correct.
+   */
+  Towers.registerAuras = function (sim, tower) {
+    if (!tower.def.buffs) return
+    const resolved = tower.s
+    tower.s = tower.sBase
+    try {
+      OP.Buffs.unregisterBySource(sim, tower.id)
+      tower.def.buffs(sim, tower)
+    } finally {
+      tower.s = resolved
+    }
+  }
+
+  /**
+   * Restat every tower. Two passes, deliberately:
+   *   1. resolve sBase for everyone, so aura geometry is known and buff-free
+   *   2. re-register every aura from sBase, then resolve final stats
+   * One pass would make a tower's aura depend on whether its neighbour had been
+   * restatted yet, which is the order dependence this whole module exists to
+   * avoid.
+   */
   Towers.restatAll = function (sim) {
-    for (let i = 0; i < sim.towers.length; i++) Towers.restat(sim, sim.towers[i])
+    const list = sim.towers
+    for (let i = 0; i < list.length; i++) Towers.restat(sim, list[i])
+
+    let anyAuras = false
+    for (let i = 0; i < list.length; i++) if (list[i].def.buffs) { anyAuras = true; break }
+    if (anyAuras) {
+      for (let i = 0; i < list.length; i++) Towers.registerAuras(sim, list[i])
+      for (let i = 0; i < list.length; i++) Towers.restat(sim, list[i])
+    }
     sim.buffsDirty = false
   }
 
@@ -220,7 +275,7 @@
     sim.towerById.set(tower.id, tower)
     Towers.restat(sim, tower)
 
-    if (def.buffs) { def.buffs(sim, tower); Towers.restatAll(sim) }
+    if (def.buffs) Towers.restatAll(sim)     // registers this tower's aura too
     if (def.onPlace) def.onPlace(sim, tower)
 
     sim.events.push({ kind: 'place', towerId: tower.id, key: key, x: x, y: y, cost: cost })

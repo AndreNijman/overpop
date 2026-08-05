@@ -33,7 +33,7 @@
         },
         {
           "id": "P0.2",
-          "title": "ARCHITECTURE.md — frozen engine contract",
+          "title": "ARCHITECTURE.md \u2014 frozen engine contract",
           "deps": [
             "P0.1"
           ],
@@ -73,7 +73,7 @@
           ],
           "status": "done",
           "commit": "14e5abc",
-          "note": "Classic <script src> only — no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
+          "note": "Classic <script src> only \u2014 no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
           "started": "2026-08-05 11:22:26",
           "finished": "2026-08-05 11:23:55"
         },
@@ -99,7 +99,7 @@
     },
     {
       "id": "P1",
-      "title": "Spine — deterministic simulation core",
+      "title": "Spine \u2014 deterministic simulation core",
       "goal": "One-voice engine core. Written inline, not fanned out. Everything later depends on these signatures.",
       "steps": [
         {
@@ -123,7 +123,7 @@
         },
         {
           "id": "P1.2",
-          "title": "Track model — polyline with scalar distance t",
+          "title": "Track model \u2014 polyline with scalar distance t",
           "deps": [
             "P1.1"
           ],
@@ -175,13 +175,13 @@
           ],
           "status": "done",
           "commit": "81b2b97",
-          "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains — a table.",
+          "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains \u2014 a table.",
           "started": "2026-08-05 11:40:30",
           "finished": "2026-08-05 11:44:39"
         },
         {
           "id": "P1.5",
-          "title": "Projectiles — per-projectile hit sets, pierce, pooling",
+          "title": "Projectiles \u2014 per-projectile hit sets, pierce, pooling",
           "deps": [
             "P1.4"
           ],
@@ -228,10 +228,11 @@
             "node tools/harness.mjs --suite sim",
             "node tools/harness.mjs --suite determinism"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "b88c69e",
           "note": "Accumulator, fixed dt. Documented update order. Determinism checksum must match across two runs of the same seed.",
-          "started": "2026-08-05 12:05:05"
+          "started": "2026-08-05 12:05:05",
+          "finished": "2026-08-05 12:11:37"
         },
         {
           "id": "P1.8",
@@ -295,6 +296,43 @@
           "note": "Loads the classic-script browser bundle into a Node sandbox so the same code is tested. Suites + seeded round playthroughs + determinism checksums.",
           "started": "2026-08-05 11:25:01",
           "finished": "2026-08-05 11:27:26"
+        },
+        {
+          "id": "P1.11",
+          "title": "Fan-out guardrails: shared family floor, cost ladder, projectile-kind registry",
+          "deps": [
+            "P1.9"
+          ],
+          "produces": [
+            "tools/suites/_towerfamily.mjs",
+            "tools/suites/towerfloor.mjs"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite towerfloor"
+          ],
+          "status": "done",
+          "commit": null,
+          "note": "Written OUTSIDE the fan-out on purpose: if the agent authoring a family also authored its pass criteria, the criteria would just describe whatever it built. towerfloor.mjs proves the floor REJECTS 8 classes of bad content (out-of-band cost, undeclared projectile kind, borrowed proper noun, non-idempotent apply, silent no-fire, NaN stat, unregistered ability, missing roster). Each family file must declare OP.FAMILY_ROSTERS[family] and call assertFamily()."
+        },
+        {
+          "id": "P1.12",
+          "title": "Hero and paragon frameworks + validated templates",
+          "deps": [
+            "P1.11"
+          ],
+          "produces": [
+            "js/core/heroes.js",
+            "js/core/paragon.js",
+            "js/towers/_HERO_TEMPLATE.js",
+            "js/towers/_PARAGON_TEMPLATE.js"
+          ],
+          "verify": [
+            "node tools/harness.mjs --suite heroes",
+            "node tools/harness.mjs --suite paragon"
+          ],
+          "status": "todo",
+          "commit": null,
+          "note": "P3.5 and P4.2 are fan-out phases with no contract yet. defineHero/defineParagon must validate as hard as defineTower, and each needs one fully worked template, BEFORE either phase dispatches \u2014 same reasoning as the tower template."
         }
       ]
     },
@@ -358,14 +396,15 @@
     },
     {
       "id": "P3",
-      "title": "Tower roster — 25 towers, 3x5 upgrade trees",
+      "title": "Tower roster \u2014 25 towers, 3x5 upgrade trees",
       "goal": "Fan-out phase. One agent per family, disjoint files, all coding against the P1.9 contract.",
       "steps": [
         {
           "id": "P3.1",
           "title": "Primary family (7 towers)",
           "deps": [
-            "P2.3"
+            "P2.3",
+            "P1.11"
           ],
           "produces": [
             "js/towers/primary.js"
@@ -375,13 +414,14 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat."
+          "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat. MUST declare OP.FAMILY_ROSTERS.primary and its suite MUST call assertFamily(t, OP, \"primary\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
         },
         {
           "id": "P3.2",
           "title": "Military family (7 towers)",
           "deps": [
-            "P2.3"
+            "P2.3",
+            "P1.11"
           ],
           "produces": [
             "js/towers/military.js"
@@ -391,13 +431,14 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon."
+          "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon. MUST declare OP.FAMILY_ROSTERS.military and its suite MUST call assertFamily(t, OP, \"military\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
         },
         {
           "id": "P3.3",
           "title": "Magic family (6 towers)",
           "deps": [
-            "P2.3"
+            "P2.3",
+            "P1.11"
           ],
           "produces": [
             "js/towers/magic.js"
@@ -407,13 +448,14 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt."
+          "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt. MUST declare OP.FAMILY_ROSTERS.magic and its suite MUST call assertFamily(t, OP, \"magic\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
         },
         {
           "id": "P3.4",
           "title": "Support family (5 towers)",
           "deps": [
-            "P2.3"
+            "P2.3",
+            "P1.11"
           ],
           "produces": [
             "js/towers/support.js"
@@ -423,7 +465,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Berry Warren, Caltrop Beetle, Warren Hall, Tinker Shrew, Falconer Ferret. Buff aggregation must be idempotent and order-independent."
+          "note": "Berry Warren, Caltrop Beetle, Warren Hall, Tinker Shrew, Falconer Ferret. Buff aggregation must be idempotent and order-independent. MUST declare OP.FAMILY_ROSTERS.support and its suite MUST call assertFamily(t, OP, \"support\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind()."
         },
         {
           "id": "P3.5",
@@ -432,7 +474,8 @@
             "P3.1",
             "P3.2",
             "P3.3",
-            "P3.4"
+            "P3.4",
+            "P1.12"
           ],
           "produces": [
             "js/core/paragon.js",
@@ -443,7 +486,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one — say which in the README."
+          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one \u2014 say which in the README."
         }
       ]
     },
@@ -456,7 +499,7 @@
           "id": "P4.1",
           "title": "Hero framework (XP curve, 20 levels, one-per-game rule)",
           "deps": [
-            "P3.5"
+            "P1.12"
           ],
           "produces": [
             "js/core/heroes.js"
@@ -531,7 +574,7 @@
     },
     {
       "id": "P6",
-      "title": "Presentation — sprites & rendering",
+      "title": "Presentation \u2014 sprites & rendering",
       "goal": "All art drawn procedurally in code. Woodland-critter theme. No asset packs.",
       "steps": [
         {
@@ -622,7 +665,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Voice limiting is mandatory — round 90 fires hundreds of pops per second."
+          "note": "Voice limiting is mandatory \u2014 round 90 fires hundreds of pops per second."
         }
       ]
     },
@@ -703,7 +746,7 @@
         },
         {
           "id": "P8.5",
-          "title": "Boot wiring — main.js + ordered script list",
+          "title": "Boot wiring \u2014 main.js + ordered script list",
           "deps": [
             "P8.4",
             "P6.4",
@@ -719,7 +762,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Script order in index.html must match dependency order — classic scripts, no module resolution to save us."
+          "note": "Script order in index.html must match dependency order \u2014 classic scripts, no module resolution to save us."
         }
       ]
     },
@@ -762,10 +805,26 @@
           "note": "Reference builds must survive; a deliberately bad build must leak. Both directions matter."
         },
         {
+          "id": "P9.2b",
+          "title": "Retune rounds and costs against playthrough results",
+          "deps": [
+            "P9.2"
+          ],
+          "produces": [
+            "docs/BALANCE.md"
+          ],
+          "verify": [
+            "node tools/harness.mjs --playthroughs"
+          ],
+          "status": "todo",
+          "commit": null,
+          "note": "P2.1 authors rounds 1-100 BEFORE any tower exists, so that curve is written blind. This is where it is actually validated. Without this step a failing playthrough leaves --force as the only way forward, which the design treats as a smell."
+        },
+        {
           "id": "P9.3",
           "title": "Browser smoke test (headless chromium, console-error free)",
           "deps": [
-            "P9.2"
+            "P9.2b"
           ],
           "produces": [
             "tools/smoke.mjs"
@@ -775,7 +834,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Boots index.html from file://, plays rounds via injected input, asserts zero console errors + frame budget."
+          "note": "NO CHROMIUM ON THIS MACHINE \u2014 only /usr/bin/firefox. Use `firefox --headless --screenshot` plus the Node bundle boot check; a full console-error capture needs chromium or a webdriver, so either install one or scope the smoke test to render-and-not-blank."
         },
         {
           "id": "P9.4",
@@ -798,7 +857,7 @@
     {
       "id": "P10",
       "title": "Assets",
-      "goal": "Icons, share image, hub screenshot — all generated, all committed.",
+      "goal": "Icons, share image, hub screenshot \u2014 all generated, all committed.",
       "steps": [
         {
           "id": "P10.1",
@@ -815,7 +874,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": ""
+          "note": " Rendering tool is firefox --headless --screenshot; chromium is NOT installed (the portfolio og-image recipe in memory assumed it)."
         },
         {
           "id": "P10.2",
@@ -832,7 +891,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Hub shot must be exactly 1000x525 to match topout.png/defenders.png aspect-ratio."
+          "note": "Hub shot must be exactly 1000x525 to match topout.png/defenders.png aspect-ratio. Rendering tool is firefox --headless --screenshot; chromium is NOT installed (the portfolio og-image recipe in memory assumed it)."
         }
       ]
     },
@@ -855,7 +914,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Private, matching pvz/topout/games-site."
+          "note": "Private, matching pvz/topout/games-site. NOTE: `git init -b main` left main unborn \u2014 every commit so far is on build/overpop. Create main explicitly (git branch -f main build/overpop or merge) BEFORE P11.2, which publishes Pages from main root."
         },
         {
           "id": "P11.2",
@@ -869,7 +928,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Publish from main root, legacy build — CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
+          "note": "Publish from main root, legacy build \u2014 CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
         },
         {
           "id": "P11.3",
@@ -927,7 +986,7 @@
         },
         {
           "id": "P11.7",
-          "title": "DEFERRED — portfolio games section card",
+          "title": "DEFERRED \u2014 portfolio games section card",
           "deps": [
             "P11.6"
           ],

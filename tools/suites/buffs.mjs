@@ -126,6 +126,58 @@ export function run (t, OP) {
   const orderB = twoVillages({ x: 560, y: 300 }, { x: 440, y: 300 })
   t.eq(orderA, orderB, 'identical stats regardless of which village was built first: ' + orderA)
 
+  t.section('MUTUAL buff sources: aura geometry must not depend on placement order')
+  // Regression. Previously `def.buffs` ran after `restat`, so the second village
+  // computed its aura radius with the first village's rangeMul already applied,
+  // and the two auras ended up different sizes depending on build order. The
+  // earlier order-independence test missed it by only checking a third tower
+  // that sat comfortably inside both auras.
+  function villageRadii (order) {
+    const s2 = makeSim(OP, { cash: 100000 })
+    const spots = order === 'AB' ? [[300, 200], [550, 200]] : [[550, 200], [300, 200]]
+    for (const [x, y] of spots) T.place(s2, 'buff-village', x, y)
+    return s2.buffs.slice()
+      .sort((p1, p2) => p1.x - p2.x)
+      .map(bf => `${bf.x},${bf.y}:${bf.radius.toFixed(3)}`)
+      .join(' ')
+  }
+  const radiiAB = villageRadii('AB')
+  const radiiBA = villageRadii('BA')
+  t.eq(radiiBA, radiiAB, 'two mutually-overlapping villages register identical auras either way')
+  t.eq(radiiAB, '300,200:180.000 550,200:180.000',
+    'and both auras use the UNBUFFED range, not a range inflated by the other village')
+
+  t.section('a tower on the edge of one aura is treated the same in either order')
+  function edgeRange (order) {
+    const s2 = makeSim(OP, { cash: 100000 })
+    const edge = place(s2, 'buff-gun', 470, 200)
+    const spots = order === 'AB' ? [[300, 200], [550, 200]] : [[550, 200], [300, 200]]
+    for (const [x, y] of spots) T.place(s2, 'buff-village', x, y)
+    return edge.s.range.toFixed(6)
+  }
+  t.eq(edgeRange('BA'), edgeRange('AB'), `an edge tower resolves identically (${edgeRange('AB')})`)
+
+  t.section('inside buffs(), tower.s is the unbuffed stat block')
+  // Enforced by the engine rather than left to every content author to remember.
+  let seenRange = -1
+  if (!OP.TOWERS['buff-probe']) {
+    T.define({
+      key: 'buff-probe', name: 'Probe', family: 'support', cost: 100, footprint: 12,
+      base: { range: 200, cooldown: 3, damage: 0, pierce: 1, dmgType: D.NORMAL, projSpeed: 1 },
+      paths: [path('A'), path('B'), path('C')],
+      update: function () {},
+      buffs: function (s2, tower) {
+        seenRange = tower.s.range
+        OP.Buffs.register(s2, { id: 'probe:' + tower.id, sourceId: tower.id, x: tower.x, y: tower.y, radius: 50, mods: {} })
+      }
+    })
+  }
+  sim = makeSim(OP, { cash: 100000 })
+  B.register(sim, { id: 'inflate', radius: 'global', mods: { rangeMul: 5 } })
+  const probe = place(sim, 'buff-probe', 400, 300)
+  t.eq(seenRange, 200, 'buffs() saw the base range, not the 5x-inflated one')
+  t.eq(probe.s.range, 1000, 'while the resolved stats do include the buff')
+
   t.section('flags OR together and cannot be un-set by another buff')
   sim = makeSim(OP, { cash: 100000 })
   const g3 = place(sim, 'buff-gun', 400, 300)

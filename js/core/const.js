@@ -68,6 +68,10 @@
 
   OP.TOWERS = {}            // key -> tower definition
   OP.TOWER_ORDER = []       // stable display order
+  /* Each family file declares its own roster here. Explicit, because
+     Towers.byFamily() would also return towers defined by test fixtures, and the
+     family floor suite must audit exactly the shipped roster and nothing else. */
+  OP.FAMILY_ROSTERS = {}
   OP.HEROES = {}            // key -> hero definition
   OP.HERO_ORDER = []
   OP.PARAGONS = {}          // towerKey -> paragon definition
@@ -76,4 +80,25 @@
   OP.ROUND_SETS = {}        // key -> round table, so a save can name its set
   OP.ABILITIES = {}         // key -> (sim, tower) => void
   OP.PROJ_BEHAVIOURS = {}   // key -> { onHit?, onExpire?, onStep? }
+
+  /* Projectile art keys. Tower authors emit `kind` strings; the renderer draws
+     them. Nothing else connects the two, so every kind must be declared here via
+     OP.declareProjKind() and the harness asserts that no kind is ever emitted
+     that was not declared. Otherwise a fraction of shots render as nothing and it
+     is not noticed until the smoke test — or later. */
+  OP.PROJ_KINDS = {}
+
+  OP.declareProjKind = function (key, spec) {
+    if (!key || typeof key !== 'string') throw new Error('a projectile kind needs a string key')
+    if (OP.PROJ_KINDS[key]) throw new Error('projectile kind already declared: ' + key)
+    OP.PROJ_KINDS[key] = {
+      key: key,
+      shape: (spec && spec.shape) || 'dart',   // render hint
+      tint: (spec && spec.tint) || '#e8e2d4',
+      size: (spec && spec.size) || 4,
+      trail: !!(spec && spec.trail),
+      spin: !!(spec && spec.spin)
+    }
+    return key
+  }
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

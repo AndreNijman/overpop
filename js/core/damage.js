@@ -101,11 +101,13 @@
 
       if (remaining < b.hp) {
         b.hp -= remaining
+        sim.stats.damageDealt += remaining
         remaining = 0
         break
       }
 
       // This layer is gone.
+      sim.stats.damageDealt += b.hp
       remaining -= b.hp
       res.layersPopped++
       res.cashEarned += tier.cash

@@ -82,9 +82,12 @@
 
       stats: {
         spawned: 0, popped: 0, leaked: 0, regrown: 0, blanked: 0,
-        layersPopped: 0, shotsFired: 0, projHits: 0,
+        layersPopped: 0, shotsFired: 0, projHits: 0, damageDealt: 0,
         cashEarned: 0, cashSpent: 0, livesLost: 0, roundsCleared: 0
       },
+
+      // kind -> count of projectiles emitted, for the render-coverage assertion
+      kindsSeen: {},
 
       grid: OP.Grid.create(OP.FIELD_W, OP.FIELD_H)
     }
@@ -352,7 +355,12 @@
       roundSetKey: snap.roundSetKey,
       roundSet: opts.roundSet || null
     })
-    if (!sim.roundSet) {
+    // Only insist on a round set if this save is actually part-way through a
+    // game. A snapshot taken before any round started has nothing to resume, and
+    // demanding a table for it would make tower-level round-trip tests
+    // impossible for no benefit.
+    const midGame = !!snap.round || snap.roundIndex >= ((snap.rules && snap.rules.firstRound) || 1)
+    if (!sim.roundSet && midGame) {
       throw new Error('Sim.deserialize: no round set for key "' + snap.roundSetKey +
         '" — register it in OP.ROUND_SETS or pass opts.roundSet')
     }

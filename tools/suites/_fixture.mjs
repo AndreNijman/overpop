@@ -77,7 +77,7 @@ export function makeSim (OP, opts = {}) {
     events: [],
     stats: {
       spawned: 0, popped: 0, leaked: 0, regrown: 0, cashEarned: 0, cashSpent: 0,
-      layersPopped: 0, shotsFired: 0, livesLost: 0, roundsCleared: 0
+      layersPopped: 0, shotsFired: 0, livesLost: 0, roundsCleared: 0, damageDealt: 0
     },
     grid: opts.grid === false ? null : OP.Grid.create(OP.FIELD_W, OP.FIELD_H),
     _stub: true

@@ -5,7 +5,9 @@ If you must change something here, change it deliberately, bump the *Revision*
 below, and re-run `node tools/harness.mjs --all` — a silent divergence between
 this file and the code is the single most expensive failure mode in this project.
 
-**Revision:** 3 · 2026-08-05 — effects and regen tick *before* movement, so a new slow bites the same tick
+**Revision:** 4 · 2026-08-05 — added the shared cost ladder, the projectile-kind
+registry, and the family-floor requirement; `def.buffs` now sees unbuffed stats so
+aura geometry cannot depend on placement order
 
 ---
 
@@ -337,6 +339,64 @@ Additive mods sum; multiplicative mods multiply; `dmgTypeSet` takes the highest
 `priority`, tie-broken by ascending `id`. Two villages overlapping must produce
 the same stats regardless of which was placed first — the harness tests exactly
 this, in both placement orders.
+
+**Inside `def.buffs(sim, tower)`, `tower.s` is the UNBUFFED stat block** (base +
+upgrades, no buffs). The engine swaps it for you. Without that, two mutually
+overlapping support towers register different aura radii depending on build
+order, because the second one computes its radius with the first one's `rangeMul`
+already applied — a bug the original order-independence test missed by only
+checking a third tower that sat comfortably inside both auras.
+
+### The cost ladder — shared budget across four authors
+
+375 upgrade costs get written across four independent files. Without a shared
+budget that produces four different economies, and it does not surface until the
+playthrough phase — at which point fixing it means rewriting all four files,
+which is the thing the fan-out was meant to avoid.
+
+Costs are therefore expressed as multiples of the tower's **own base cost**:
+
+| Tier | Multiple of base cost | Intent |
+|---|---|---|
+| 1 | 0.35 – 0.90× | cheap first pick, affordable the round after placing |
+| 2 | 0.70 – 1.60× | still an early-game purchase |
+| 3 | 1.80 – 4.00× | the mid-game commitment that locks the crosspath |
+| 4 | 6.00 – 20.0× | late-game power spike, often carrying an ability |
+| 5 | 55.0 – 140× | end-game centrepiece |
+
+A full `5-2-0`, base cost included, must total **60–200×** the base cost.
+`OP.Upgrades.auditCosts(def)` checks all of this, and the shared family floor
+(`tools/suites/_towerfamily.mjs`) fails any tower outside the bands — so a
+mispriced tower fails **its own** step rather than P9.2.
+
+### Projectile art kinds must be declared
+
+Tower authors emit `kind` strings; the renderer draws them. Nothing else connects
+the two, so every kind is declared up front:
+
+```js
+OP.declareProjKind('acorn', { shape: 'dart', tint: '#c9a227', size: 4, trail: true })
+```
+
+The sim records every kind it actually emits in `sim.kindsSeen`, and the family
+floor fails on any emitted kind that was never declared. Without this a fraction
+of shots render as nothing and it is not noticed until the smoke test.
+
+### The shared family floor
+
+Each family file declares its roster:
+
+```js
+OP.FAMILY_ROSTERS.primary = ['acorn-fox', 'boomer-badger', …]
+```
+
+and its suite calls `assertFamily(t, OP, 'primary', { expect: 7 })`. That floor is
+written outside the fan-out deliberately: an agent that authors both the content
+and its pass criteria will produce criteria that describe whatever it built.
+`tools/suites/towerfloor.mjs` proves the floor rejects out-of-band costs,
+undeclared projectile kinds, borrowed proper nouns, non-idempotent `apply`,
+towers that silently never fire, upgrades producing `NaN`, and unregistered
+ability keys.
 
 ### Crosspath rules
 

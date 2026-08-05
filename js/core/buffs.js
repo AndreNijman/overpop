@@ -197,10 +197,10 @@
 
   Buffs.rebuild = function (sim) {
     sim.buffs = []
-    for (let i = 0; i < sim.towers.length; i++) {
-      const tower = sim.towers[i]
-      if (tower.def.buffs) tower.def.buffs(sim, tower)
-    }
+    // Towers.restatAll resolves sBase first, then re-registers every aura from
+    // it, then resolves final stats — see the comment there for why one pass is
+    // not enough.
+    OP.Towers.restatAll(sim)
     sim.buffs.sort(byPriorityThenId)
     sim.buffsDirty = true
   }

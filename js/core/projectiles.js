@@ -108,6 +108,9 @@
 
     sim.projectiles.push(p)
     sim.stats.shotsFired++
+    // Record every kind actually emitted, so a playthrough can be checked against
+    // the declared registry rather than trusting that the two lists agree.
+    if (sim.kindsSeen) sim.kindsSeen[p.kind] = (sim.kindsSeen[p.kind] || 0) + 1
     return p
   }
 
