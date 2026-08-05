@@ -173,10 +173,11 @@
           "verify": [
             "node tools/harness.mjs --suite damage"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "81b2b97",
           "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains — a table.",
-          "started": "2026-08-05 11:40:30"
+          "started": "2026-08-05 11:40:30",
+          "finished": "2026-08-05 11:44:39"
         },
         {
           "id": "P1.5",
@@ -190,9 +191,10 @@
           "verify": [
             "node tools/harness.mjs --suite projectiles"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "A projectile must never hit the same balloon twice; pierce counts DISTINCT balloons. Swept collision, not per-frame AABB."
+          "note": "A projectile must never hit the same balloon twice; pierce counts DISTINCT balloons. Swept collision, not per-frame AABB.",
+          "started": "2026-08-05 11:44:39"
         },
         {
           "id": "P1.6",

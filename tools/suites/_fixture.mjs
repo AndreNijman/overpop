@@ -55,6 +55,7 @@ export function makeSim (OP, opts = {}) {
     over: false,
     leakEvents: [],
     popEvents: [],
+    blastEvents: [],
     stats: { spawned: 0, popped: 0, leaked: 0, regrown: 0, cashEarned: 0, layersPopped: 0, shotsFired: 0 },
     grid: opts.grid === false ? null : OP.Grid.create(OP.FIELD_W, OP.FIELD_H),
     _stub: true
@@ -95,7 +96,9 @@ function stubStep (OP, sim) {
   if (OP.Balloons) OP.Balloons.move(sim)
   if (OP.Balloons) OP.Balloons.leakCheck(sim)
   if (OP.Grid && sim.grid) OP.Grid.rebuild(sim.grid, sim.balloons)
+  if (OP.Projectiles) OP.Projectiles.step(sim)
   if (OP.Balloons) OP.Balloons.compact(sim)
+  if (OP.Projectiles) OP.Projectiles.compact(sim)
 }
 
 /** Count live balloons by tier key. */
