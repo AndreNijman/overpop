@@ -89,10 +89,11 @@
           "verify": [
             "node tools/state.mjs grep README.md 'Ninja Kiwi'"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "dae9e30",
           "note": "State what is in scope and what is honestly cut. Mirror the EA/PopCap disclaimer style from the pvz repo.",
-          "started": "2026-08-05 11:24:38"
+          "started": "2026-08-05 11:24:38",
+          "finished": "2026-08-05 11:24:38"
         }
       ]
     },
@@ -105,7 +106,7 @@
           "id": "P1.1",
           "title": "Seeded RNG + math/geometry helpers",
           "deps": [
-            "P0.2"
+            "P1.10"
           ],
           "produces": [
             "js/core/rng.js",
@@ -260,18 +261,20 @@
           "id": "P1.10",
           "title": "Headless verification harness",
           "deps": [
-            "P1.9"
+            "P0.2"
           ],
           "produces": [
             "tools/harness.mjs",
             "tools/loadgame.mjs"
           ],
           "verify": [
-            "node tools/harness.mjs --list"
+            "node tools/harness.mjs --list",
+            "node tools/harness.mjs --suite loader"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "Loads the classic-script browser bundle into a Node sandbox so the same code is tested. Suites + seeded round playthroughs + determinism checksums."
+          "note": "Loads the classic-script browser bundle into a Node sandbox so the same code is tested. Suites + seeded round playthroughs + determinism checksums.",
+          "started": "2026-08-05 11:25:01"
         }
       ]
     },
@@ -345,7 +348,7 @@
             "P2.3"
           ],
           "produces": [
-            "js/towers/primary/"
+            "js/towers/primary.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite towers-primary"
@@ -361,7 +364,7 @@
             "P2.3"
           ],
           "produces": [
-            "js/towers/military/"
+            "js/towers/military.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite towers-military"
@@ -377,7 +380,7 @@
             "P2.3"
           ],
           "produces": [
-            "js/towers/magic/"
+            "js/towers/magic.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite towers-magic"
@@ -393,7 +396,7 @@
             "P2.3"
           ],
           "produces": [
-            "js/towers/support/"
+            "js/towers/support.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite towers-support"
@@ -413,7 +416,7 @@
           ],
           "produces": [
             "js/core/paragon.js",
-            "js/towers/paragons/"
+            "js/towers/paragons.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite paragon"
@@ -452,7 +455,7 @@
             "P4.1"
           ],
           "produces": [
-            "js/towers/heroes/"
+            "js/towers/heroes.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite hero-roster"
@@ -492,7 +495,10 @@
             "P2.3"
           ],
           "produces": [
-            "js/data/maps/"
+            "js/data/maps-beginner.js",
+            "js/data/maps-intermediate.js",
+            "js/data/maps-advanced.js",
+            "js/data/maps-expert.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite map-roster"
