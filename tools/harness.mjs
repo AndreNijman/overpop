@@ -92,7 +92,8 @@ function fmt (v) {
 
 async function discover () {
   if (!existsSync(SUITE_DIR)) return []
-  const files = readdirSync(SUITE_DIR).filter(f => f.endsWith('.mjs')).sort()
+  // `_`-prefixed files are shared fixtures, not suites.
+  const files = readdirSync(SUITE_DIR).filter(f => f.endsWith('.mjs') && !f.startsWith('_')).sort()
   const out = []
   for (const f of files) {
     const mod = await import(pathToFileURL(resolve(SUITE_DIR, f)).href)

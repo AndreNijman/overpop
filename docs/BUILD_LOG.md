@@ -15,3 +15,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:27:27` **start** P1.1 — Seeded RNG + math/geometry helpers
 - `2026-08-05 11:29:58` **done** P1.1 — Seeded RNG + math/geometry helpers (`84da27f`)
 - `2026-08-05 11:30:09` **start** P1.2 — Track model — polyline with scalar distance t
+- `2026-08-05 11:32:05` **done** P1.2 — Track model — polyline with scalar distance t (`a6709e3`)
+- `2026-08-05 11:32:48` **start** P1.3 — Balloon layer model + child cascade
