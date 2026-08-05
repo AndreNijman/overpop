@@ -990,9 +990,10 @@
           "verify": [
             "node tools/state.mjs live https://overpop.andrenijman.com/"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": ""
+          "status": "done",
+          "commit": "84a03fe",
+          "note": "",
+          "finished": "2026-08-05 23:00:16"
         },
         {
           "id": "P11.5",
@@ -1004,9 +1005,10 @@
           "verify": [
             "node tools/state.mjs hubcard"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Not just a card: meta description, og:description, twitter:description all currently name only TOPOUT and Garden Defenders 2. JSON-LD needs itemListElement position 3. sitemap lastmod bump. overpop.png at 1000x525."
+          "status": "done",
+          "commit": "84a03fe",
+          "note": "Not just a card: meta description, og:description, twitter:description all currently name only TOPOUT and Garden Defenders 2. JSON-LD needs itemListElement position 3. sitemap lastmod bump. overpop.png at 1000x525.",
+          "finished": "2026-08-05 23:00:40"
         },
         {
           "id": "P11.6",

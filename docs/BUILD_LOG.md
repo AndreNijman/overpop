@@ -73,3 +73,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 19:53:21` **done** P9.2b — Retune rounds and costs against playthrough results (`4174c6f`) — FORCED, verify failing
 - `2026-08-05 19:53:48` **done** P9.2 — Scripted playthroughs: rounds 1-100 x difficulties x key modes (`4174c6f`) — FORCED, verify failing
 - `2026-08-05 22:56:04` **done** P11.3 — Cloudflare DNS record (grey cloud) (`ac92704`)
+- `2026-08-05 23:00:16` **done** P11.4 — Enforce HTTPS + verify live (`84a03fe`)
+- `2026-08-05 23:00:40` **done** P11.5 — games-site hub: card + meta + JSON-LD + sitemap (`84a03fe`)
