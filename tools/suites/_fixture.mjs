@@ -22,17 +22,27 @@ export function cornerTrack (OP, leg = 500) {
  */
 export function makeSim (OP, opts = {}) {
   const tracks = opts.tracks || [straightTrack(OP, opts.trackLength || 1000)]
+  if (opts.roundSet) OP.ROUND_SETS[opts.roundSetKey || 'fixture'] = opts.roundSet
 
   if (OP.Sim && typeof OP.Sim.create === 'function' && !opts.forceStub) {
-    const sim = OP.Sim.create({
-      map: { key: 'test', paths: tracks, placement: null },
+    // cash/lives are expressed as rule overrides, because that is the only way
+    // the real Sim.create accepts them — there is no separate starting-cash
+    // parameter, by design.
+    return OP.Sim.create({
+      map: { key: 'test', paths: tracks, placement: null, blockers: opts.blockers || null },
       seed: opts.seed === undefined ? 'test' : opts.seed,
-      cash: opts.cash === undefined ? 10000 : opts.cash,
-      lives: opts.lives === undefined ? 150 : opts.lives,
       difficulty: opts.difficulty || 'medium',
-      mode: opts.mode || 'standard'
+      mode: opts.mode || 'standard',
+      // Saves record the round-set KEY, not the table, so a fixture set has to be
+      // registered for a round-trip to resolve it.
+      roundSetKey: opts.roundSet ? (opts.roundSetKey || 'fixture') : 'standard',
+      roundSet: opts.roundSet || null,
+      autostart: !!opts.autostart,
+      rules: Object.assign({
+        startCash: opts.cash === undefined ? 10000 : opts.cash,
+        startLives: opts.lives === undefined ? 150 : opts.lives
+      }, opts.rules || {})
     })
-    return sim
   }
 
   const sim = {

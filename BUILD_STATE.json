@@ -228,10 +228,10 @@
             "node tools/harness.mjs --suite sim",
             "node tools/harness.mjs --suite determinism"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
           "note": "Accumulator, fixed dt. Documented update order. Determinism checksum must match across two runs of the same seed.",
-          "started": "2026-08-05 11:52:40"
+          "started": "2026-08-05 12:05:05"
         },
         {
           "id": "P1.8",
@@ -270,10 +270,11 @@
             "node tools/harness.mjs --suite crosspath",
             "node tools/harness.mjs --suite buffs"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "63ae987",
           "note": "3 paths x 5 tiers, crosspath rules (one path to 3+ locks others at 2; only one path past 2). Abilities with cooldowns. THIS IS THE FROZEN CONTRACT for the P3 fan-out.",
-          "started": "2026-08-05 11:57:37"
+          "started": "2026-08-05 11:57:37",
+          "finished": "2026-08-05 12:04:48"
         },
         {
           "id": "P1.10",

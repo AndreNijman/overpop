@@ -73,6 +73,7 @@
   OP.PARAGONS = {}          // towerKey -> paragon definition
   OP.MAPS = {}              // key -> map definition
   OP.MAP_ORDER = []
+  OP.ROUND_SETS = {}        // key -> round table, so a save can name its set
   OP.ABILITIES = {}         // key -> (sim, tower) => void
   OP.PROJ_BEHAVIOURS = {}   // key -> { onHit?, onExpire?, onStep? }
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

@@ -28,3 +28,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:53:11` **start** P1.8 — Economy, lives, round runner, status effects
 - `2026-08-05 11:57:06` **done** P1.8 — Economy, lives, round runner, status effects (`e24ba74`)
 - `2026-08-05 11:57:37` **start** P1.9 — Tower module contract + _TEMPLATE.js + upgrade-tree engine
+- `2026-08-05 12:04:48` **done** P1.9 — Tower module contract + _TEMPLATE.js + upgrade-tree engine (`63ae987`)
+- `2026-08-05 12:05:05` **start** P1.7 — Fixed-timestep sim loop + entity orchestration

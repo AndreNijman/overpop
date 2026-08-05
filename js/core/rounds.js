@@ -100,10 +100,14 @@
     const def = set && set[roundIndex]
     if (def) return def
     if (OP.Freeplay && OP.Freeplay.generate) return OP.Freeplay.generate(sim, roundIndex)
-    // Last resort: repeat the final authored round. Better than crashing, and the
-    // harness asserts it never actually happens for rounds 1..100.
+
+    // Falling through to here means the round table is missing an entry the game
+    // asked for. Repeating the last authored round keeps play going, but it is
+    // recorded as an error event rather than silently substituted — a quiet
+    // substitution here once made a reloaded save diverge from its own future.
     const keys = set ? Object.keys(set) : []
     const last = keys.length ? set[keys[keys.length - 1]] : { groups: [{ tier: 'red', count: 10 }] }
+    sim.events.push({ kind: 'error', what: 'missing-round', round: roundIndex, set: sim.roundSetKey })
     return last
   }
 

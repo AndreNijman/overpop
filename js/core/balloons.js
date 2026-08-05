@@ -68,6 +68,7 @@
       speedMul: 1,
       regenT: 0,
       depth: 0,
+      dotAcc: 0,
       effects: [],
       // Set by the round runner so freeplay scaling is per-balloon rather than a
       // hidden global read at damage time.
@@ -103,6 +104,7 @@
     b.speedMul = 1
     b.regenT = 0
     b.depth = def.depth || 0
+    b.dotAcc = 0
     b.effects.length = 0
     b.hpScale = def.hpScale || 1
     b.speedScale = def.speedScale || 1
@@ -290,6 +292,9 @@
         spawnTier: OP.BALLOON_TIERS[b.spawnTier].key,
         path: b.path, t: b.t, hp: b.hp, props: b.props,
         regenT: b.regenT, depth: b.depth,
+        // The accumulated fraction of a damage-over-time tick. Small, but a save
+        // that dropped it would resume a burning balloon slightly healthier.
+        dotAcc: b.dotAcc || 0,
         hpScale: b.hpScale, speedScale: b.speedScale,
         effects: b.effects.map(OP.Effects.serialize)
       })
@@ -312,6 +317,7 @@
       b.props = s.props
       b.regenT = s.regenT
       b.depth = s.depth
+      b.dotAcc = s.dotAcc || 0
       b.hpScale = s.hpScale
       b.speedScale = s.speedScale
       b.speedMul = 1
