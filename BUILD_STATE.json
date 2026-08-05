@@ -941,9 +941,10 @@
           "verify": [
             "gh repo view AndreNijman/overpop --json name -q .name"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Private, matching pvz/topout/games-site. NOTE: `git init -b main` left main unborn — every commit so far is on build/overpop. Create main explicitly (git branch -f main build/overpop or merge) BEFORE P11.2, which publishes Pages from main root."
+          "status": "done",
+          "commit": "a55c397",
+          "note": "Private, matching pvz/topout/games-site. NOTE: `git init -b main` left main unborn — every commit so far is on build/overpop. Create main explicitly (git branch -f main build/overpop or merge) BEFORE P11.2, which publishes Pages from main root.",
+          "finished": "2026-08-05 15:46:35"
         },
         {
           "id": "P11.2",
@@ -955,9 +956,10 @@
           "verify": [
             "gh api repos/AndreNijman/overpop/pages -q .cname"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Publish from main root, legacy build — CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
+          "status": "done",
+          "commit": "a55c397",
+          "note": "Publish from main root, legacy build — CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch).",
+          "finished": "2026-08-05 15:46:36"
         },
         {
           "id": "P11.3",
@@ -969,9 +971,9 @@
           "verify": [
             "node tools/state.mjs dns overpop.andrenijman.com"
           ],
-          "status": "todo",
+          "status": "blocked",
           "commit": null,
-          "note": "CNAME overpop -> andrenijman.github.io, proxy OFF (required for GitHub to issue the Let's Encrypt cert). Token at ~/special.txt. If GitHub's domain check fails mid-edit, remove and re-add the custom domain to force a recheck."
+          "note": "BLOCKED ON A CREDENTIAL, not on work. The Cloudflare DNS-edit token is NOT on this machine: memory recorded it at ~/special.txt but neither that nor ~/cloudflareapi.txt exists on this APEX-OS install. Everything else is done and Pages reports status=built with cname=overpop.andrenijman.com. One record is needed: CNAME overpop -> andrenijman.github.io, PROXY OFF (grey cloud — required for GitHub to issue the Let's Encrypt cert). Then: gh api -X PUT repos/AndreNijman/overpop/pages -F https_enforced=true"
         },
         {
           "id": "P11.4",
