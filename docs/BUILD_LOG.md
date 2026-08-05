@@ -55,3 +55,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 15:02:03` **done** P8.2 — Title, map select, difficulty/mode select (`78cc1f0`)
 - `2026-08-05 15:02:03` **done** P8.4 — Bestiary/almanac + end-of-game screens (`78cc1f0`)
 - `2026-08-05 15:03:02` **done** P2.2 — Alternate wave set + freeplay generator (rounds 101+) (`800e8d7`)
+- `2026-08-05 15:13:57` **done** P10.1 — PWA icons 192/512 (`846c693`)

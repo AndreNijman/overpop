@@ -33,7 +33,7 @@
         },
         {
           "id": "P0.2",
-          "title": "ARCHITECTURE.md \u2014 frozen engine contract",
+          "title": "ARCHITECTURE.md — frozen engine contract",
           "deps": [
             "P0.1"
           ],
@@ -73,7 +73,7 @@
           ],
           "status": "done",
           "commit": "14e5abc",
-          "note": "Classic <script src> only \u2014 no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
+          "note": "Classic <script src> only — no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
           "started": "2026-08-05 11:22:26",
           "finished": "2026-08-05 11:23:55"
         },
@@ -99,7 +99,7 @@
     },
     {
       "id": "P1",
-      "title": "Spine \u2014 deterministic simulation core",
+      "title": "Spine — deterministic simulation core",
       "goal": "One-voice engine core. Written inline, not fanned out. Everything later depends on these signatures.",
       "steps": [
         {
@@ -123,7 +123,7 @@
         },
         {
           "id": "P1.2",
-          "title": "Track model \u2014 polyline with scalar distance t",
+          "title": "Track model — polyline with scalar distance t",
           "deps": [
             "P1.1"
           ],
@@ -175,13 +175,13 @@
           ],
           "status": "done",
           "commit": "81b2b97",
-          "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains \u2014 a table.",
+          "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains — a table.",
           "started": "2026-08-05 11:40:30",
           "finished": "2026-08-05 11:44:39"
         },
         {
           "id": "P1.5",
-          "title": "Projectiles \u2014 per-projectile hit sets, pierce, pooling",
+          "title": "Projectiles — per-projectile hit sets, pierce, pooling",
           "deps": [
             "P1.4"
           ],
@@ -333,7 +333,7 @@
           ],
           "status": "done",
           "commit": "89b59d7",
-          "note": "P3.5 and P4.2 are fan-out phases with no contract yet. defineHero/defineParagon must validate as hard as defineTower, and each needs one fully worked template, BEFORE either phase dispatches \u2014 same reasoning as the tower template.",
+          "note": "P3.5 and P4.2 are fan-out phases with no contract yet. defineHero/defineParagon must validate as hard as defineTower, and each needs one fully worked template, BEFORE either phase dispatches — same reasoning as the tower template.",
           "started": "2026-08-05 12:30:02",
           "finished": "2026-08-05 12:36:52"
         }
@@ -402,7 +402,7 @@
     },
     {
       "id": "P3",
-      "title": "Tower roster \u2014 25 towers, 3x5 upgrade trees",
+      "title": "Tower roster — 25 towers, 3x5 upgrade trees",
       "goal": "Fan-out phase. One agent per family, disjoint files, all coding against the P1.9 contract.",
       "steps": [
         {
@@ -496,7 +496,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one \u2014 say which in the README."
+          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one — say which in the README."
         }
       ]
     },
@@ -588,7 +588,7 @@
     },
     {
       "id": "P6",
-      "title": "Presentation \u2014 sprites & rendering",
+      "title": "Presentation — sprites & rendering",
       "goal": "All art drawn procedurally in code. Woodland-critter theme. No asset packs.",
       "steps": [
         {
@@ -769,7 +769,7 @@
         },
         {
           "id": "P8.5",
-          "title": "Boot wiring \u2014 main.js + ordered script list",
+          "title": "Boot wiring — main.js + ordered script list",
           "deps": [
             "P8.4",
             "P6.4",
@@ -785,7 +785,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Script order in index.html must match dependency order \u2014 classic scripts, no module resolution to save us."
+          "note": "Script order in index.html must match dependency order — classic scripts, no module resolution to save us."
         }
       ]
     },
@@ -880,7 +880,7 @@
     {
       "id": "P10",
       "title": "Assets",
-      "goal": "Icons, share image, hub screenshot \u2014 all generated, all committed.",
+      "goal": "Icons, share image, hub screenshot — all generated, all committed.",
       "steps": [
         {
           "id": "P10.1",
@@ -895,9 +895,10 @@
           "verify": [
             "node tools/state.mjs exists icons/icon-192.png icons/icon-512.png"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": " Rendering tool is firefox --headless --screenshot; chromium is NOT installed (the portfolio og-image recipe in memory assumed it)."
+          "status": "done",
+          "commit": "846c693",
+          "note": " Rendering tool is firefox --headless --screenshot; chromium is NOT installed (the portfolio og-image recipe in memory assumed it).",
+          "finished": "2026-08-05 15:13:57"
         },
         {
           "id": "P10.2",
@@ -937,7 +938,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Private, matching pvz/topout/games-site. NOTE: `git init -b main` left main unborn \u2014 every commit so far is on build/overpop. Create main explicitly (git branch -f main build/overpop or merge) BEFORE P11.2, which publishes Pages from main root."
+          "note": "Private, matching pvz/topout/games-site. NOTE: `git init -b main` left main unborn — every commit so far is on build/overpop. Create main explicitly (git branch -f main build/overpop or merge) BEFORE P11.2, which publishes Pages from main root."
         },
         {
           "id": "P11.2",
@@ -951,7 +952,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Publish from main root, legacy build \u2014 CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
+          "note": "Publish from main root, legacy build — CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
         },
         {
           "id": "P11.3",
@@ -1009,7 +1010,7 @@
         },
         {
           "id": "P11.7",
-          "title": "DEFERRED \u2014 portfolio games section card",
+          "title": "DEFERRED — portfolio games section card",
           "deps": [
             "P11.6"
           ],
