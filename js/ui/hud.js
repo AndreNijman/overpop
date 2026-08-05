@@ -498,7 +498,6 @@
     if (m.over && m.over.length) n += U.paint(ctx, { marks: m.over, widgets: [] }, {})
     return n
   }
-  HUD.paintModel = paint
 
   HUD.build = build
 

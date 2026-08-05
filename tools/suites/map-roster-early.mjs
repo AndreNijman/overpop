@@ -240,6 +240,23 @@ export function run (t, OP) {
   }
 
   /* ================================================================
+     0. the towers this suite tests maps with
+     ================================================================ */
+
+  t.section('the towers these maps are tested with are discovered, not named')
+  // Read off OP.TOWER_ORDER by predicate: a later roster change must reach this
+  // suite rather than sail past it, and hardcoded keys would rot on the first
+  // rename.
+  const attackers = OP.TOWER_ORDER
+    .filter(k => {
+      const d = OP.TOWERS[k]
+      return d.fire && d.placement === 'land' && d.base.range >= 90 && d.base.range <= 260
+    })
+    .slice(0, 4)
+  t.gte(attackers.length, 3, `found ${attackers.length} land attackers to build with: ${attackers.join(', ')}`)
+  if (attackers.length < 3) return
+
+  /* ================================================================
      1. the rosters the two data files declare
      ================================================================ */
 
@@ -431,31 +448,24 @@ export function run (t, OP) {
   t.section('the beginner tier spans both placement lessons')
   // One map must reward "put it between two legs"; another must offer nothing of
   // the kind, so the answer there is raw damage. Both are in the tier by design —
-  // see the headers of js/data/maps-beginner.js.
+  // see the headers of js/data/maps-beginner.js. The radius is the first land
+  // attacker's real base range, not a number picked to make this pass.
+  const R = OP.TOWERS[attackers[0]].base.range
   const cover = {}
-  for (const key of rosters.beginner) cover[key] = doubleCoverSpots(built[key], 108, 600)
+  for (const key of rosters.beginner) cover[key] = doubleCoverSpots(built[key], R, 600)
   const covers = rosters.beginner.map(k => cover[k])
-  const report = rosters.beginner.map(k => `${k}=${cover[k]}`).join(' ')
+  const report = `at range ${R} (${OP.TOWERS[attackers[0]].name}): ` +
+    rosters.beginner.map(k => `${k}=${cover[k]}`).join(' ')
   t.gte(Math.max.apply(null, covers), 40,
-    `at least one beginner map lets one tower cover two stretches 600+ units apart (${report})`)
+    `at least one beginner map lets one tower cover two stretches 600+ units apart — ${report}`)
   t.lte(Math.min.apply(null, covers), 5,
-    `and at least one offers essentially none of that, so damage has to do the work (${report})`)
+    `and at least one offers essentially none of that, so damage has to do the work — ${report}`)
 
   /* ================================================================
      6. every map is playable — all eight, every lane
      ================================================================ */
 
   t.section('a real build on every lane of every map clears a stream of balloons')
-  // Discovered from OP.TOWER_ORDER, never named: a later roster change must reach
-  // this test rather than sail past it.
-  const attackers = OP.TOWER_ORDER
-    .filter(k => {
-      const d = OP.TOWERS[k]
-      return d.fire && d.placement === 'land' && d.base.range >= 90 && d.base.range <= 260
-    })
-    .slice(0, 4)
-  t.gte(attackers.length, 3, `found ${attackers.length} land attackers to test with: ${attackers.join(', ')}`)
-
   const NWEAK = 30, NNEXT = 10
   const TOTAL = NWEAK + NNEXT
   for (const key of ALL) {

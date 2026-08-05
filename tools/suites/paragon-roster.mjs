@@ -210,7 +210,9 @@ export function run (t, OP, env) {
     for (let i = start + 1; i < readme.length; i++) {
       const line = readme[i]
       if (/^-\s/.test(line) || /^#/.test(line)) break        // next top-level bullet or heading
-      const m = line.match(/^\s+-\s+`([a-z0-9-]+)`\s*→\s*\*\*(.+?)\*\*/)
+      // Either arrow. The key set is what has to be exact; being strict about a
+      // glyph only invents a way for a prose reflow to fail the build.
+      const m = line.match(/^\s+-\s+`([a-z0-9-]+)`\s*(?:→|->)\s*\*\*(.+?)\*\*/)
       if (m) listed.push({ key: m[1], name: m[2] })
     }
   }
@@ -553,14 +555,25 @@ export function run (t, OP, env) {
     t.eq(back.projectiles.filter(pr => pr.alive).length, p.s.projectiles.filter(pr => pr.alive).length,
       `${key}: and the same shots in flight`)
 
-    // One shared tick before the checksum, deliberately. `Balloons.deserialize`
-    // does not restore `speedMul`: it is recomputed from the effect list, because
-    // an incrementally-maintained slow drifts as effects expire (js/core/effects.js).
-    // Effects tick before movement (ARCHITECTURE.md §7), so a reload is correct from
-    // its first tick — but a checksum taken between load and that tick sees the
-    // placeholder 1.0 on every slowed balloon. A control paragon slows the entire
-    // screen, so this is the difference between asserting the round-trip and
-    // asserting the order in which two fields happen to be rebuilt.
+    /* THE IMMEDIATE CHECKSUM, and why one paragon is exempt from it.
+       `Balloons.deserialize` does not persist `b.speedMul`; it writes 1 and lets
+       `Effects.tick` recompute it from the effect list, because an incrementally
+       maintained slow drifts as effects expire (js/core/effects.js). But
+       `Sim.checksum` folds `speedMul` in. So for a board that was saved with a
+       slowed balloon on it, checksum(reload) != checksum(original) until one tick
+       has run — and effects tick before movement (ARCHITECTURE.md §7), so nothing
+       about the resumed game is actually wrong.
+       The condition is asserted rather than assumed: five of the six paragons do
+       not slow anything and are held to the literal immediate round-trip. */
+    const slowed = p.s.balloons.filter(b => b.alive && b.speedMul !== 1).length
+    if (slowed === 0) {
+      t.eq(OP.Sim.checksum(back), OP.Sim.checksum(p.s),
+        `${key}: the checksum matches immediately, nothing on the board is slowed`)
+    } else {
+      t.gt(slowed, 0, `${key}: ${slowed} balloons are slowed at save time — speedMul is rebuilt on load, not stored`)
+    }
+
+    // And every paragon, slowing or not, is bit-identical from the first tick on.
     OP.Sim.step(p.s)
     OP.Sim.step(back)
     t.eq(OP.Sim.checksum(back), OP.Sim.checksum(p.s), `${key}: and the whole sim checksum matches`)

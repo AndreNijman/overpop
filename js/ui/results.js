@@ -20,7 +20,6 @@
   const Results = {}
 
   const FIELD_W = OP.FIELD_W
-  const FIELD_H = OP.FIELD_H
 
   function ui () { return OP.Menus && OP.Menus.UI ? OP.Menus.UI : null }
 

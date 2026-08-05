@@ -912,6 +912,59 @@ export function run (t, OP, env) {
   t.ok(R.layerNames().includes('tower-panel'), 'including the panel')
 
   /* ==========================================================================
+     LAYOUT INTEGRITY
+
+     Nothing here can be seen from a terminal, so the two properties that make a
+     canvas UI usable are asserted instead: every widget is on screen, and no
+     widget sits on top of another — an overlapped button is one the player can
+     never press, and it is invisible in a screenshot until someone tries.
+     ========================================================================== */
+
+  t.section('every panel keeps its widgets on screen and out of each other\'s way')
+  const ls = sim({ cash: 1000000 })
+  const lApp = wireShell(makeApp(ls))
+  const lTower = place(ls, KEY)
+  if (heroKey) { const h = place(ls, heroKey, true); if (h) OP.Heroes.grantXP(ls, 1000000) }
+  const shopLayout = Shop.build(lApp)
+  lApp.state.io.selectedId = lTower.id
+  const panelLayout = Panel.build(lApp)
+  const hudLayout = HUD.build(lApp)
+  const overSim = sim()
+  OP.Economy.endGame(overSim, 'won')
+  const resultsLayout = Results.build(wireShell(makeApp(overSim)))
+
+  for (const [label, m] of [['HUD', hudLayout], ['shop', shopLayout],
+    ['tower panel', panelLayout], ['results', resultsLayout]]) {
+    const ws = m.widgets
+    t.gt(ws.length, 0, label + ' has widgets to press')
+    const off = ws.filter(w => w.x < 0 || w.y < 0 || w.x + w.w > 1280 || w.y + w.h > 720)
+    t.eq(off.length, 0, off.length
+      ? label + ': off screen — ' + off.map(w => w.id).join(', ')
+      : label + ': every widget is inside the 1280x720 field')
+    const ids = ws.map(w => w.id)
+    t.eq(new Set(ids).size, ids.length, label + ': widget ids are unique')
+    t.eq(ws.filter(w => !w.action).length, 0, label + ': no widget is a dead end')
+    const clash = []
+    for (let i = 0; i < ws.length; i++) {
+      for (let j = i + 1; j < ws.length; j++) {
+        const a = ws[i]; const b = ws[j]
+        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) {
+          clash.push(a.id + ' / ' + b.id)
+        }
+      }
+    }
+    t.eq(clash.length, 0, clash.length ? label + ': overlapping widgets — ' + clash.join(', ')
+      : label + ': no widget covers another')
+  }
+
+  t.section('the sidebar panels and the HUD strips do not fight over a point')
+  const sb = HUD.LAYOUT.sidebar
+  t.notOk(HUD.inRect(HUD.LAYOUT.top, sb.x + 5, sb.y + 5), 'the sidebar starts below the top strip')
+  t.notOk(HUD.inRect(HUD.LAYOUT.bottom, sb.x + 5, 700), 'and the bottom strip stops before it')
+  t.notOk(HUD.inRect(HUD.LAYOUT.bottom, HUD.LAYOUT.hero.x, HUD.LAYOUT.hero.y + HUD.LAYOUT.hero.h),
+    'the hero panel sits above the bottom strip')
+
+  /* ==========================================================================
      EMPTY REGISTRIES
      ========================================================================== */
 
