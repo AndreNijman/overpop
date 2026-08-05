@@ -391,9 +391,10 @@
           "verify": [
             "node tools/harness.mjs --suite modes"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Easy/Medium/Hard/Relentless. Modes: Standard, Primary Only, Military Only, Magic Only, Deflation, Onslaught, Half Cash, Double HP Blimps, Alternate Waves, Reverse, PURIST."
+          "status": "done",
+          "commit": "9a067d8",
+          "note": "Easy/Medium/Hard/Relentless. Modes: Standard, Primary Only, Military Only, Magic Only, Deflation, Onslaught, Half Cash, Double HP Blimps, Alternate Waves, Reverse, PURIST.",
+          "finished": "2026-08-05 12:55:23"
         }
       ]
     },
@@ -549,9 +550,10 @@
           "verify": [
             "node tools/harness.mjs --suite maps"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Land/water/blocked masks, line-of-sight obstacles, multi-path, removable obstacles."
+          "status": "done",
+          "commit": "9a067d8",
+          "note": "Land/water/blocked masks, line-of-sight obstacles, multi-path, removable obstacles.",
+          "finished": "2026-08-05 12:55:22"
         },
         {
           "id": "P5.2",
@@ -692,9 +694,10 @@
           "verify": [
             "node tools/harness.mjs --suite save"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Versioned schema with migrations. Mid-round save/resume must round-trip a live sim exactly."
+          "status": "done",
+          "commit": "9a067d8",
+          "note": "Versioned schema with migrations. Mid-round save/resume must round-trip a live sim exactly.",
+          "finished": "2026-08-05 12:55:23"
         },
         {
           "id": "P8.2",

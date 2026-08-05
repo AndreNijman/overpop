@@ -39,3 +39,6 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:50:22` **done** P7.1 — Synth engine + SFX bank + music beds (`371d7db`) — FORCED, verify failing
 - `2026-08-05 12:50:31` **done** P7.1 — Synth engine + SFX bank + music beds (`371d7db`)
 - `2026-08-05 12:52:13` **done** P6.1 — Render core (camera, layers, culling, canvas pooling) (`f66259d`)
+- `2026-08-05 12:55:22` **done** P5.1 — Map format + loader + placement masks (`9a067d8`)
+- `2026-08-05 12:55:23` **done** P2.3 — Difficulties + game modes matrix (`9a067d8`)
+- `2026-08-05 12:55:23` **done** P8.1 — Save system + settings + profile progression (`9a067d8`)

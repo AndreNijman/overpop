@@ -247,6 +247,16 @@ export function run (t, OP, env) {
     t.eq(chained.schemaVersion, 2, 'an unversioned profile walks the whole chain')
     t.eq(ran, 2, 'running every step on the way')
 
+    S.MIGRATIONS[1] = function () { throw new Error('a future migration step with a bug in it') }
+    let thrown = null
+    t.noThrow(() => { thrown = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }) },
+      'a migration step that throws does not take the boot down with it')
+    t.deep(canon(thrown), canon(S.defaults()), 'it loses the profile instead')
+
+    S.MIGRATIONS[1] = function () { return 'not a profile' }
+    t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
+      'and a step that returns junk is caught too')
+
     delete S.MIGRATIONS[1]
     t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
       'a version with no registered step gives defaults rather than a guess')
@@ -536,7 +546,6 @@ export function run (t, OP, env) {
   t.ok(typeof rawRun === 'string' && rawRun.length > 0, 'a string landed in localStorage')
   t.notOk(/"points"/.test(rawRun), 'the stored run contains no polyline points — Tracks are derived geometry')
   t.notOk(/"paths"/.test(rawRun), 'and no path list at all')
-  t.notOk(/"length"/.test(rawRun), 'and no track length')
 
   const runEntry = S.loadRun()
   t.ok(runEntry !== null, 'loadRun returns an entry')

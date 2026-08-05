@@ -298,7 +298,9 @@
     while (v < Save.SCHEMA_VERSION) {
       const step = MIGRATIONS[v]
       if (typeof step !== 'function') return Save.defaults()
-      data = step(data)
+      // A future step is ordinary code operating on data it has never seen. If it
+      // throws, that is a lost profile — not a game that refuses to boot.
+      try { data = step(data) } catch (e) { return Save.defaults() }
       if (!isPlainObject(data)) return Save.defaults()
       v++
       data.schemaVersion = v
@@ -458,9 +460,16 @@
 
   /**
    * @returns {?{snapshot:object, mapKey:string, savedAt:number}} null when there
-   *   is no run, or when the stored one is unusable. Everything Sim.deserialize
-   *   cannot survive without is checked here, because "no resumable run" is a
-   *   menu state and a throw is a dead game.
+   *   is no run, or when the stored bytes are unusable: unparseable, not an
+   *   object, a schema from a newer build, no snapshot, no clock or RNG state, or
+   *   no map key to rebuild geometry from. "No resumable run" is a menu state.
+   *
+   * This validates the *stored data*, not the world it will be restored into.
+   * OP.Sim.deserialize still throws for a mid-game snapshot whose `roundSetKey`
+   * is not registered in OP.ROUND_SETS (sim.js), and it needs a map built from
+   * OP.MAPS[mapKey] — neither of which this file can check without pinning itself
+   * to registry load order. The resume path must therefore try/catch the
+   * deserialize and fall back to the menu (plus Save.clearRun()) on failure.
    */
   Save.loadRun = function () {
     const raw = readKey(Save.RUN_KEY)

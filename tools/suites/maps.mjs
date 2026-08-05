@@ -504,6 +504,16 @@ export function run (t, OP) {
   t.noThrow(() => mkSim(lagoonRev), 'and Sim.create accepts a reversed map')
   rejects(t, () => Maps.reversePaths(null), 'map', 'reversePaths with no map')
 
+  t.section('a reversed map runs: balloons enter where they used to leave')
+  // This is the shell\'s Reverse-mode flow verbatim: build, reverse, Sim.create.
+  const revSim = mkSim(Maps.reversePaths(Maps.build(straightKey)))
+  const revB = OP.Balloons.spawn(revSim, { tier: 'red', path: 0, t: 0 })
+  t.close(revB.x, 1280, 1e-6, 'a balloon starts at the far end')
+  OP.Sim.run(revSim, 60)
+  t.lt(revB.x, 1280, 'and walks back the other way')
+  t.close(revB.y, 360, 1e-6, 'along the same road')
+  t.notOk(Maps.canPlace(revSim.map, LAND, 640, 360).ok, 'whose margin still masks placement')
+
   t.section('reversePaths also handles an unbuilt, definition-shaped map')
   const defShaped = { key: 'defshape', paths: [{ points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 5 }], smooth: 2 }] }
   const defRev = Maps.reversePaths(defShaped)

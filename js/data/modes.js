@@ -122,9 +122,11 @@
       key: 'reverse',
       name: 'Reverse',
       blurb: 'Every track runs backwards. The same map, with entry and exit swapped and all your good placements in the wrong half.',
-      // A map-level flag, honoured by the map loader (P5.1) when it builds Tracks:
-      // the polyline is reversed before the Track is constructed, so the sim keeps
-      // using one scalar t per balloon and nothing downstream changes.
+      // A map-level flag. The consumer is OP.Maps.reversePaths(map), which returns a
+      // copy whose polylines run exit-to-entry; the shell calls it at game start
+      // when this flag is set, before the map is handed to Sim.create. The sim keeps
+      // using one scalar t per balloon and nothing downstream changes — which is why
+      // Reverse costs one flag instead of a second movement path.
       rules: { reversePaths: true }
     },
 

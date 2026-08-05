@@ -112,6 +112,20 @@
 
      `build()` always emits all four, so a real map is strict while a fixture map
      stays permissive. This is load-bearing, not politeness.
+
+     ---------------------------------------------------------------------------
+     THE API
+
+       Maps.define(def)                -> registered def   (throws on anything bad)
+       Maps.get(key) / exists(key) / all() / byTier(tier)
+       Maps.build(defOrKey)            -> runtime map      (validates first)
+       Maps.canPlace(map, towerDef, x, y)  -> { ok, reason }
+       Maps.clearObstacle(sim, i)      -> { ok, reason }   (charges the cost)
+       Maps.clearedState(sim) / restoreCleared(sim, arr)   (save round-trip)
+       Maps.reversePaths(map)          -> a copy running exit-to-entry
+       Maps.buildableFraction(map[, opts]) -> 0..1 by grid sampling
+       Maps.isWater / isBlocked / onPath / distanceToPath / obstacleAt / isCleared
+       Maps.totalPathLength(map)
      ============================================================================ */
 
   const Maps = {}
@@ -512,12 +526,15 @@
     if (Maps.isCleared(map, i)) return { ok: false, reason: 'That obstacle is already cleared.' }
 
     const o = map.removable[i]
-    const cost = OP.Economy ? OP.Economy.price(sim, o.cost) : o.cost
-    if (cost > 0) {
-      if (!OP.Economy.canAfford(sim, cost)) {
+    // Clearing is a purchase, so it scales with the difficulty cost multiplier
+    // exactly like a tower does.
+    const econ = OP.Economy
+    const cost = econ ? econ.price(sim, o.cost) : o.cost
+    if (cost > 0 && econ) {
+      if (!econ.canAfford(sim, cost)) {
         return { ok: false, reason: 'Not enough cash — clearing the ' + o.name + ' costs $' + cost + '.' }
       }
-      OP.Economy.spend(sim, cost)
+      econ.spend(sim, cost)
     }
 
     if (!Array.isArray(map.cleared)) map.cleared = []

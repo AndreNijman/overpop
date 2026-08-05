@@ -113,8 +113,10 @@ export function run (t, OP, env) {
   // Keeping this list here rather than in the data means an author cannot legalise
   // their own typo by adding it. Exactly two, and each one is justified below.
   const EXTRA = ['heroXpMul', 'reversePaths']
-  // Of those, the ones nothing consumes YET, with the phase that will.
-  const PENDING = { reversePaths: 'P5.1 — the map loader reverses the polyline' }
+  // Of those, the ones no engine site reads from sim.rules YET, with what will.
+  // (OP.Maps.reversePaths(map) is the consumer; the shell calls it at game start
+  // when the flag is set, before the map reaches Sim.create.)
+  const PENDING = { reversePaths: 'read by the shell at game start -> OP.Maps.reversePaths(map)' }
 
   /** Rule keys on `obj` that the engine would silently ignore. */
   function unknownKeys (obj) {
@@ -137,7 +139,10 @@ export function run (t, OP, env) {
     const site = readsRuleField(k)
     t.ok(site || PENDING[k], `${k} is either read by the shipped bundle (${site}) or documented as pending (${PENDING[k] || 'no'})`)
   }
-  t.eq(readsRuleField('heroXpMul'), 'js/core/heroes.js', 'heroXpMul is read by the hero XP rate')
+  t.ok(readsRuleField('heroXpMul'), 'heroXpMul is read somewhere in the shipped bundle')
+  t.ok(readFileSync(resolve(ROOT, 'js/core/heroes.js'), 'utf8').indexOf('rules.heroXpMul') >= 0,
+    'and the reader is OP.Heroes.xpRate')
+  t.notOk(readsRuleField('heroXpMull'), 'the scanner does not report a field nothing reads')
   t.deep(Object.keys(PENDING), ['reversePaths'], 'only reversePaths is forward-declared')
 
   // Prove the gate rejects what it is supposed to reject. A checker that passes
@@ -197,7 +202,9 @@ export function run (t, OP, env) {
   // names a value that differs from the default, it retunes all of them at once.
   const defaults = E.defaultRules()
   for (const field of Object.keys(D.medium.rules)) {
-    const dflt = field === 'heroXpMul' ? 1 : defaults[field]
+    // A field outside defaultRules() has no declared default; the engine's
+    // fallback for the forward-declared ones is 1 (see Heroes.xpRate).
+    const dflt = KNOWN.has(field) ? defaults[field] : 1
     t.eq(D.medium.rules[field], dflt, `medium.${field} equals the engine default`)
   }
   t.eq(Object.keys(M.standard.rules).length, 0, 'Standard is the empty delta')
@@ -284,6 +291,13 @@ export function run (t, OP, env) {
     'Deflation overrides Relentless\'s round-6 start')
   t.eq(S.resolveRules({ difficulty: 'relentless', mode: 'deflation' }).lastRound, 100,
     'and leaves the far end to the difficulty')
+  // The two edges of that choice, pinned so a retune sees both at once: Deflation
+  // shortens a run from the front only, so it is nine rounds on Easy and seventy on
+  // Relentless, off one fixed pile of cash either way.
+  t.eq(S.resolveRules({ difficulty: 'easy', mode: 'deflation' }).lastRound, 40,
+    'Easy Deflation is a nine-round scenario, by design')
+  t.eq(S.resolveRules({ difficulty: 'easy', mode: 'deflation' }).firstRound, 31,
+    'starting where every other difficulty starts it')
   t.eq(S.resolveRules({ difficulty: 'relentless', mode: 'purist', rules: { startLives: 99 } }).startLives, 99,
     'an explicit override beats the mode')
   t.eq(S.resolveRules({ difficulty: 'relentless', mode: 'purist', rules: { startLives: 99 } }).allowSell, false,
