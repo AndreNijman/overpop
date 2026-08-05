@@ -919,9 +919,10 @@
           "verify": [
             "node tools/state.mjs exists og-image.png docs/overpop-hub-shot.png"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": "Hub shot must be exactly 1000x525 to match topout.png/defenders.png aspect-ratio. Rendering tool is firefox --headless --screenshot; chromium is NOT installed (the portfolio og-image recipe in memory assumed it)."
+          "status": "done",
+          "commit": "41f9ee4",
+          "note": "Hub shot must be exactly 1000x525 to match topout.png/defenders.png aspect-ratio. Rendering tool is firefox --headless --screenshot; chromium is NOT installed (the portfolio og-image recipe in memory assumed it).",
+          "finished": "2026-08-05 15:55:51"
         }
       ]
     },

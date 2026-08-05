@@ -68,3 +68,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 15:46:36` **blocked** P11.3 — BLOCKED ON A CREDENTIAL, not on work. The Cloudflare DNS-edit token is NOT on this machine: memory recorded it at ~/special.txt but neither that nor ~/cloudflareapi.txt exists on this APEX-OS install. Everything else is done and Pages reports status=built with cname=overpop.andrenijman.com. One record is needed: CNAME overpop -> andrenijman.github.io, PROXY OFF (grey cloud — required for GitHub to issue the Let's Encrypt cert). Then: gh api -X PUT repos/AndreNijman/overpop/pages -F https_enforced=true
 - `2026-08-05 15:48:09` **done** P11.6 — Memory notes + journal (`0c3be64`)
 - `2026-08-05 15:55:42` **done** P9.4 — Adversarial review pass on spine + content (`19381bb`) — FORCED, verify failing
+- `2026-08-05 15:55:51` **done** P10.2 — og-image.png (1200x630) + hub screenshot (1000x525) (`41f9ee4`)
