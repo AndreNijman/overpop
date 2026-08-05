@@ -33,3 +33,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:11:37` **done** P1.7 — Fixed-timestep sim loop + entity orchestration (`b88c69e`)
 - `2026-08-05 12:23:25` **done** P1.11 — Fan-out guardrails: shared family floor, cost ladder, projectile-kind registry (`855334b`)
 - `2026-08-05 12:30:02` **start** P1.12 — Hero and paragon frameworks + validated templates
+- `2026-08-05 12:36:52` **done** P1.12 — Hero and paragon frameworks + validated templates (`89b59d7`)

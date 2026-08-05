@@ -331,10 +331,11 @@
             "node tools/harness.mjs --suite heroes",
             "node tools/harness.mjs --suite paragon"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "89b59d7",
           "note": "P3.5 and P4.2 are fan-out phases with no contract yet. defineHero/defineParagon must validate as hard as defineTower, and each needs one fully worked template, BEFORE either phase dispatches — same reasoning as the tower template.",
-          "started": "2026-08-05 12:30:02"
+          "started": "2026-08-05 12:30:02",
+          "finished": "2026-08-05 12:36:52"
         }
       ]
     },
