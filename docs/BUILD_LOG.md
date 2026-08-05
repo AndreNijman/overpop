@@ -23,3 +23,6 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:44:39` **start** P1.5 — Projectiles — per-projectile hit sets, pierce, pooling
 - `2026-08-05 11:49:52` **done** P1.5 — Projectiles — per-projectile hit sets, pierce, pooling (`237f9a1`)
 - `2026-08-05 11:50:16` **start** P1.6 — Targeting priorities, camo gating and line of sight
+- `2026-08-05 11:52:40` **done** P1.6 — Targeting priorities, camo gating and line of sight (`fd5876e`)
+- `2026-08-05 11:52:40` **start** P1.7 — Fixed-timestep sim loop + entity orchestration
+- `2026-08-05 11:53:11` **start** P1.8 — Economy, lives, round runner, status effects

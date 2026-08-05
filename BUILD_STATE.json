@@ -209,16 +209,17 @@
           "verify": [
             "node tools/harness.mjs --suite targeting"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "fd5876e",
           "note": "First/Last/Close/Strong + tower-specific extras. Camo detection gating. Line-of-sight for blocked maps.",
-          "started": "2026-08-05 11:50:16"
+          "started": "2026-08-05 11:50:16",
+          "finished": "2026-08-05 11:52:40"
         },
         {
           "id": "P1.7",
           "title": "Fixed-timestep sim loop + entity orchestration",
           "deps": [
-            "P1.6"
+            "P1.9"
           ],
           "produces": [
             "js/core/sim.js"
@@ -229,13 +230,14 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Accumulator, fixed dt. Documented update order. Determinism checksum must match across two runs of the same seed."
+          "note": "Accumulator, fixed dt. Documented update order. Determinism checksum must match across two runs of the same seed.",
+          "started": "2026-08-05 11:52:40"
         },
         {
           "id": "P1.8",
           "title": "Economy, lives, round runner, status effects",
           "deps": [
-            "P1.7"
+            "P1.6"
           ],
           "produces": [
             "js/core/economy.js",
@@ -245,9 +247,10 @@
             "node tools/harness.mjs --suite economy",
             "node tools/harness.mjs --suite rounds"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "Cash per pop scaled by difficulty, leak damage by RBE, freeze/glue/stun stacking rules."
+          "note": "Cash per pop scaled by difficulty, leak damage by RBE, freeze/glue/stun stacking rules.",
+          "started": "2026-08-05 11:53:11"
         },
         {
           "id": "P1.9",
@@ -258,11 +261,13 @@
           "produces": [
             "js/core/towers.js",
             "js/core/upgrades.js",
+            "js/core/buffs.js",
             "js/towers/_TEMPLATE.js"
           ],
           "verify": [
             "node tools/harness.mjs --suite towers",
-            "node tools/harness.mjs --suite crosspath"
+            "node tools/harness.mjs --suite crosspath",
+            "node tools/harness.mjs --suite buffs"
           ],
           "status": "todo",
           "commit": null,
@@ -299,7 +304,7 @@
           "id": "P2.1",
           "title": "Standard round set 1-100 + RBE table",
           "deps": [
-            "P1.10"
+            "P1.7"
           ],
           "produces": [
             "js/data/rounds-standard.js"
@@ -487,7 +492,7 @@
           "id": "P5.1",
           "title": "Map format + loader + placement masks",
           "deps": [
-            "P1.10"
+            "P1.7"
           ],
           "produces": [
             "js/core/maps.js"
@@ -530,7 +535,7 @@
           "id": "P6.1",
           "title": "Render core (camera, layers, culling, canvas pooling)",
           "deps": [
-            "P1.10"
+            "P1.7"
           ],
           "produces": [
             "js/render/renderer.js",
@@ -604,7 +609,7 @@
           "id": "P7.1",
           "title": "Synth engine + SFX bank + music beds",
           "deps": [
-            "P1.10"
+            "P1.7"
           ],
           "produces": [
             "js/audio.js"
@@ -627,7 +632,7 @@
           "id": "P8.1",
           "title": "Save system + settings + profile progression",
           "deps": [
-            "P1.10"
+            "P1.7"
           ],
           "produces": [
             "js/save.js"

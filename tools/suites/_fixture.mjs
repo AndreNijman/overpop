@@ -53,10 +53,20 @@ export function makeSim (OP, opts = {}) {
     speedScale: 1,
     cashPerPopMul: 1,
     over: false,
+    outcome: null,
+    freeplay: false,
+    roundIndex: 0,
+    round: null,
+    roundSet: opts.roundSet || null,
+    rules: Object.assign(OP.Economy ? OP.Economy.defaultRules() : {}, opts.rules || {}),
     leakEvents: [],
     popEvents: [],
     blastEvents: [],
-    stats: { spawned: 0, popped: 0, leaked: 0, regrown: 0, cashEarned: 0, layersPopped: 0, shotsFired: 0 },
+    events: [],
+    stats: {
+      spawned: 0, popped: 0, leaked: 0, regrown: 0, cashEarned: 0, cashSpent: 0,
+      layersPopped: 0, shotsFired: 0, livesLost: 0, roundsCleared: 0
+    },
     grid: opts.grid === false ? null : OP.Grid.create(OP.FIELD_W, OP.FIELD_H),
     _stub: true
   }
@@ -91,14 +101,21 @@ export function ticks (OP, sim, n) {
 function stubStep (OP, sim) {
   sim.tick++
   sim.time += OP.DT
+  if (OP.Rounds && sim.round) OP.Rounds.tick(sim)
   if (OP.Effects) OP.Effects.tick(sim)
   if (OP.Balloons) OP.Balloons.regenTick(sim)
   if (OP.Balloons) OP.Balloons.move(sim)
-  if (OP.Balloons) OP.Balloons.leakCheck(sim)
+  if (OP.Balloons) {
+    // leakCheck returns the life cost; leakEvents is an append-only FX log the
+    // renderer drains, so charging from the log would consume the renderer's data.
+    const cost = OP.Balloons.leakCheck(sim)
+    if (cost > 0 && OP.Economy) OP.Economy.loseLives(sim, cost)
+  }
   if (OP.Grid && sim.grid) OP.Grid.rebuild(sim.grid, sim.balloons)
   if (OP.Projectiles) OP.Projectiles.step(sim)
   if (OP.Balloons) OP.Balloons.compact(sim)
   if (OP.Projectiles) OP.Projectiles.compact(sim)
+  if (OP.Rounds && sim.round && !sim.round.done && OP.Rounds.isComplete(sim)) OP.Rounds.complete(sim)
 }
 
 /** Count live balloons by tier key. */
