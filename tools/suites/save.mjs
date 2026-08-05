@@ -219,6 +219,45 @@ export function run (t, OP, env) {
   t.eq(fractional.stats.gamesPlayed, 6, 'its data is kept')
   t.eq(fractional.schemaVersion, S.SCHEMA_VERSION, 'and the version is normalised')
 
+  t.section('the migration engine really steps — proved by pretending to be version 2')
+  // With one live version there is no hop to observe, and an unexercised
+  // migration loop is one that breaks the day it is first needed. So stand up a
+  // version 2 the way a future build would: one MIGRATIONS entry plus the bump.
+  const realVersion = S.SCHEMA_VERSION
+  try {
+    let ran = 0
+    S.SCHEMA_VERSION = 2
+    S.MIGRATIONS[1] = function (old) {
+      ran++
+      old.stats = old.stats || {}
+      old.stats.totalCash = (old.stats.totalCash || 0) + 500
+      return old
+    }
+    const stepped = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 2, totalCash: 100 } })
+    t.eq(ran, 1, 'the from-version-1 step ran exactly once')
+    t.eq(stepped.schemaVersion, 2, 'the result is stamped with the new version')
+    t.eq(stepped.stats.totalCash, 600, "and carries the step's change")
+    t.eq(stepped.stats.gamesPlayed, 2, 'while fields the step ignored came across untouched')
+
+    const already = S.migrate({ schemaVersion: 2, stats: { gamesPlayed: 9 } })
+    t.eq(already.stats.gamesPlayed, 9, 'a profile already at the current version is kept')
+    t.eq(ran, 1, 'and no step re-runs on it')
+
+    const chained = S.migrate({ stats: { gamesPlayed: 1 } })
+    t.eq(chained.schemaVersion, 2, 'an unversioned profile walks the whole chain')
+    t.eq(ran, 2, 'running every step on the way')
+
+    delete S.MIGRATIONS[1]
+    t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
+      'a version with no registered step gives defaults rather than a guess')
+  } finally {
+    S.SCHEMA_VERSION = realVersion
+    delete S.MIGRATIONS[1]
+  }
+  t.eq(S.SCHEMA_VERSION, realVersion, 'the real schema version is restored')
+  t.eq(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }).stats.gamesPlayed, 5,
+    'and the real migration path still works')
+
   t.section('an unknown-shaped object degrades field by field, not all at once')
   const partial = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 3 }, settings: 'broken', completions: [1, 2] })
   t.eq(partial.stats.gamesPlayed, 3, 'good data in a bad object is still kept')

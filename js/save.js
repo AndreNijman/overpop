@@ -261,12 +261,19 @@
 
      Adding version 2 is therefore one entry:
        1: function (p) { p.settings.newThing = derive(p); return p }
-     ...plus bumping SCHEMA_VERSION. */
+     ...plus bumping SCHEMA_VERSION.
+
+     Exposed as Save.MIGRATIONS below so the harness can prove the loop really
+     steps — with a single version there is no hop to observe otherwise, and an
+     unexercised migration engine is one that breaks on the day it is first
+     needed. */
   const MIGRATIONS = {
     // An unversioned profile — written before the schema existed, or hand-made.
     // Nothing to move; normalise() repairs it.
     0: function (p) { return p }
   }
+
+  Save.MIGRATIONS = MIGRATIONS
 
   /**
    * Bring any raw parsed value up to the current schema.
