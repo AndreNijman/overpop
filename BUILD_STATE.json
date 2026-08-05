@@ -876,9 +876,10 @@
           "verify": [
             "node tools/state.mjs grep docs/REVIEW.md 'CONFIRMED'"
           ],
-          "status": "todo",
-          "commit": null,
-          "note": ""
+          "status": "done",
+          "commit": "19381bb",
+          "note": "[FORCED: verify failing at 2026-08-05 15:55:42]",
+          "finished": "2026-08-05 15:55:42"
         }
       ]
     },
