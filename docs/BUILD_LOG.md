@@ -31,3 +31,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 12:04:48` **done** P1.9 — Tower module contract + _TEMPLATE.js + upgrade-tree engine (`63ae987`)
 - `2026-08-05 12:05:05` **start** P1.7 — Fixed-timestep sim loop + entity orchestration
 - `2026-08-05 12:11:37` **done** P1.7 — Fixed-timestep sim loop + entity orchestration (`b88c69e`)
+- `2026-08-05 12:23:25` **done** P1.11 — Fan-out guardrails: shared family floor, cost ladder, projectile-kind registry (`855334b`)
+- `2026-08-05 12:30:02` **start** P1.12 — Hero and paragon frameworks + validated templates

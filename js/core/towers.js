@@ -122,7 +122,9 @@
     const def = tower.def
     const s = shallowClone(def.base)
 
-    OP.Upgrades.applyTo(s, tower, sim)
+    // A hero levels instead of buying upgrades; everything else walks its tree.
+    if (tower.heroKey) OP.Heroes.applyLevels(s, tower, sim)
+    else OP.Upgrades.applyTo(s, tower, sim)
 
     // Snapshot the stats BEFORE buffs. Aura geometry must be derived from this,
     // never from `tower.s` — otherwise two mutually-overlapping support towers
@@ -215,6 +217,15 @@
     const cost = OP.Economy.price(sim, def.cost)
     if (!OP.Economy.canAfford(sim, cost)) return { ok: false, reason: 'Not enough cash.' }
 
+    return Towers.canPlaceShape(sim, def, x, y)
+  }
+
+  /**
+   * The purely geometric half of placement: bounds, the map's placement mask, and
+   * overlap. Shared with heroes, which have their own cost and one-per-map rules
+   * but the same footprint behaviour.
+   */
+  Towers.canPlaceShape = function (sim, def, x, y) {
     if (x - def.footprint < 0 || x + def.footprint > OP.FIELD_W ||
         y - def.footprint < 0 || y + def.footprint > OP.FIELD_H) {
       return { ok: false, reason: 'Off the map.' }
@@ -340,7 +351,12 @@
       }
 
       if (def.update) def.update(sim, tower, dt)
-      if (!def.fire) continue
+
+      // A paragon may replace the base tower's attack entirely.
+      const fire = tower.paragonDegree > 0
+        ? (OP.Paragon.fireFor(tower) || def.fire)
+        : def.fire
+      if (!fire) continue
 
       tower.cooldown -= dt
 
@@ -356,7 +372,7 @@
 
       let fired = 0
       while (tower.cooldown <= 0 && fired < MAX_SHOTS_PER_TICK) {
-        def.fire(sim, tower, target)
+        fire(sim, tower, target)
         tower.cooldown += tower.s.cooldown
         fired++
       }
@@ -417,6 +433,12 @@
     sim.towerById = new Map()
   }
 
+  /** Display name, accounting for paragon promotion. */
+  Towers.displayName = function (tower) {
+    if (tower.paragonDegree > 0 && OP.Paragon.exists(tower.key)) return OP.Paragon.nameFor(tower)
+    return tower.def.name
+  }
+
   /* ---------- serialisation ----------
      `def` is looked up from `key` rather than stored, and `s` is recomputed
      rather than saved. Both would otherwise embed object references into the
@@ -432,6 +454,10 @@
         invested: tower.invested, pops: tower.pops, earned: tower.earned,
         abilityCd: tower.abilityCd, abilityT: tower.abilityT,
         paragonDegree: tower.paragonDegree, placedRound: tower.placedRound,
+        heroKey: tower.heroKey || null,
+        level: tower.level === undefined ? 0 : tower.level,
+        xp: tower.xp === undefined ? 0 : tower.xp,
+        ability2Cd: tower.ability2Cd === undefined ? 0 : tower.ability2Cd,
         data: JSON.parse(JSON.stringify(tower.data || {}))
       }
     })
@@ -440,18 +466,25 @@
   Towers.deserialize = function (sim, arr) {
     Towers.reset(sim)
     OP.Buffs.reset(sim)
+    sim.heroId = -1
     for (let i = 0; i < arr.length; i++) {
       const s = arr[i]
       const tower = {
-        id: s.id, key: s.key, def: Towers.get(s.key),
+        id: s.id, key: s.key,
+        def: s.heroKey ? OP.Heroes.get(s.heroKey) : Towers.get(s.key),
+        heroKey: s.heroKey || undefined,
+        level: s.level || undefined,
+        xp: s.xp || 0,
+        ability2Cd: s.ability2Cd || 0,
         x: s.x, y: s.y, tiers: s.tiers.slice(),
         targetMode: s.targetMode, targetId: s.targetId,
         cooldown: s.cooldown, angle: s.angle,
         invested: s.invested, pops: s.pops, earned: s.earned,
         abilityCd: s.abilityCd, abilityT: s.abilityT,
         paragonDegree: s.paragonDegree || 0, placedRound: s.placedRound,
-        s: null, data: s.data || {}
+        s: null, sBase: null, data: s.data || {}
       }
+      if (tower.heroKey) sim.heroId = tower.id
       sim.towers.push(tower)
       sim.towerById.set(tower.id, tower)
     }
