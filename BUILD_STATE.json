@@ -247,10 +247,11 @@
             "node tools/harness.mjs --suite economy",
             "node tools/harness.mjs --suite rounds"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "e24ba74",
           "note": "Cash per pop scaled by difficulty, leak damage by RBE, freeze/glue/stun stacking rules.",
-          "started": "2026-08-05 11:53:11"
+          "started": "2026-08-05 11:53:11",
+          "finished": "2026-08-05 11:57:06"
         },
         {
           "id": "P1.9",
@@ -269,9 +270,10 @@
             "node tools/harness.mjs --suite crosspath",
             "node tools/harness.mjs --suite buffs"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "3 paths x 5 tiers, crosspath rules (one path to 3+ locks others at 2; only one path past 2). Abilities with cooldowns. THIS IS THE FROZEN CONTRACT for the P3 fan-out."
+          "note": "3 paths x 5 tiers, crosspath rules (one path to 3+ locks others at 2; only one path past 2). Abilities with cooldowns. THIS IS THE FROZEN CONTRACT for the P3 fan-out.",
+          "started": "2026-08-05 11:57:37"
         },
         {
           "id": "P1.10",

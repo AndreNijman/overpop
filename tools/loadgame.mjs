@@ -228,7 +228,17 @@ export function loadGame ({ silent = true, stopOnError = true } = {}) {
     }
   }
 
-  return { OP: sandbox.OP || {}, order, missing, present, ctx: sandbox, errors, canvas }
+  // Lets a suite evaluate an extra file in the same context — used to verify
+  // js/towers/_TEMPLATE.js satisfies the contract even though index.html does
+  // not load it. The template is what every content agent copies, so a broken
+  // template is a broken fan-out.
+  function evalFile (rel) {
+    const abs = resolve(ROOT, rel)
+    if (!existsSync(abs)) throw new Error('evalFile: no such file ' + rel)
+    vm.runInContext(readFileSync(abs, 'utf8'), ctx, { filename: rel, timeout: 30_000 })
+  }
+
+  return { OP: sandbox.OP || {}, order, missing, present, ctx: sandbox, errors, canvas, evalFile }
 }
 
 /** Cached loader — suites share one bundle evaluation. */

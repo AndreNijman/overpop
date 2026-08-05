@@ -47,6 +47,8 @@ export function makeSim (OP, opts = {}) {
     projPool: [],
     towers: [],
     towerById: new Map(),
+    buffs: [],
+    buffsDirty: false,
     nextEntityId: 1,
     cash: opts.cash === undefined ? 10000 : opts.cash,
     lives: opts.lives === undefined ? 150 : opts.lives,
@@ -112,6 +114,7 @@ function stubStep (OP, sim) {
     if (cost > 0 && OP.Economy) OP.Economy.loseLives(sim, cost)
   }
   if (OP.Grid && sim.grid) OP.Grid.rebuild(sim.grid, sim.balloons)
+  if (OP.Towers && sim.towers.length) OP.Towers.step(sim)
   if (OP.Projectiles) OP.Projectiles.step(sim)
   if (OP.Balloons) OP.Balloons.compact(sim)
   if (OP.Projectiles) OP.Projectiles.compact(sim)

@@ -26,3 +26,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:52:40` **done** P1.6 — Targeting priorities, camo gating and line of sight (`fd5876e`)
 - `2026-08-05 11:52:40` **start** P1.7 — Fixed-timestep sim loop + entity orchestration
 - `2026-08-05 11:53:11` **start** P1.8 — Economy, lives, round runner, status effects
+- `2026-08-05 11:57:06` **done** P1.8 — Economy, lives, round runner, status effects (`e24ba74`)
+- `2026-08-05 11:57:37` **start** P1.9 — Tower module contract + _TEMPLATE.js + upgrade-tree engine
