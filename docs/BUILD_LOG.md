@@ -54,3 +54,4 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 14:56:16` **done** P6.3 — Critter tower sprites (25 towers x visible tier states) (`1dcfe4f`)
 - `2026-08-05 15:02:03` **done** P8.2 — Title, map select, difficulty/mode select (`78cc1f0`)
 - `2026-08-05 15:02:03` **done** P8.4 — Bestiary/almanac + end-of-game screens (`78cc1f0`)
+- `2026-08-05 15:03:02` **done** P2.2 — Alternate wave set + freeplay generator (rounds 101+) (`800e8d7`)
