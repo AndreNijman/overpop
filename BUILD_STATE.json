@@ -33,7 +33,7 @@
         },
         {
           "id": "P0.2",
-          "title": "ARCHITECTURE.md \u2014 frozen engine contract",
+          "title": "ARCHITECTURE.md — frozen engine contract",
           "deps": [
             "P0.1"
           ],
@@ -73,7 +73,7 @@
           ],
           "status": "done",
           "commit": "14e5abc",
-          "note": "Classic <script src> only \u2014 no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
+          "note": "Classic <script src> only — no ES modules in the browser bundle, so the game runs from file://. Visually-hidden <h1>+prose behind the canvas (canvas-game SEO fix).",
           "started": "2026-08-05 11:22:26",
           "finished": "2026-08-05 11:23:55"
         },
@@ -99,7 +99,7 @@
     },
     {
       "id": "P1",
-      "title": "Spine \u2014 deterministic simulation core",
+      "title": "Spine — deterministic simulation core",
       "goal": "One-voice engine core. Written inline, not fanned out. Everything later depends on these signatures.",
       "steps": [
         {
@@ -123,7 +123,7 @@
         },
         {
           "id": "P1.2",
-          "title": "Track model \u2014 polyline with scalar distance t",
+          "title": "Track model — polyline with scalar distance t",
           "deps": [
             "P1.1"
           ],
@@ -155,10 +155,11 @@
           "verify": [
             "node tools/harness.mjs --suite balloons"
           ],
-          "status": "in_progress",
-          "commit": null,
+          "status": "done",
+          "commit": "6543a9e",
           "note": "A balloon is a layer index, not an entity. Blimp class carries HP. Properties: veiled (camo), regen, plated (fortified). Ladder: red..ceramic, then GOLIATH/LEVIATHAN/COLOSSUS/WRAITH/OMEN.",
-          "started": "2026-08-05 11:32:48"
+          "started": "2026-08-05 11:32:48",
+          "finished": "2026-08-05 11:40:30"
         },
         {
           "id": "P1.4",
@@ -172,13 +173,14 @@
           "verify": [
             "node tools/harness.mjs --suite damage"
           ],
-          "status": "todo",
+          "status": "in_progress",
           "commit": null,
-          "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains \u2014 a table."
+          "note": "lead/sharp, black/explosion, white/cold, zebra(both), purple(magic-fire-plasma-energy). No if-chains — a table.",
+          "started": "2026-08-05 11:40:30"
         },
         {
           "id": "P1.5",
-          "title": "Projectiles \u2014 per-projectile hit sets, pierce, pooling",
+          "title": "Projectiles — per-projectile hit sets, pierce, pooling",
           "deps": [
             "P1.4"
           ],
@@ -344,7 +346,7 @@
     },
     {
       "id": "P3",
-      "title": "Tower roster \u2014 25 towers, 3x5 upgrade trees",
+      "title": "Tower roster — 25 towers, 3x5 upgrade trees",
       "goal": "Fan-out phase. One agent per family, disjoint files, all coding against the P1.9 contract.",
       "steps": [
         {
@@ -429,7 +431,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one \u2014 say which in the README."
+          "note": "Degree 1-100 from sacrificed-tower value. Not every tower gets one — say which in the README."
         }
       ]
     },
@@ -517,7 +519,7 @@
     },
     {
       "id": "P6",
-      "title": "Presentation \u2014 sprites & rendering",
+      "title": "Presentation — sprites & rendering",
       "goal": "All art drawn procedurally in code. Woodland-critter theme. No asset packs.",
       "steps": [
         {
@@ -608,7 +610,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Voice limiting is mandatory \u2014 round 90 fires hundreds of pops per second."
+          "note": "Voice limiting is mandatory — round 90 fires hundreds of pops per second."
         }
       ]
     },
@@ -689,7 +691,7 @@
         },
         {
           "id": "P8.5",
-          "title": "Boot wiring \u2014 main.js + ordered script list",
+          "title": "Boot wiring — main.js + ordered script list",
           "deps": [
             "P8.4",
             "P6.4",
@@ -705,7 +707,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Script order in index.html must match dependency order \u2014 classic scripts, no module resolution to save us."
+          "note": "Script order in index.html must match dependency order — classic scripts, no module resolution to save us."
         }
       ]
     },
@@ -784,7 +786,7 @@
     {
       "id": "P10",
       "title": "Assets",
-      "goal": "Icons, share image, hub screenshot \u2014 all generated, all committed.",
+      "goal": "Icons, share image, hub screenshot — all generated, all committed.",
       "steps": [
         {
           "id": "P10.1",
@@ -855,7 +857,7 @@
           ],
           "status": "todo",
           "commit": null,
-          "note": "Publish from main root, legacy build \u2014 CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
+          "note": "Publish from main root, legacy build — CNAME file committed. Do NOT copy the pvz pages.yml (pinned to a dead branch)."
         },
         {
           "id": "P11.3",
@@ -913,7 +915,7 @@
         },
         {
           "id": "P11.7",
-          "title": "DEFERRED \u2014 portfolio games section card",
+          "title": "DEFERRED — portfolio games section card",
           "deps": [
             "P11.6"
           ],

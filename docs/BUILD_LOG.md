@@ -17,3 +17,5 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 11:30:09` **start** P1.2 — Track model — polyline with scalar distance t
 - `2026-08-05 11:32:05` **done** P1.2 — Track model — polyline with scalar distance t (`a6709e3`)
 - `2026-08-05 11:32:48` **start** P1.3 — Balloon layer model + child cascade
+- `2026-08-05 11:40:30` **done** P1.3 — Balloon layer model, spatial grid, status effects and the damage-type vocabulary (`6543a9e`)
+- `2026-08-05 11:40:30` **start** P1.4 — Damage-type x immunity matrix (data-driven)

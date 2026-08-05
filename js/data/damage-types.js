@@ -40,11 +40,15 @@
     void: { label: 'Void', tint: '#f0e9ff', note: 'Ignores every immunity.' }
   }
 
-  /* The only two overrides in the game.
-     SHATTER is the designed counter to lead; VOID is reserved for paragon-tier
-     effects and exists so a paragon never feels blanked by a type chart. */
+  /* Universal overrides. There is exactly one.
+
+     VOID is reserved for paragon-tier effects, so a paragon can never feel
+     blanked by a type chart.
+
+     SHATTER needs no override: no tier resists it. That IS the mechanic — a
+     sharp-damage tower whose upgrade converts its damage to shatter thereby
+     gains the answer to Lead, without a special case anywhere in the resolver. */
   OP.DMG_OVERRIDES = {
-    shatter: { ignores: { sharp: true } },   // ignores *sharp* immunity specifically
     void: { ignoresAll: true }
   }
 

@@ -90,10 +90,10 @@ export function ticks (OP, sim, n) {
 function stubStep (OP, sim) {
   sim.tick++
   sim.time += OP.DT
-  if (OP.Balloons) OP.Balloons.move(sim)
-  if (OP.Balloons) OP.Balloons.leakCheck(sim)
   if (OP.Effects) OP.Effects.tick(sim)
   if (OP.Balloons) OP.Balloons.regenTick(sim)
+  if (OP.Balloons) OP.Balloons.move(sim)
+  if (OP.Balloons) OP.Balloons.leakCheck(sim)
   if (OP.Grid && sim.grid) OP.Grid.rebuild(sim.grid, sim.balloons)
   if (OP.Balloons) OP.Balloons.compact(sim)
 }

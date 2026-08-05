@@ -5,7 +5,7 @@ If you must change something here, change it deliberately, bump the *Revision*
 below, and re-run `node tools/harness.mjs --all` — a silent divergence between
 this file and the code is the single most expensive failure mode in this project.
 
-**Revision:** 1 · 2026-08-05
+**Revision:** 3 · 2026-08-05 — effects and regen tick *before* movement, so a new slow bites the same tick
 
 ---
 
@@ -94,11 +94,12 @@ where a tier has multiple children, which spawns new entities.
 ```
 
 Roster: `red · blue · green · yellow · pink · black · white · purple · lead ·
-zebra · rainbow · ceramic`, then the blimp class:
-**`GOLIATH · LEVIATHAN · COLOSSUS · WRAITH · OMEN`**.
+zebra · rainbow · ceramic`, then the blimp class in RBE order:
+**`GOLIATH · WRAITH · LEVIATHAN · COLOSSUS · OMEN`**.
 
-`WRAITH` is born `VEILED | fast`, with lead and black immunities — the composite
-threat tier. `OMEN` is the final blimp and spawns a mixed child list.
+`WRAITH` is born `VEILED`, is fast, and ignores `SHARP` and `EXPLOSIVE` — the
+composite threat tier. `OMEN` is the final blimp, spawns a mixed child list, and
+is `abilityImmune` so no single ability can delete it.
 
 RBE (red-balloon-equivalent) is **computed** from the tree, never hardcoded:
 
@@ -106,7 +107,8 @@ RBE (red-balloon-equivalent) is **computed** from the tree, never hardcoded:
 OP.balloonRBE(tierKey) -> number     // hp + sum(children[].count * RBE(child))
 ```
 
-The harness asserts RBE is strictly monotonic across the roster and that the
+The harness asserts RBE is **non-decreasing** across the roster (`black`,
+`white` and `purple` tie at 11; `lead` and `zebra` tie at 23) and that the
 recursion terminates. A hardcoded RBE table would rot the moment anyone tunes HP.
 
 ### Properties (bitmask)
@@ -124,8 +126,9 @@ OP.PROP = { VEILED: 1, REGEN: 2, PLATED: 4 }
 - **PLATED** — doubles layer HP. Applies to the current layer only; children
   inherit `PLATED` and get their own doubled HP.
 
-Properties propagate to children, except `VEILED` on `WRAITH` children (they
-inherit it — that is the point of the tier) and `REGEN`, which resets its timer.
+Properties propagate to children in full — including `VEILED` on `WRAITH`
+children, which is the point of that tier. `REGEN` is inherited but its timer
+restarts, because the child is a fresh layer.
 
 ---
 
@@ -146,10 +149,14 @@ OP.DMG = { NORMAL:'normal', SHARP:'sharp', EXPLOSIVE:'explosive', FIRE:'fire',
 | `purple` | `FIRE`, `PLASMA`, `ENERGY` |
 | `WRAITH` | `SHARP`, `EXPLOSIVE` |
 
-Two universal overrides, and they are the only ones:
+One universal override, and it is the only one:
 
-- `SHATTER` ignores `lead`'s `SHARP` immunity.
 - `VOID` ignores **all** immunities. Reserved for paragon-tier effects.
+
+`SHATTER` deliberately needs no override: **no tier resists it.** That is the
+mechanic — a sharp-damage tower whose upgrade converts its damage type to shatter
+thereby gains the answer to Lead, with no special case in the resolver. Prefer
+this shape for any future "counters X" upgrade.
 
 ```js
 OP.canDamage(tierKey, dmgType) -> bool
@@ -176,13 +183,18 @@ pops a balloon may hit the resulting children in the same tick, spending one pie
 per child (see §4).
 
 ```js
-OP.damageBalloon(sim, balloon, hit) -> {
-  layersPopped, cashEarned, spawned: [balloonIds], destroyed: bool
+OP.Damage.hit(sim, balloon, hit) -> {
+  damaged, layersPopped, cashEarned, destroyed, spawned: [ids], absorbed
 }
-// hit: { damage, dmgType, sourceId, effects, ignoreImmunity }
+// hit: { damage, dmgType, sourceId, effects, ignoreImmunity, instaKill }
+
+OP.Damage.blast(sim, x, y, radius, hit, opts) -> { hits, popped }
+// opts: { camoDetect, falloff, maxTargets, exclude:Set }
 ```
 
-`damageBalloon` is the **only** function permitted to mutate balloon HP or tier.
+`OP.Damage.hit` is the **only** function permitted to mutate balloon HP or tier.
+Status effects on a hit land even when the damage itself is blanked by an
+immunity — a glue shot still glues a lead balloon.
 
 ---
 
@@ -361,18 +373,24 @@ changes behaviour subtly and breaks every recorded determinism checksum.
 ```
  1. sim.tick++, sim.time += DT
  2. round runner — release queued balloons for this tick
- 3. balloon movement: t += speed * speedMul * DT; recompute x,y from track
- 4. leak check: t >= length  ->  lives -= RBE contribution, remove
- 5. status effects tick (cold/glue/stun/acid decay); regen tick
- 6. rebuild spatial grid from live balloons
- 7. towers: cooldown tick, acquire target, fire
- 8. projectiles: sweep, collide, damage, cascade, insert children into grid
- 9. AoE / blast resolution
-10. abilities: cooldown tick, queued activations
-11. compaction — free dead entities back to their pools
-12. economy: round-end payouts, banked interest
-13. checksum accumulation (harness only)
+ 3. status effects tick — durations, damage-over-time, recompute speedMul
+ 4. regen tick — REGEN balloons climb back a layer
+ 5. balloon movement: t += speed * speedMul * DT; recompute x,y from track
+ 6. leak check: t >= length  ->  lives -= remaining RBE, remove
+ 7. rebuild spatial grid from live balloons
+ 8. towers: cooldown tick, acquire target, fire
+ 9. projectiles: sweep, collide, damage, cascade, insert children into grid
+10. AoE / blast resolution
+11. abilities: cooldown tick, queued activations
+12. compaction — free dead entities back to their pools
+13. economy: leak charges, round-end payouts, banked interest
+14. checksum accumulation (harness only)
 ```
+
+**Effects tick before movement, deliberately.** If movement ran first, a slow or
+stun applied on tick N would not bite until tick N+1, and children inheriting a
+freeze from a split would each get one free tick at full speed. Both are small,
+both are the kind of thing that turns into an unreproducible leak report.
 
 ```js
 OP.Sim.create(config) -> sim
