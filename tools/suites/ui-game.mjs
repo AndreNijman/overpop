@@ -458,8 +458,16 @@ export function run (t, OP, env) {
   // The point of reusing the board sprite is that the shop cannot drift from the
   // board. Asserting the registry is consulted is what makes that true rather
   // than aspirational.
-  t.ok(portraits.every(p => typeof OP.Render.towerSprites[p.key] === 'function'),
-    'every portrait key has a real registered sprite behind it')
+  // Measured against the SHIPPED roster, not OP.TOWERS: under --all other suites
+  // register throwaway towers into the same registry, and those legitimately have
+  // no sprite — which is the whole reason the portrait mark has a fallback.
+  const shipped = new Set()
+  for (const fam in OP.FAMILY_ROSTERS) for (const k of OP.FAMILY_ROSTERS[fam]) shipped.add(k)
+  for (const k of OP.HERO_ORDER) shipped.add(k)
+  const shippedPortraits = portraits.filter(p => shipped.has(p.key))
+  t.gt(shippedPortraits.length, 0, 'the visible cards include shipped content')
+  t.ok(shippedPortraits.every(p => typeof OP.Render.towerSprites[p.key] === 'function'),
+    'every shipped portrait has a real registered sprite behind it')
 
   const dimmed = portraits.filter(p => p.dim)
   const states = {}
