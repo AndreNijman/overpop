@@ -64,6 +64,28 @@ function pickMaps () {
   return Object.keys(byTier).sort().map(t => byTier[t])
 }
 
+/**
+ * Tiers arriving within `span` rounds of `from` that NOTHING in `types` can damage.
+ *
+ * This is the one expression both the reference build and the loss explainer use:
+ * the bot holds a reserve for exactly the gap the report would name, so the reason
+ * for saving and the evidence of needing to save cannot drift apart.
+ */
+function unanswerableTiers (sim, types, from, span) {
+  const out = []
+  const last = Math.min(from + span, sim.rules.lastRound)
+  for (let r = Math.max(1, from); r <= last; r++) {
+    let def = null
+    try { def = OP.Rounds.definition(sim, r) } catch (e) { continue }
+    for (const g of (def && def.groups) || []) {
+      if (!g.tier || out.indexOf(g.tier) >= 0) continue
+      if (types.some(ty => OP.canDamage(g.tier, ty))) continue
+      out.push(g.tier)
+    }
+  }
+  return out
+}
+
 /* ---------- the reference build ----------
    Not a clever build. A build a competent player would arrive at: spend everything,
    spread coverage along the whole track, invest in a few towers rather than many,
@@ -182,15 +204,11 @@ function playReference (sim, map) {
     return have
   }
 
-  /**
-   * The cheapest attacker whose damage type is absent from the board, whether or
-   * not it can be afforded right now. Returns null when every type is covered.
-   */
-  function missingTypeTower () {
-    const have = ownedTypes()
+  /** The cheapest attacker that can damage `tier`, affordable or not. */
+  function answerTo (tier) {
     for (const key of byCost) {
       if (!attacks(key)) continue
-      if (!have[OP.TOWERS[key].base.dmgType]) return key
+      if (OP.canDamage(tier, OP.TOWERS[key].base.dmgType)) return key
     }
     return null
   }
@@ -243,23 +261,30 @@ function playReference (sim, map) {
         const missing = nextMissing()
         if (missing && tryPlace(missing)) continue
 
-        /* SAVE for a damage type the board does not have.
-           Without this the bot spent every dollar on whatever cheap tier-1/2
-           upgrade came next, so cash never reached the price of the first
-           explosive tower — measured: 4835 earned by round 24 with never more
-           than ~120 in hand, and a board still carrying only sharp and acid.
-           It then met Lead, which no sharp tower can pop, and died. That reads
-           as a difficulty spike and is nothing of the kind: it is the bot
-           refusing to hold a reserve.
+        /* SAVE for an answer to a tier that is actually coming and that the board
+           genuinely cannot damage.
 
-           A competent player saves for the answer they know is coming, so the
-           bot must too — otherwise the matrix measures the bot's impatience
-           rather than the game. Only hold when the gap is a real one and the
-           reserve is actually reachable, so this can never deadlock: round
-           bonuses keep arriving, and once the tower is affordable the branch
-           above buys it. */
-        const gap = missingTypeTower()
-        if (gap && !affordable(gap)) return
+           The bot used to spend every dollar on whatever cheap tier-1/2 upgrade
+           came next, so cash never reached the price of the first explosive
+           tower — measured: 4835 earned by round 24, never more than ~120 in
+           hand, board still sharp+acid only. It then met Lead, which no sharp
+           tower can pop, and died. That reads as a difficulty spike and is
+           nothing of the kind: it is the bot refusing to hold a reserve.
+
+           The reserve must be BOUNDED by a named threat, not by "own one of
+           every type". Saving for the last absent type is unbounded — the board
+           reached five of six types and then sat on 417 unspent forever, waiting
+           on a `normal` attacker it did not need, and every tower stayed at
+           tier 0-1. Tying the hold to `unanswerableTiers` makes it
+           self-limiting: once Lead has an answer the bot goes straight back to
+           upgrading, and it can never deadlock because round bonuses keep
+           arriving until the tower is affordable. */
+        const threats = unanswerableTiers(sim, Object.keys(ownedTypes()), (sim.roundIndex || 0) + 1, 4)
+        if (threats.length) {
+          const answer = answerTo(threats[0])
+          if (answer && !affordable(answer)) return
+          if (answer && tryPlace(answer)) continue
+        }
 
         // Then deepen, round-robin so investment spreads across the board rather
         // than piling onto whichever tower happens to be first in the list.
@@ -357,9 +382,7 @@ function runGame (mapKey, difficulty, mode, strategy, maxRounds) {
     dealt: Math.round(t.pops || 0)
   }))
   const boardTypes = [...new Set(board.map(b => b.dmg))]
-  const lastRoundDef = OP.Rounds.definition(sim, Math.min(round, last))
-  const unanswerable = [...new Set((lastRoundDef.groups || []).map(g => g.tier))]
-    .filter(tier => tier && !boardTypes.some(ty => OP.canDamage(tier, ty)))
+  const unanswerable = unanswerableTiers(sim, boardTypes, Math.min(round, last), 0)
 
   return {
     mapKey, difficulty, mode,
