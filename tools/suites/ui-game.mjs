@@ -518,16 +518,61 @@ export function run (t, OP, env) {
   const treeBtn = U.byId(hovered.widgets, 'shop.tree.' + KEY)
   t.ok(!!treeBtn, 'a hovered card offers an UPGRADES button')
   t.eq(treeBtn.action, 'shop-tree', 'wired to open the tree')
-  t.ok((hovered.chromeWidgets || []).some(w => w.id === treeBtn.id),
-    'and it is chrome, not scrolled content — otherwise the clip would hide it')
+  t.ok((hovered.cardWidgets || []).some(w => w.id === treeBtn.id),
+    'and it scrolls WITH its card — a button that outlived its card would open the wrong tree')
+
+  t.section('the upgrade-tree button is ON the card, so reaching it never leaves it')
+  /* Reported by Andre against the first build of this panel: the button lived only
+     in the detail strip below the list, so pressing it meant dragging the pointer
+     down across six other cards — and each one it crossed replaced the strip, so
+     the button either vanished or belonged to a different tower by the time it was
+     reached. A control that can only be reached by leaving the thing it belongs to
+     is not a control. It is now a strip on the card's own right edge. */
+  const cardTree = U.byId(hovered.widgets, 'shop.tree.' + KEY)
+  t.ok(!!cardTree, 'every card with upgrade paths carries its own tree button')
+  t.eq(cardTree.x, firstCard.x + firstCard.w,
+    'butted directly against the buy area, with no gap and no overlap')
+  t.eq(cardTree.y, firstCard.y, 'aligned to the card top')
+  t.eq(cardTree.h, firstCard.h, 'and full card height, so it is an easy target')
+
+  // The press a player actually makes: pointer already on the card, no travel.
+  const onBtn = { x: cardTree.x + cardTree.w / 2, y: cardTree.y + cardTree.h / 2 }
+  OP.Input.setPoint(hoverApp.state.io, onBtn.x, onBtn.y)
+  const atBtn = Shop.build(hoverApp)
+  t.eq(U.hit(atBtn.widgets, onBtn.x, onBtn.y).id, 'shop.tree.' + KEY,
+    'the tree strip wins the hit test over the buy area underneath it')
+  t.eq(Shop.state.detailKey, KEY, 'and the strip still describes the tower being pointed at')
 
   t.notOk(Shop.state.tree, 'the tree starts closed')
-  Shop.activate(hoverApp, treeBtn)
+  Shop.activate(hoverApp, U.hit(atBtn.widgets, onBtn.x, onBtn.y))
   t.eq(Shop.state.tree, KEY, 'pressing it opens that tower\'s tree')
   t.eq(hoverApp.state.sim.towers.length, 0, 'and buys nothing — it is a preview')
   t.eq(hoverApp.state.io.placingKey, null, 'and does not arm a placement')
+  Shop.closeTree()
+
+  t.section('pressing the rest of the card still buys, not previews')
+  const buyPoint = { x: firstCard.x + 8, y: firstCard.y + firstCard.h / 2 }
+  const atBuy = U.hit(Shop.build(hoverApp).widgets, buyPoint.x, buyPoint.y)
+  t.eq(atBuy.id, 'shop.' + KEY, 'the buy area is still hit everywhere else on the card')
+  t.eq(atBuy.action, 'shop-buy', 'and still means buy')
+
+  t.section('the strip keeps its subject when the pointer leaves the list entirely')
+  OP.Input.setPoint(hoverApp.state.io, firstCard.x + firstCard.w / 2, firstCard.y + firstCard.h / 2)
+  Shop.build(hoverApp)
+  OP.Input.setPoint(hoverApp.state.io, 40, 400)          // off the sidebar, over the board
+  Shop.build(hoverApp)
+  t.eq(Shop.state.detailKey, KEY, 'pointing at nothing does not blank the strip')
+
+  t.section('hovering a DIFFERENT card does replace the strip')
+  Shop.closeTree()
+  const otherKey = OP.TOWER_ORDER[1] || KEY
+  const otherCard = scrollToCard(hoverApp, 'shop.' + otherKey)
+  OP.Input.setPoint(hoverApp.state.io, otherCard.x + otherCard.w / 2, otherCard.y + otherCard.h / 2)
+  Shop.build(hoverApp)
+  t.eq(Shop.state.detailKey, otherKey, 'sticky means "until something replaces it", not "frozen"')
 
   const treeCtx = recorder()
+  Shop.openTree(KEY)
   const treeDrawn = Shop.draw(treeCtx, hoverApp)
   const treeDense = treeCtx.dense()
   t.gt(treeDrawn, 60, `the open tree paints (${treeDrawn} marks)`)

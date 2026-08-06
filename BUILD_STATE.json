@@ -1031,9 +1031,10 @@
           ],
           "produces": [],
           "verify": [],
-          "status": "blocked",
-          "commit": null,
-          "note": "Held deliberately: Andre pulled the meccha card for being unfinished. Needs his explicit go-ahead after he has played it."
+          "status": "done",
+          "commit": "d87bd96",
+          "note": "Held deliberately: Andre pulled the meccha card for being unfinished. Needs his explicit go-ahead after he has played it.",
+          "finished": "2026-08-06 01:57:36"
         }
       ]
     }
