@@ -5,6 +5,10 @@ If you must change something here, change it deliberately, bump the *Revision*
 below, and re-run `node tools/harness.mjs --all` — a silent divergence between
 this file and the code is the single most expensive failure mode in this project.
 
+**Revision:** 5 · 2026-08-06 — **two coordinate spaces.** The board is fitted into
+the play area beside the sidebar, so FIELD space (chrome) and BOARD space (the
+simulation) are no longer the same numbers. See §2b.
+
 **Revision:** 4 · 2026-08-05 — added the shared cost ladder, the projectile-kind
 registry, and the family-floor requirement; `def.buffs` now sees unbuffed stats so
 aura geometry cannot depend on placement order
@@ -133,6 +137,51 @@ children, which is the point of that tier. `REGEN` is inherited but its timer
 restarts, because the child is a fresh layer.
 
 ---
+
+## 2b. Two coordinate spaces (revision 5)
+
+Maps are authored across the full `1280x720` field, but the shop sidebar sits over
+`x >= 960`. That hid **14% to 38% of every map's track** — balloons crossed a third
+of the route out of sight and could not be aimed at.
+
+So the board is scaled to fit the play area. There are now two spaces:
+
+| Space | Extent | Who uses it |
+|---|---|---|
+| **FIELD** | `1280x720` | HUD, shop, tower panel, results — all chrome, all widget hit-testing |
+| **BOARD** | `1280x720` fitted into `PLAY_W x PLAY_H` | the **simulation**: towers, balloons, projectiles, placement rules |
+
+**The simulation never learns about this.** Board space is numerically identical to
+what it always was, so no balance number can move — verified by comparing
+`playthroughs` checksums across the change. Rescaling the map *data* instead would
+have shrunk the track while leaving tower ranges alone, changing the game silently;
+this changes only where pixels land.
+
+```js
+OP.Camera.board()                       // { scale, ox, oy }
+OP.Camera.applyBoard(view, ctx)         // field transform + board fit
+OP.Camera.fieldToBoard(x, y)            // chrome coords -> world coords
+OP.Camera.boardToField(x, y)            // world coords -> chrome coords
+OP.Camera.toBoard(view, cssX, cssY)     // pointer straight to world
+```
+
+Rules that follow from it, and each of them has already caused a bug:
+
+- **`Render.frame` has exactly one seam, at `LAYER.HUD`.** Below it, board
+  transform. At or above it, field transform. A layer registered on the wrong side
+  of that line draws in the wrong space.
+- **`io.x/io.y` are FIELD; `io.bx/io.by` are BOARD.** Never assign them directly —
+  `OP.Input.setPoint(io, x, y)` writes both, and a stale `bx` shows up as a
+  placement preview pointing where the tap will not land.
+- **Sim-facing callbacks receive board coordinates.** That includes the tower lookup,
+  and `place` / `aim` / `context`. Anything asking "is this over chrome?" must
+  convert back with `boardToField` first — the HUD's lookup hook did not, and every
+  press on the sidebar reported as empty ground behind it.
+- **`HUD.LAYOUT.sidebar.x >= OP.PLAY_W`**, or the panel eats the board again.
+  Asserted in `tools/suites/ui-game.mjs`, along with the invariant that no point of
+  the board maps under the sidebar.
+- **The terrain cache key includes the board scale.** It is rendered at final
+  on-screen size; without the scale in the key a stale bitmap blits at the wrong one.
 
 ## 3. Damage — a table, never an `if`-chain
 

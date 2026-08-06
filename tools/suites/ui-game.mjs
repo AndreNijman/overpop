@@ -180,8 +180,20 @@ export function run (t, OP, env) {
   function tapAt (app, x, y) {
     const io = app.state.io
     io.overCanvas = true
-    io.x = x; io.y = y
+    OP.Input.setPoint(io, x, y)
     return OP.Input.tap(io, x, y)
+  }
+
+  /**
+   * Tap the screen position where a BOARD point appears.
+   *
+   * Towers live in board coordinates; taps arrive in field coordinates. Since the
+   * board is fitted beside the sidebar the two differ, so a test that wants to
+   * press "on that tower" has to convert — exactly as a player's finger does.
+   */
+  function tapBoard (app, bx, by) {
+    const f = OP.Camera.boardToField(bx, by)
+    return tapAt(app, f.x, f.y)
   }
 
   function firstTowerKey () {
@@ -501,8 +513,7 @@ export function run (t, OP, env) {
   const firstCard = scrollToCard(hoverApp, 'shop.' + KEY)
   // Point at the card so the detail strip — and its button — exist at all.
   hoverApp.state.io.overCanvas = true
-  hoverApp.state.io.x = firstCard.x + firstCard.w / 2
-  hoverApp.state.io.y = firstCard.y + firstCard.h / 2
+  OP.Input.setPoint(hoverApp.state.io, firstCard.x + firstCard.w / 2, firstCard.y + firstCard.h / 2)
   const hovered = Shop.build(hoverApp)
   const treeBtn = U.byId(hovered.widgets, 'shop.tree.' + KEY)
   t.ok(!!treeBtn, 'a hovered card offers an UPGRADES button')
@@ -607,8 +618,7 @@ export function run (t, OP, env) {
   const io = shopApp.state.io
   const hoverTarget = byId(Shop.build(shopApp), 'shop.' + KEY)
   io.overCanvas = true
-  io.x = centre(hoverTarget).x
-  io.y = centre(hoverTarget).y
+  OP.Input.setPoint(io, centre(hoverTarget).x, centre(hoverTarget).y)
   const hoverModel = Shop.build(shopApp)
   t.eq(hoverModel.hoverId, hoverTarget.id, 'the hovered entry is resolved from the live pointer')
   const hoverDense = drawDense(Shop, shopApp)
@@ -621,6 +631,7 @@ export function run (t, OP, env) {
   const entry = byId(Shop.build(buyApp), 'shop.' + KEY)
   const at = centre(entry)
   t.eq(tapAt(buyApp, at.x, at.y), 'deselect', 'the tap resolves through Input, over the sidebar')
+  if (buyApp.state.io.mode !== 'placing') console.error('DBG showing=', Shop.showing(buyApp), 'tree=', Shop.state.tree, 'chromeAt=', Shop.chromeAt(buyApp, at.x, at.y), 'at=', JSON.stringify(at), 'hit=', JSON.stringify((Shop.hitAt(buyApp, at.x, at.y)||{}).id), 'entryRect=', entry.x, entry.y, entry.w, entry.h)
   t.eq(buyApp.state.io.mode, 'placing', 'Input is placing')
   t.eq(buyApp.state.io.placingKey, KEY, 'with the key that was pressed')
   t.notOk(buyApp.state.io.placingIsHero, 'and not as a hero')
@@ -979,20 +990,45 @@ export function run (t, OP, env) {
 
   t.section('a tap on the board still selects and deselects normally')
   rApp.state.io.selectedId = -1
-  tapAt(rApp, rTower.x, rTower.y)
+  tapBoard(rApp, rTower.x, rTower.y)
   t.eq(rApp.state.io.selectedId, rTower.id, 'tapping a tower selects it')
-  tapAt(rApp, rTower.x, rTower.y)
+  tapBoard(rApp, rTower.x, rTower.y)
   t.eq(rApp.state.io.selectedId, -1, 'tapping it again deselects')
 
-  t.section('a tower hiding under the sidebar cannot be selected through it')
+  t.section('NO part of the board can hide under the sidebar any more')
+  /* This used to be a test that a tower at world x=1100 was unselectable because
+     the sidebar covered it. That was the bug, not the feature: between 14% and 38%
+     of every map's track sat under the shop, so balloons crossed a third of the
+     route out of sight. The board is now fitted into the play rect, so the correct
+     assertion is the opposite one — every board position is visible. */
+  const panelRect = OP.HUD.LAYOUT.sidebar
+  t.ok(panelRect.x >= OP.PLAY_W,
+    `the sidebar (x=${panelRect.x}) starts at or after the play area ends (${OP.PLAY_W}) — these two numbers must not drift`)
+  let underPanel = 0
+  for (let bx = 0; bx <= OP.FIELD_W; bx += 20) {
+    for (let by = 0; by <= OP.FIELD_H; by += 20) {
+      const f = OP.Camera.boardToField(bx, by)
+      if (f.x >= panelRect.x) underPanel++
+    }
+  }
+  t.eq(underPanel, 0, 'no point of the 1280x720 board maps under the sidebar')
+
+  const farRight = OP.Camera.boardToField(OP.FIELD_W, OP.FIELD_H / 2)
+  t.lt(farRight.x, panelRect.x, `the far edge of the board lands at field x=${Math.round(farRight.x)}, left of the panel at ${panelRect.x}`)
+
   const hidden = OP.Towers.place(rs, KEY, 1100, 300, { free: true })
   if (hidden) {
     rApp.state.io.selectedId = -1
-    tapAt(rApp, 1100, 300)
-    t.neq(rApp.state.io.selectedId, hidden.id, 'the press belonged to the panel, not the tower behind it')
+    tapBoard(rApp, 1100, 300)
+    t.eq(rApp.state.io.selectedId, hidden.id, 'a tower at world x=1100 is now visible and selectable')
   } else {
-    t.fail('could not place a tower under the sidebar', 'expected a free placement to succeed')
+    t.fail('could not place a tower at world x=1100', 'expected a free placement to succeed')
   }
+
+  t.section('chrome still wins where chrome actually is')
+  rApp.state.io.selectedId = -1
+  tapAt(rApp, panelRect.x + 40, 300)
+  t.eq(rApp.state.io.selectedId, -1, 'a press on the sidebar itself selects nothing behind it')
 
   t.section('a placement tap that lands on chrome does not build under the panel')
   const placeApp = wireShell(makeApp(sim({ cash: 1000000 })))
@@ -1205,8 +1241,7 @@ export function run (t, OP, env) {
   }
   mApp.state.io.selectedId = mTower.id
   mApp.state.io.overCanvas = true
-  mApp.state.io.x = 1100
-  mApp.state.io.y = 300
+  OP.Input.setPoint(mApp.state.io, 1100, 300)
   OP.Sim.startRound(ms, 12)
   for (let i = 0; i < 60; i++) OP.Sim.step(ms)
   spawn(OP, ms, 'ceramic', 200)

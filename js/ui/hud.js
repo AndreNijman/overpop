@@ -624,6 +624,13 @@
     }
   }
 
+  /** Board coordinates -> field coordinates, as a pair for spreading. */
+  function fieldOf (x, y) {
+    if (!OP.Camera || !OP.Camera.boardToField) return [x, y]
+    const f = OP.Camera.boardToField(x, y)
+    return [f.x, f.y]
+  }
+
   HUD.install = function (app) {
     if (!app || !app.state) return HUD
 
@@ -652,7 +659,11 @@
       const prevLookup = io._towerAt
       OP.Input.setTowerLookup(io, function (x, y) {
         io._uiSel = io.selectedId
-        io._uiOver = HUD.chromeAt(app, x, y)
+        // The lookup is sim-facing, so `x, y` are BOARD coordinates — but "is this
+        // press over chrome" is a FIELD-space question, because the panels are not
+        // scaled by the board fit. Asking chromeAt in the wrong space made every
+        // press on the sidebar report as empty ground behind it.
+        io._uiOver = HUD.chromeAt(app, ...fieldOf(x, y))
         if (io._uiOver) return -1
         return typeof prevLookup === 'function' ? prevLookup(x, y) : -1
       })
@@ -681,7 +692,10 @@
       next.place = function (key, x, y, isHero) {
         // Placing mode never runs the lookup, so ask directly. The selection is
         // intact on this path, which is why no restore is needed.
-        if (gameActive(app) && HUD.chromeAt(app, x, y)) { HUD.route(app, x, y); return }
+        // Same space conversion as the lookup hook above: x, y arrive in board
+        // space and the router works in field space.
+        const f = fieldOf(x, y)
+        if (gameActive(app) && HUD.chromeAt(app, f[0], f[1])) { HUD.route(app, f[0], f[1]); return }
         if (typeof prev.place === 'function') prev.place(key, x, y, isHero)
       }
 

@@ -59,7 +59,12 @@ export function run (t, OP, env) {
   log = spy(io)
   I.beginPlacing(io, 'template-critter', false)
   t.eq(I.tap(io, 300, 400), 'place', 'the tap resolves as a placement')
-  t.deep(log[0], ['place', 'template-critter', 300, 400, false], 'with the key and position')
+  // The handler is sim-facing, so the position it receives is BOARD space. A press
+  // at field (300,400) is world (400,413) because the board is fitted beside the
+  // sidebar — asserting the field numbers here would be asserting the bug.
+  const placeB = OP.Camera.fieldToBoard(300, 400)
+  t.deep(log[0], ['place', 'template-critter', Math.round(placeB.x), Math.round(placeB.y), false],
+    'with the key and the position in board space')
 
   t.section('placing a hero is flagged as such')
   io = I.create()
@@ -85,25 +90,31 @@ export function run (t, OP, env) {
   I.beginAiming(io, 42)
   t.eq(io.mode, 'aiming', 'mode switches to aiming')
   t.eq(I.tap(io, 500, 300), 'aim', 'a tap resolves as an aim')
-  t.deep(log[0], ['aim', 42, 500, 300], 'with the tower id and point')
+  const aimB = OP.Camera.fieldToBoard(500, 300)
+  t.deep(log[0], ['aim', 42, Math.round(aimB.x), Math.round(aimB.y)],
+    'with the tower id and the point in BOARD space')
 
   /* ---------- selection ---------- */
 
   t.section('selection uses the tower lookup the shell installs')
   io = I.create()
   log = spy(io)
-  I.setTowerLookup(io, (x, y) => (x > 400 && x < 500 ? 99 : -1))
-  t.eq(I.tap(io, 450, 300), 'select', 'a tap on a tower selects it')
+  /* The lookup is a SIM-facing callback, so it is handed board coordinates. The
+     band below is expressed in board space and the taps in field space, which is
+     the whole point of the conversion: a press at field 450 is not world 450. */
+  I.setTowerLookup(io, (x, y) => (x > 550 && x < 650 ? 99 : -1))
+  const selField = OP.Camera.boardToField(600, 300)
+  t.eq(I.tap(io, selField.x, selField.y), 'select', 'a tap on a tower selects it')
   t.eq(io.selectedId, 99, 'and records which')
   t.deep(log[log.length - 1], ['select', 99], 'and tells the shell')
 
   t.section('tapping the same tower again deselects it')
-  t.eq(I.tap(io, 450, 300), 'deselect', 'the second tap deselects')
+  t.eq(I.tap(io, selField.x, selField.y), 'deselect', 'the second tap deselects')
   t.eq(io.selectedId, -1, 'nothing is selected')
   t.deep(log[log.length - 1], ['select', -1], 'and the shell is told with -1')
 
   t.section('tapping empty ground deselects')
-  I.tap(io, 450, 300)
+  I.tap(io, selField.x, selField.y)
   t.eq(io.selectedId, 99, 'select again')
   t.eq(I.tap(io, 100, 100), 'deselect', 'a tap on nothing deselects')
   t.eq(io.selectedId, -1, 'and clears the selection')
@@ -120,7 +131,7 @@ export function run (t, OP, env) {
   io = I.create()
   I.setTowerLookup(io, () => 5)
   io.overCanvas = true
-  io.x = 300; io.y = 300
+  OP.Input.setPoint(io, 300, 300)
   t.eq(I.updateHover(io), 5, 'hovering finds a tower')
   io.overCanvas = false
   t.eq(I.updateHover(io), -1, 'leaving the canvas clears it')
@@ -139,14 +150,14 @@ export function run (t, OP, env) {
   I.beginPlacing(io, 'template-critter', false)
   const p = s.map.paths[0].posAt(300)
 
-  io.x = OP.M.clamp(p.x, 60, 1220); io.y = OP.M.clamp(p.y - 70, 60, 660)
+  OP.Input.setPoint(io, OP.M.clamp(p.x, 60, 1220), OP.M.clamp(p.y - 70, 60, 660))
   let pv = I.placementPreview(io, s)
   t.ok(pv, 'a preview exists while placing')
   t.eq(pv.key, 'template-critter', 'naming what is being placed')
   t.eq(pv.footprint, OP.TOWERS['template-critter'].footprint, 'with the real footprint')
   t.eq(pv.range, OP.TOWERS['template-critter'].base.range, 'and the real base range')
 
-  io.x = 5; io.y = 5
+  OP.Input.setPoint(io, 5, 5)
   pv = I.placementPreview(io, s)
   t.notOk(pv.ok, 'a spot hanging off the map previews as illegal')
   t.ok(pv.reason.length > 0, 'with a reason to show the player')
@@ -154,10 +165,11 @@ export function run (t, OP, env) {
   t.section('the preview and the real check always agree')
   let disagreements = 0
   for (let i = 0; i < 120; i++) {
-    io.x = 20 + (i * 97) % (OP.FIELD_W - 40)
-    io.y = 20 + (i * 53) % (OP.FIELD_H - 40)
+    OP.Input.setPoint(io, 20 + (i * 97) % (OP.FIELD_W - 40), 20 + (i * 53) % (OP.FIELD_H - 40))
     const preview = I.placementPreview(io, s)
-    const real = OP.Towers.canPlace(s, 'template-critter', io.x, io.y)
+    // Against BOARD coordinates: those are the ones the tap will actually use, so
+    // this is the comparison that proves the preview cannot lie.
+    const real = OP.Towers.canPlace(s, 'template-critter', io.bx, io.by)
     if (preview.ok !== real.ok) disagreements++
   }
   t.eq(disagreements, 0, 'over 120 positions the preview never disagreed with canPlace')
@@ -166,7 +178,7 @@ export function run (t, OP, env) {
   const hs = sim()
   io = I.create()
   I.beginPlacing(io, 'template-hero', true)
-  io.x = 300; io.y = 620
+  OP.Input.setPoint(io, 300, 620)
   const heroPv = I.placementPreview(io, hs)
   t.ok(heroPv, 'a hero preview exists')
   OP.Heroes.place(hs, 'template-hero', 300, 620, { free: true })
@@ -243,8 +255,7 @@ export function run (t, OP, env) {
   })
   const beforeA = OP.Sim.checksum(a)
   for (let i = 0; i < 200; i++) {
-    io.x = (i * 61) % OP.FIELD_W
-    io.y = (i * 37) % OP.FIELD_H
+    OP.Input.setPoint(io, (i * 61) % OP.FIELD_W, (i * 37) % OP.FIELD_H)
     io.overCanvas = true
     I.updateHover(io)
     I.tap(io, io.x, io.y)

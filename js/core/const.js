@@ -15,6 +15,29 @@
   OP.FIELD_W = 1280
   OP.FIELD_H = 720
 
+  /* The part of the field the BOARD is allowed to occupy.
+     Maps are authored across the full 1280x720, but the shop sidebar sits over
+     x >= 960 — which hid between 14% and 38% of every map's track, depending on
+     the map. Balloons crossed a third of the route out of sight and you could not
+     aim at them.
+
+     So the board is scaled to fit inside this rect as a pure VIEW transform (see
+     Camera.board). The simulation still runs in full field coordinates and never
+     learns about this, which is the point: rescaling the map DATA instead would
+     shrink the track while leaving tower ranges alone, and every measured balance
+     number would move with no way to say by how much.
+
+     The gutter keeps the board off the panel edge: fitted flush, the map's last
+     pixel column and the sidebar's first are the same column, which reads as the
+     board running underneath. It also makes the "nothing is hidden" invariant
+     strict rather than boundary-exact.
+
+     HUD.LAYOUT.sidebar.x must be >= PLAY_W or the panel eats the board again;
+     tools/suites/ui-game.mjs asserts that, so the two numbers cannot drift. */
+  OP.PLAY_GUTTER = 12
+  OP.PLAY_W = 960 - OP.PLAY_GUTTER
+  OP.PLAY_H = OP.FIELD_H
+
   // A red balloon travels this many units per second. Every other speed in the
   // game is a multiplier on it.
   OP.BASE_SPEED = 46

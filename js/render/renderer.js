@@ -103,12 +103,18 @@
      here, so it is painted once into an offscreen canvas and blitted. */
 
   Render.terrainCache = function (view, sim) {
-    const key = sim.map.key + '@' + view.cw + 'x' + view.ch +
+    // The board fit is baked into the bitmap rather than applied at blit time, so
+    // the terrain is rendered once at its true on-screen size instead of being
+    // resampled from a larger one every frame. It therefore has to be part of the
+    // key: a stale full-size bitmap would blit at the wrong scale.
+    const bs = OP.Camera.board().scale
+    const es = view.scale * bs
+    const key = sim.map.key + '@' + view.cw + 'x' + view.ch + '#' + bs +
       '|' + (sim.map.cleared ? sim.map.cleared.join(',') : '')
     if (view._terrainKey === key && view._terrain) return view._terrain
 
-    const w = Math.max(1, Math.round(OP.FIELD_W * view.scale))
-    const h = Math.max(1, Math.round(OP.FIELD_H * view.scale))
+    const w = Math.max(1, Math.round(OP.FIELD_W * es))
+    const h = Math.max(1, Math.round(OP.FIELD_H * es))
 
     let cv
     if (typeof OffscreenCanvas !== 'undefined') cv = new OffscreenCanvas(w, h)
@@ -119,7 +125,7 @@
 
     const c2 = cv.getContext('2d')
     if (!c2) return null
-    c2.setTransform(view.scale, 0, 0, view.scale, 0, 0)
+    c2.setTransform(es, 0, 0, es, 0, 0)
 
     if (OP.Terrain && OP.Terrain.paint) OP.Terrain.paint(c2, sim.map, sim)
     else fallbackTerrain(c2, sim.map)
@@ -166,7 +172,10 @@
     ctx.fillStyle = '#070a08'
     ctx.fillRect(0, 0, view.cw, view.ch)
 
-    OP.Camera.apply(view, ctx)
+    /* Board content is drawn under the BOARD transform so the whole map fits
+       beside the sidebar; chrome is drawn under the plain field transform. One
+       seam, at LAYER.HUD. */
+    const b = OP.Camera.applyBoard(view, ctx)
     ctx.beginPath()
     ctx.rect(0, 0, OP.FIELD_W, OP.FIELD_H)
     ctx.clip()
@@ -175,7 +184,12 @@
     const terrain = Render.terrainCache(view, sim)
     if (terrain) {
       ctx.save()
-      ctx.setTransform(1, 0, 0, 1, view.ox + view.shakeX * view.scale, view.oy + view.shakeY * view.scale)
+      // The cache is a field-sized bitmap at view.scale, so it is blitted under
+      // the raw device transform and offset by the board translate — which must
+      // itself be in device pixels, hence the extra view.scale.
+      ctx.setTransform(1, 0, 0, 1,
+        view.ox + (view.shakeX + b.ox) * view.scale,
+        view.oy + (view.shakeY + b.oy) * view.scale)
       ctx.drawImage(terrain, 0, 0)
       ctx.restore()
     } else {
@@ -191,8 +205,12 @@
     drawTowers(ctx, sim, view, frame, alpha)
     drawFX(ctx, sim, view, frame)
 
-    drawLayers(ctx, sim, view, frame, before, Infinity)
+    drawLayers(ctx, sim, view, frame, before, Render.LAYER.HUD)
+    ctx.restore()
 
+    // Chrome: field space, unscaled by the board fit.
+    OP.Camera.apply(view, ctx)
+    drawLayers(ctx, sim, view, frame, Render.LAYER.HUD, Infinity)
     ctx.restore()
   }
 

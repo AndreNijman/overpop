@@ -61,6 +61,69 @@
       view.oy + view.shakeY * view.scale)
   }
 
+  /* ---------- the board transform ----------
+
+     TWO spaces, and the distinction is load-bearing:
+
+       FIELD space   1280x720. The HUD, the shop and every panel live here, and
+                     `toWorld` returns it, so chrome hit-testing is unchanged.
+       BOARD space   the same 1280x720 the SIMULATION uses, squeezed to fit
+                     entirely inside the play rect so no part of a map can end up
+                     under the sidebar.
+
+     The sim only ever sees board space, and board space is identical to what it
+     always was — this is a change of where pixels land, not of what anything
+     measures. A tower's range in board units is the same number it was before. */
+
+  /** Uniform fit of the field into the play rect. Cheap; called per frame. */
+  Camera.board = function () {
+    const s = Math.min(OP.PLAY_W / OP.FIELD_W, OP.PLAY_H / OP.FIELD_H)
+    return {
+      scale: s,
+      // Centred in the play rect, so the letterbox is even top and bottom rather
+      // than the board sitting against one edge.
+      ox: Math.round((OP.PLAY_W - OP.FIELD_W * s) / 2),
+      oy: Math.round((OP.PLAY_H - OP.FIELD_H * s) / 2)
+    }
+  }
+
+  /**
+   * Apply the field transform AND the board transform. Board content — terrain,
+   * track, towers, balloons, projectiles, FX — is drawn under this. Paired with
+   * ctx.restore().
+   */
+  Camera.applyBoard = function (view, ctx) {
+    Camera.apply(view, ctx)
+    const b = Camera.board()
+    ctx.translate(b.ox, b.oy)
+    ctx.scale(b.scale, b.scale)
+    return b
+  }
+
+  /** Board space -> field space. */
+  Camera.boardToField = function (bx, by, out) {
+    const b = Camera.board()
+    out = out || { x: 0, y: 0 }
+    out.x = bx * b.scale + b.ox
+    out.y = by * b.scale + b.oy
+    return out
+  }
+
+  /** Field space -> board space, i.e. the coordinates the simulation uses. */
+  Camera.fieldToBoard = function (fx, fy, out) {
+    const b = Camera.board()
+    out = out || { x: 0, y: 0 }
+    out.x = (fx - b.ox) / b.scale
+    out.y = (fy - b.oy) / b.scale
+    return out
+  }
+
+  /** Pointer coordinates straight to board space, for sim-facing handlers. */
+  Camera.toBoard = function (view, cssX, cssY, out) {
+    const f = Camera.toWorld(view, cssX, cssY)
+    return Camera.fieldToBoard(f.x, f.y, out)
+  }
+
   /* ---------- coordinate conversion ---------- */
 
   /** Pointer event coordinates (CSS pixels relative to the canvas) -> design space. */
