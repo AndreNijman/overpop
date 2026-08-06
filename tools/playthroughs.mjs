@@ -40,6 +40,7 @@ if (errors.length) {
 
 const MAX_ROUNDS = parseInt(arg('--rounds', '100'), 10)
 const QUIET = has('--quiet')
+const EXPLAIN = has('--explain')
 const REPORT = arg('--report', 'docs/BALANCE.md')
 
 /* ---------- picking a map ---------- */
@@ -167,15 +168,37 @@ function playReference (sim, map) {
    * attacker whose damage type is not yet represented, then camo detection, then
    * anything missing.
    */
-  function nextMissing () {
-    const affordable = k => OP.Economy.price(sim, OP.TOWERS[k].cost) <= sim.cash - 30
-    const attacks = k => typeof OP.TOWERS[k].fire === 'function' && OP.TOWERS[k].base.damage > 0
-    const haveTypes = {}
-    let haveCamo = false
-    for (const t of own) {
-      haveTypes[t.s.dmgType] = true
-      if (t.s.camoDetect) haveCamo = true
+  const affordable = k => OP.Economy.price(sim, OP.TOWERS[k].cost) <= sim.cash - 30
+  const attacks = k => typeof OP.TOWERS[k].fire === 'function' && OP.TOWERS[k].base.damage > 0
+
+  /** Damage types currently represented on the board. */
+  function ownedTypes () {
+    const have = {}
+    // The BASE type, not `t.s.dmgType`: the current stat block can have been
+    // changed by an upgrade, and what matters for "do I own an answer to Lead"
+    // is what the tower actually deals now — but a tower whose type an upgrade
+    // moved should not make the bot think it still covers the old one.
+    for (const t of own) have[t.s.dmgType] = true
+    return have
+  }
+
+  /**
+   * The cheapest attacker whose damage type is absent from the board, whether or
+   * not it can be afforded right now. Returns null when every type is covered.
+   */
+  function missingTypeTower () {
+    const have = ownedTypes()
+    for (const key of byCost) {
+      if (!attacks(key)) continue
+      if (!have[OP.TOWERS[key].base.dmgType]) return key
     }
+    return null
+  }
+
+  function nextMissing () {
+    const haveTypes = ownedTypes()
+    let haveCamo = false
+    for (const t of own) if (t.s.camoDetect) haveCamo = true
 
     // 1. a damage type nothing on the board has yet
     for (const key of byCost) {
@@ -219,6 +242,24 @@ function playReference (sim, map) {
         // camo and blimp answers get onto the board before they are needed.
         const missing = nextMissing()
         if (missing && tryPlace(missing)) continue
+
+        /* SAVE for a damage type the board does not have.
+           Without this the bot spent every dollar on whatever cheap tier-1/2
+           upgrade came next, so cash never reached the price of the first
+           explosive tower — measured: 4835 earned by round 24 with never more
+           than ~120 in hand, and a board still carrying only sharp and acid.
+           It then met Lead, which no sharp tower can pop, and died. That reads
+           as a difficulty spike and is nothing of the kind: it is the bot
+           refusing to hold a reserve.
+
+           A competent player saves for the answer they know is coming, so the
+           bot must too — otherwise the matrix measures the bot's impatience
+           rather than the game. Only hold when the gap is a real one and the
+           reserve is actually reachable, so this can never deadlock: round
+           bonuses keep arriving, and once the tower is affordable the branch
+           above buys it. */
+        const gap = missingTypeTower()
+        if (gap && !affordable(gap)) return
 
         // Then deepen, round-robin so investment spreads across the board rather
         // than piling onto whichever tower happens to be first in the list.
@@ -303,9 +344,27 @@ function runGame (mapKey, difficulty, mode, strategy, maxRounds) {
     round++
   }
 
+  /* What the board actually looked like when it ended.
+     The matrix can only say "leaked at round 24"; that number is equally
+     consistent with a damage shortfall and with an immunity the board has no
+     answer to, and those want opposite fixes. So record the roster, its damage
+     types, its upgrade depth, and — decisively — whether any owned tower could
+     damage each tier the round was sending. */
+  const board = sim.towers.map(t => ({
+    key: t.key,
+    dmg: t.s.dmgType,
+    paths: (t.tiers || []).join('-'),
+    dealt: Math.round(t.pops || 0)
+  }))
+  const boardTypes = [...new Set(board.map(b => b.dmg))]
+  const lastRoundDef = OP.Rounds.definition(sim, Math.min(round, last))
+  const unanswerable = [...new Set((lastRoundDef.groups || []).map(g => g.tier))]
+    .filter(tier => tier && !boardTypes.some(ty => OP.canDamage(tier, ty)))
+
   return {
     mapKey, difficulty, mode,
     placed: plan.placed,
+    board, boardTypes, unanswerable,
     towers: sim.towers.length,
     reached: Math.min(round, last),
     target: last,
@@ -337,6 +396,28 @@ const failures = []
 
 function log (s) { if (!QUIET) console.log(s) }
 
+/* Why did this board lose?
+   "Leaked at round 24" does not distinguish a damage shortfall from an immunity
+   the board cannot answer, and the two want opposite fixes — one is a tuning
+   question, the other is a bug in whatever chose the towers. Print enough to
+   tell them apart. */
+function explain (r) {
+  const byKey = {}
+  for (const b of r.board) {
+    const e = byKey[b.key] || (byKey[b.key] = { n: 0, dmg: b.dmg, dealt: 0, paths: [] })
+    e.n++; e.dealt += b.dealt; e.paths.push(b.paths || '0-0-0')
+  }
+  const rows = Object.keys(byKey).map(k => ({ k, ...byKey[k] })).sort((a, b) => b.dealt - a.dealt)
+  console.log(`        ${dim('types on board:')} ${r.boardTypes.join(', ')}`)
+  console.log(`        ${dim('cash unspent:  ')} ${r.cash} ${dim(`(earned ${r.earned})`)}`)
+  if (r.unanswerable.length) {
+    console.log(`        ${red('NO ANSWER TO:  ')} ${r.unanswerable.join(', ')} ${dim('— immunity gap, not a tuning problem')}`)
+  }
+  for (const row of rows) {
+    console.log(`        ${dim('·')} ${row.k.padEnd(22)} x${String(row.n).padEnd(3)} ${row.dmg.padEnd(9)} ${dim('pops')} ${String(row.dealt).padEnd(8)} ${dim(row.paths.join(' '))}`)
+  }
+}
+
 log(`\n${bold('OVERPOP playthroughs')}`)
 log(`${dim('maps       ')} ${maps.join(', ')}`)
 log(`${dim('difficulty ')} ${difficulties.join(', ')}`)
@@ -358,6 +439,7 @@ for (const mapKey of maps) {
       } else if (!r.survived) {
         failures.push(`${label}: leaked out at round ${r.reached} of ${r.target} (${r.leaked} RBE leaked)`)
         log(`  ${red('LOSS ')} ${label} ${dim(`round ${r.reached}/${r.target}, ${r.towers} towers`)}`)
+        if (EXPLAIN) explain(r)
       } else {
         log(`  ${green('held ')} ${label} ${dim(`round ${r.reached}/${r.target}, ${r.towers} towers, ${r.lives}/${r.startLives} lives`)}`)
       }
