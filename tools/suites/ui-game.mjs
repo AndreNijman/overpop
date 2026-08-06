@@ -154,6 +154,25 @@ export function run (t, OP, env) {
 
   function byId (model, id) { return U.byId(model.widgets, id) }
 
+  /**
+   * Scroll the shop until `id` is on screen, then return that widget (or null).
+   *
+   * Needed because the card list is culled: a widget below the fold does not
+   * exist, which is the correct behaviour and does mean a test that wants a
+   * specific card has to go and find it the way a player would.
+   */
+  function scrollToCard (app, id) {
+    OP.Shop.state.scroll = 0
+    for (let guard = 0; guard < 400; guard++) {
+      const m = OP.Shop.build(app)
+      const w = U.byId(m.widgets, id)
+      if (w) return w
+      if (OP.Shop.state.scroll >= OP.Shop.state.maxScroll) return null
+      OP.Shop.scrollBy(24)
+    }
+    return null
+  }
+
   /** Drive a real pointer tap at a point, the way Input does on pointerup. */
   function tapAt (app, x, y) {
     const io = app.state.io
@@ -368,15 +387,50 @@ export function run (t, OP, env) {
   t.section('the shop lists every registered tower, grouped by family')
   const shopSim = sim({ cash: 100000 })
   const shopApp = wireShell(makeApp(shopSim))
+  /* The list is CULLED, not merely clipped: a card scrolled out of view is absent
+     from `widgets` so it cannot answer a hit test and let a player buy a tower
+     they cannot see. That means "every tower has an entry" cannot be asserted
+     from one frame — it has to be asserted by scrolling, which is the stronger
+     claim anyway, because it also proves everything can actually be REACHED. A
+     card stranded below the last scroll position would pass a naive count. */
+  Shop.state.scroll = 0
   const shopModel = Shop.build(shopApp)
-  const entries = shopModel.widgets.filter(w => w.action === 'shop-buy')
-  const towerEntries = entries.filter(w => !w.hero)
-  t.eq(towerEntries.length, OP.TOWER_ORDER.length, `all ${OP.TOWER_ORDER.length} towers have an entry`)
-  t.eq(entries.filter(w => w.hero).length, OP.HERO_ORDER.length, `and all ${OP.HERO_ORDER.length} heroes`)
-  for (const key of OP.TOWER_ORDER) {
-    if (!byId(shopModel, 'shop.' + key)) { t.fail('missing shop entry for ' + key); break }
+  const visible = shopModel.widgets.filter(w => w.action === 'shop-buy')
+  t.gt(visible.length, 0, `${visible.length} cards fit the viewport at once`)
+  t.lt(visible.length, OP.TOWER_ORDER.length + OP.HERO_ORDER.length,
+    'and not all of them — otherwise this test proves nothing about scrolling')
+
+  const reachable = new Set()
+  const heroesReachable = new Set()
+  let guard = 0
+  Shop.state.scroll = 0
+  for (;;) {
+    const m = Shop.build(shopApp)
+    for (const w of m.widgets) {
+      if (w.action !== 'shop-buy') continue
+      ;(w.hero ? heroesReachable : reachable).add(w.arg)
+    }
+    if (Shop.state.scroll >= Shop.state.maxScroll || ++guard > 400) break
+    Shop.scrollBy(20)
   }
-  t.ok(OP.TOWER_ORDER.every(k => !!byId(shopModel, 'shop.' + k)), 'read from OP.TOWER_ORDER, so nothing is skipped')
+  t.lt(guard, 400, 'scrolling terminates at the bottom rather than running forever')
+  t.eq(reachable.size, OP.TOWER_ORDER.length, `all ${OP.TOWER_ORDER.length} towers are reachable by scrolling`)
+  t.eq(heroesReachable.size, OP.HERO_ORDER.length, `and all ${OP.HERO_ORDER.length} heroes`)
+  t.ok(OP.TOWER_ORDER.every(k => reachable.has(k)), 'read from OP.TOWER_ORDER, so nothing is skipped')
+
+  t.section('the card list scrolls, and cannot be scrolled off either end')
+  Shop.state.scroll = 0
+  t.ok(!Shop.scrollBy(-50), 'scrolling up at the top is refused rather than going negative')
+  t.eq(Shop.state.scroll, 0, 'still pinned at the top')
+  t.ok(Shop.scrollBy(40), 'scrolling down moves')
+  const mid = Shop.state.scroll
+  t.eq(mid, 40, 'by exactly the amount asked for')
+  Shop.build(shopApp)
+  Shop.scrollBy(100000)
+  t.eq(Shop.state.scroll, Shop.state.maxScroll, 'a huge scroll clamps to the last card instead of blanking the panel')
+  t.ok(!Shop.scrollBy(50), 'and is refused past the end')
+  t.gt(Shop.state.maxScroll, 0, 'the roster genuinely overflows one screen, so this matters')
+  Shop.state.scroll = 0
   const groupLabels = Shop.groups().map(g => g.label)
   t.deep(groupLabels.slice(0, OP.FAMILIES.length), OP.FAMILIES.map(f => OP.FAMILY_LABELS[f]),
     'grouped in OP.FAMILIES order')
@@ -391,6 +445,85 @@ export function run (t, OP, env) {
   t.ok(shopDense.includes(OP.TOWERS[KEY].name), 'a tower name reached the screen')
   t.ok(shopDense.includes(OP.M.money(OP.Economy.price(shopSim, OP.TOWERS[KEY].cost))), 'with its price')
   t.ok(shopDense.includes('PRIMARY'), 'and the family headers')
+
+  t.section('each card shows the critter it is, drawn with the board sprite')
+  Shop.state.scroll = 0
+  const portraitModel = Shop.build(shopApp)
+  const cardIds = portraitModel.widgets.filter(w => w.action === 'shop-buy').map(w => w.arg)
+  const portraits = (portraitModel.listOver || []).filter(m => m && m.kind === 'portrait')
+  t.eq(portraits.length, cardIds.length, 'one portrait per visible card, no more and no fewer')
+  t.deep(portraits.map(p => p.key), cardIds, 'and each portrait is the key of the card it sits on')
+  t.ok(portraits.every(p => p.r > 6), 'at a radius big enough to make out')
+
+  // The point of reusing the board sprite is that the shop cannot drift from the
+  // board. Asserting the registry is consulted is what makes that true rather
+  // than aspirational.
+  t.ok(portraits.every(p => typeof OP.Render.towerSprites[p.key] === 'function'),
+    'every portrait key has a real registered sprite behind it')
+
+  const dimmed = portraits.filter(p => p.dim)
+  const states = {}
+  for (const w of portraitModel.widgets) if (w.action === 'shop-buy') states[w.arg] = w.state
+  t.ok(dimmed.every(p => states[p.key] !== 'ok'),
+    'only unavailable critters are dimmed, so dimming means something')
+
+  t.section('a card carries the one trait a player decides on')
+  const traitDense = drawDense(Shop, shopApp)
+  const anyCamo = OP.TOWER_ORDER.some(k => {
+    const tr = OP.Upgrades.traits(OP.TOWERS[k], shopSim)
+    return tr && (tr.camoNow || tr.camoLater)
+  })
+  t.ok(anyCamo, 'some tower answers camo, so the trait is worth printing')
+  t.ok(traitDense.includes('SHARP') || traitDense.includes('EXPLOSIVE') || traitDense.includes('NORMAL'),
+    'the damage type is on the card')
+
+  t.section('the upgrade tree can be previewed before buying')
+  Shop.state.scroll = 0
+  Shop.closeTree()
+  const hoverApp = wireShell(makeApp(sim({ cash: 100000 })))
+  const firstCard = scrollToCard(hoverApp, 'shop.' + KEY)
+  // Point at the card so the detail strip — and its button — exist at all.
+  hoverApp.state.io.overCanvas = true
+  hoverApp.state.io.x = firstCard.x + firstCard.w / 2
+  hoverApp.state.io.y = firstCard.y + firstCard.h / 2
+  const hovered = Shop.build(hoverApp)
+  const treeBtn = U.byId(hovered.widgets, 'shop.tree.' + KEY)
+  t.ok(!!treeBtn, 'a hovered card offers an UPGRADES button')
+  t.eq(treeBtn.action, 'shop-tree', 'wired to open the tree')
+  t.ok((hovered.chromeWidgets || []).some(w => w.id === treeBtn.id),
+    'and it is chrome, not scrolled content — otherwise the clip would hide it')
+
+  t.notOk(Shop.state.tree, 'the tree starts closed')
+  Shop.activate(hoverApp, treeBtn)
+  t.eq(Shop.state.tree, KEY, 'pressing it opens that tower\'s tree')
+  t.eq(hoverApp.state.sim.towers.length, 0, 'and buys nothing — it is a preview')
+  t.eq(hoverApp.state.io.placingKey, null, 'and does not arm a placement')
+
+  const treeCtx = recorder()
+  const treeDrawn = Shop.draw(treeCtx, hoverApp)
+  const treeDense = treeCtx.dense()
+  t.gt(treeDrawn, 60, `the open tree paints (${treeDrawn} marks)`)
+  const def = OP.TOWERS[KEY]
+  let namedUpgrades = 0
+  for (const path of def.paths) {
+    for (const up of path.tiers) if (up && up.name && treeDense.includes(up.name)) namedUpgrades++
+  }
+  t.gt(namedUpgrades, 10, `${namedUpgrades} of the 15 upgrade names are legible before purchase`)
+  t.ok(def.paths.every(p => treeDense.includes(String(p.name).toUpperCase())), 'all three branches are labelled')
+  t.ok(treeDense.includes('at most one branch past tier 2') || treeDense.includes('5-2-0'),
+    'and the crosspath rule is stated, since it decides which column you can finish')
+
+  t.section('the tree is modal, and escapable')
+  t.ok(Shop.chromeAt(hoverApp, 10, 10), 'while open it owns the whole field, so a tap cannot fall through')
+  const scrimHit = Shop.hitAt(hoverApp, 12, 12)
+  t.eq(scrimHit.action, 'shop-tree-close', 'a press off the panel closes it rather than trapping the player')
+  Shop.activate(hoverApp, scrimHit)
+  t.notOk(Shop.state.tree, 'closed')
+  Shop.openTree(KEY)
+  t.ok(Shop.key(hoverApp, 'Escape'), 'Escape is claimed by the open tree')
+  t.notOk(Shop.state.tree, 'and closes it')
+  t.notOk(Shop.key(hoverApp, 'Escape'), 'with nothing open, Escape is left for the placement mode')
+  Shop.state.scroll = 0
 
   t.section('prices come from OP.Economy.price, so the difficulty multiplier lands')
   const easy = sim({ difficulty: 'easy', cash: 100000 })
@@ -409,20 +542,19 @@ export function run (t, OP, env) {
   const thin = sim({ cash: 0, mode: 'primary-only' })
   thin.cash = OP.Economy.price(thin, OP.TOWERS[KEY].cost)      // exactly one purchase
   const thinApp = wireShell(makeApp(thin))
-  const thinModel = Shop.build(thinApp)
-  const affordable = byId(thinModel, 'shop.' + KEY)
+  const affordable = scrollToCard(thinApp, 'shop.' + KEY)
   t.eq(affordable.state, 'ok', 'the one tower we can pay for is affordable')
   t.notOk(affordable.disabled, 'and enabled')
 
   const dearKey = OP.TOWER_ORDER.filter(k => OP.TOWERS[k].family === 'primary')
     .sort((a, b) => OP.TOWERS[b].cost - OP.TOWERS[a].cost)[0]
-  const dear = byId(thinModel, 'shop.' + dearKey)
+  const dear = scrollToCard(thinApp, 'shop.' + dearKey)
   t.eq(dear.state, 'poor', 'a tower we cannot pay for is marked poor, not blocked')
   t.ok(dear.disabled, 'and disabled')
   t.ok(dear.reason.includes('Not enough cash'), 'with an affordability reason')
 
   const militaryKey = OP.TOWER_ORDER.find(k => OP.TOWERS[k].family === 'military')
-  const blocked = byId(thinModel, 'shop.' + militaryKey)
+  const blocked = scrollToCard(thinApp, 'shop.' + militaryKey)
   t.eq(blocked.state, 'blocked', 'a tower the mode forbids is blocked')
   t.ok(blocked.disabled, 'and disabled')
   t.neq(blocked.state, dear.state, 'the three states are distinguishable from the model')
@@ -431,6 +563,9 @@ export function run (t, OP, env) {
     'the reason is the engine\'s own wording, not a second copy of the rule')
 
   t.section('the forbidden reason reaches the drawn output, without a hover')
+  // Left scrolled to the blocked tower on purpose: the point of this section is
+  // that the reason is legible without a hover, and it can only be legible if the
+  // card carrying it is actually on screen.
   const thinDense = drawDense(Shop, thinApp)
   t.ok(thinDense.includes('LOCKED'), 'forbidden entries are tagged')
   t.ok(thinDense.includes(blocked.reason), `and the reason is on screen: "${blocked.reason}"`)
@@ -441,10 +576,12 @@ export function run (t, OP, env) {
   const pureApp = wireShell(makeApp(pure))
   const incomeKey = OP.TOWER_ORDER.find(k => OP.TOWERS[k].income)
   if (incomeKey) {
-    const w = byId(Shop.build(pureApp), 'shop.' + incomeKey)
+    const w = scrollToCard(pureApp, 'shop.' + incomeKey)
+    t.ok(!!w, `the income tower ${incomeKey} can be scrolled to`)
     t.eq(w.state, 'blocked', 'an income tower is blocked')
     t.ok(w.reason.toLowerCase().includes('income'), 'for the income reason')
     t.ok(drawDense(Shop, pureApp).includes(w.reason), 'which is drawn beside its family')
+    Shop.state.scroll = 0
   } else {
     t.fail('no income tower registered', 'expected at least one def.income tower')
   }
@@ -482,7 +619,9 @@ export function run (t, OP, env) {
 
   t.section('clicking a hero entry places a hero')
   if (heroKey) {
-    const heroEntry = byId(Shop.build(buyApp), 'shop.' + heroKey)
+    // Heroes sort last, so this card is always well below the fold.
+    const heroEntry = scrollToCard(buyApp, 'shop.' + heroKey)
+    t.ok(!!heroEntry, 'the hero card can be scrolled to')
     const hAt = centre(heroEntry)
     Shop.activate(buyApp, heroEntry)
     t.eq(buyApp.state.io.placingKey, heroKey, 'the hero key is being placed')

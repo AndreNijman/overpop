@@ -185,6 +185,20 @@
     return true
   }
 
+  /**
+   * Offer a scroll to whichever panel's chrome is under the pointer. Returns true
+   * when a panel consumed it.
+   *
+   * Unlike `route`, an unconsumed scroll over a panel returns false: a panel with
+   * nothing to scroll should not swallow the gesture, or a wheel over the sidebar
+   * would feel broken rather than merely inert.
+   */
+  HUD.wheel = function (app, dy, x, y) {
+    const p = panelAt(app, x, y)
+    if (!p || typeof p.spec.wheelAt !== 'function') return false
+    try { return !!p.spec.wheelAt(app, dy, x, y) } catch (e) { return false }
+  }
+
   /* ============================================================================
      MODEL
 

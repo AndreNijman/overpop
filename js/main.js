@@ -74,6 +74,7 @@
       aim: onAim,
       context: onContext,
       key: onKey,
+      wheel: onWheel,
       cancel: onCancel
     })
 
@@ -391,9 +392,20 @@
 
   function onCancel () { App.state.io.selectedId = App.state.io.selectedId }
 
+  /** Scroll belongs to whichever panel is under the pointer, or to nothing. */
+  function onWheel (dy, x, y) {
+    if (!OP.HUD || !OP.HUD.wheel) return false
+    return OP.HUD.wheel(App, dy, x, y)
+  }
+
+  /**
+   * Returns true when the press was CLAIMED, which is how Escape reaches an open
+   * overlay instead of being spent cancelling a placement mode behind it.
+   */
   function onKey (key) {
     const S = App.state
-    if (!S.sim) return
+    if (!S.sim) return false
+    if (OP.Shop && OP.Shop.key && OP.Shop.key(App, key)) return true
     if (key === ' ') {
       if (S.sim.round && !S.sim.round.done) OP.Sim.togglePause(S.sim)
       else OP.Sim.startRound(S.sim)

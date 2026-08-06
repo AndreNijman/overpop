@@ -151,6 +151,111 @@
     return Math.max(tower.tiers[0], tower.tiers[1], tower.tiers[2])
   }
 
+  /* ---------- what a tower can answer, now and later ----------
+
+     A player deciding what to buy needs one question answered: can this thing
+     pop the balloons that are about to arrive, and if not, can it learn to?
+     Reading a damage type off a card and cross-referencing it against an
+     immunity table is not an answer, it is homework.
+
+     So this projects it. `now` is what the tower does unupgraded; `later` is what
+     any legal upgrade path could give it. Both are DERIVED — from the same
+     immunity data the damage resolver uses and from the real `apply` functions —
+     so a tower retuned tomorrow reports itself correctly with nobody editing a
+     description. Hand-written trait lists rot silently, which is worse than
+     having none.
+
+     The result is cached per tower key: it is a pure function of content, the
+     shop asks for it every frame, and applying 15 upgrade functions per tower
+     per frame would be absurd. */
+
+  const TRAIT_CACHE = {}
+
+  /** Damage types this tower can ever deal, and whether it can ever see camo. */
+  function projectCapabilities (def, sim) {
+    const types = {}
+    let camoNow = !!def.base.camoDetect
+    let camoLater = camoNow
+    let partial = false
+    types[def.base.dmgType] = true
+
+    const paths = def.paths || []
+    for (let p = 0; p < paths.length; p++) {
+      // Walk one branch at a time, cumulatively: a tier-4 that changes the damage
+      // type only does so on top of tiers 1-3, so applying them in isolation
+      // would report a type the player can never actually reach.
+      const s = Object.assign({}, def.base)
+      const stub = { key: def.key, def: def, tiers: [0, 0, 0], id: 0, s: s }
+      const tiers = paths[p].tiers || []
+      for (let t = 0; t < tiers.length; t++) {
+        const up = tiers[t]
+        stub.tiers[p] = t + 1
+        if (!up || typeof up.apply !== 'function') continue
+        // An `apply` that needs more of a live sim than this stub provides must
+        // not be reported as "grants nothing" — that would understate the tower.
+        try { up.apply(s, stub, sim) } catch (e) { partial = true; continue }
+        if (s.dmgType) types[s.dmgType] = true
+        if (s.camoDetect) camoLater = true
+      }
+    }
+
+    return {
+      now: { dmgType: def.base.dmgType, camo: camoNow },
+      types: Object.keys(types),
+      camoLater: camoLater,
+      partial: partial
+    }
+  }
+
+  /**
+   * Which notable balloon tiers this tower answers.
+   *
+   * "Notable" is derived, not listed: a tier is worth reporting when something in
+   * the game is immune to it. That way a new immunity added to the balloon table
+   * shows up in the shop automatically.
+   */
+  Upgrades.traits = function (def, sim) {
+    if (!def || !def.base) return null
+    if (TRAIT_CACHE[def.key]) return TRAIT_CACHE[def.key]
+
+    const cap = projectCapabilities(def, sim)
+    const nowTypes = [cap.now.dmgType]
+    const pops = []
+
+    const order = OP.BALLOON_TIERS || []
+    for (let i = 0; i < order.length; i++) {
+      const tier = order[i]
+      if (!tier || !tier.immuneSet) continue
+      let immuneToSomething = false
+      for (const k in tier.immuneSet) { if (tier.immuneSet[k]) { immuneToSomething = true; break } }
+      if (!immuneToSomething) continue
+
+      const now = nowTypes.some(function (ty) { return OP.canDamage(tier.key, ty) })
+      const later = cap.types.some(function (ty) { return OP.canDamage(tier.key, ty) })
+      pops.push({ tier: tier.key, label: tier.label || tier.key, now: now, later: later })
+    }
+
+    const out = {
+      key: def.key,
+      dmgType: cap.now.dmgType,
+      types: cap.types,
+      camoNow: cap.now.camo,
+      camoLater: cap.camoLater,
+      partial: cap.partial,
+      pops: pops,
+      // The headline: what it cannot pop at all, and what an upgrade would fix.
+      blindTo: pops.filter(function (p) { return !p.now && !p.later }).map(function (p) { return p.label }),
+      fixable: pops.filter(function (p) { return !p.now && p.later }).map(function (p) { return p.label })
+    }
+    TRAIT_CACHE[def.key] = out
+    return out
+  }
+
+  /** Test hook: content suites register throwaway towers into the same registry. */
+  Upgrades.clearTraitCache = function () {
+    for (const k in TRAIT_CACHE) delete TRAIT_CACHE[k]
+  }
+
   /* ---------- the cost ladder ----------
 
      Four agents author 375 upgrade costs across four files. Without a shared

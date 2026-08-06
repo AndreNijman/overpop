@@ -186,20 +186,54 @@
      BUILD
      ============================================================================ */
 
-  function model (marks, widgets, over, app) {
+  function model (marks, widgets, over, app, extra) {
     const U = ui()
     const io = ioOf(app)
     let hover = null
     if (U && io && io.overCanvas) hover = U.hit(widgets, io.x, io.y)
-    return {
+    const m = {
       screen: 'shop',
       marks: marks,
       widgets: widgets,
       over: over,
+      // Content that scrolls, painted inside a clip so a partly-visible card is
+      // cut off at the viewport edge rather than bleeding over the header.
+      listMarks: [],
+      listOver: [],
+      clip: null,
       hoverId: hover ? hover.id : null,
       hovered: hover
     }
+    if (extra) Object.assign(m, extra)
+    if (U && io && io.overCanvas) {
+      const h2 = U.hit(m.widgets, io.x, io.y)
+      m.hovered = h2
+      m.hoverId = h2 ? h2.id : null
+    }
+    return m
   }
+
+  /* ---------- panel state ----------
+     Scroll offset and which upgrade tree is open are VIEW state: they live here,
+     never on the sim. A sim field would land in the save file and, worse, in the
+     checksum — two players scrolled to different places are not in different game
+     states. */
+
+  const state = {
+    scroll: 0,          // pixels the card list is scrolled down by
+    maxScroll: 0,       // recomputed each build; clamps the above
+    tree: null          // tower/hero key whose upgrade tree is open, or null
+  }
+  Shop.state = state
+
+  Shop.scrollBy = function (dy) {
+    const before = state.scroll
+    state.scroll = M.clamp(state.scroll + dy, 0, state.maxScroll)
+    return state.scroll !== before
+  }
+
+  Shop.openTree = function (key) { state.tree = key || null; return state.tree }
+  Shop.closeTree = function () { const had = !!state.tree; state.tree = null; return had }
 
   /** True when the shop owns the sidebar: in a live game, nothing selected. */
   function showing (app) {
@@ -245,20 +279,37 @@
       return model(marks, widgets, over, app)
     }
 
-    // Rows first, so a roster that grows shrinks the cells rather than running off
-    // the bottom of the sidebar.
-    const cols = 2
-    const gap = 6
+    /* ONE COLUMN of tall cards, scrolled — not a grid of shrinking cells.
+       The old grid divided the remaining height by the row count, so every tower
+       added made every card shorter; at 25 towers and 8 heroes a cell was 16px,
+       which fits a clipped name and nothing else. A card has to carry the
+       critter's portrait to be worth looking at, and a portrait needs real
+       height. So the card size is FIXED and the list scrolls instead. */
+    const cardH = 44
+    const rowGap = 4
     const headerH = 22
-    let rows = 0
-    for (let g = 0; g < list.length; g++) rows += Math.ceil(list[g].defs.length / cols)
-    const cellW = Math.floor((innerW - gap * (cols - 1)) / cols)
-    const cellH = M.clamp(Math.floor((bottom - top - list.length * headerH) / Math.max(1, rows)), 16, 30)
+    const listMarks = []
+    const listOver = []
 
     const io = ioOf(app)
     const placingKey = io && io.mode === 'placing' ? io.placingKey : null
 
-    let y = top
+    // Measure the whole list first — scroll clamping needs the full content
+    // height, and the cull below needs to know where each card would land.
+    let contentH = 0
+    for (let g = 0; g < list.length; g++) {
+      contentH += headerH + list[g].defs.length * (cardH + rowGap)
+    }
+    const viewH = bottom - top
+    // The scrollbar only takes width when it is actually needed.
+    const overflowing = contentH > viewH
+    const barW = overflowing ? 5 : 0
+    const cardW = innerW - (overflowing ? barW + 4 : 0)
+
+    state.maxScroll = Math.max(0, contentH - viewH)
+    state.scroll = M.clamp(state.scroll, 0, state.maxScroll)
+
+    let y = top - state.scroll
     for (let g = 0; g < list.length; g++) {
       const group = list[g]
 
@@ -273,24 +324,32 @@
         if (!groupReason && st.state === 'blocked') groupReason = st.reason
       }
 
-      marks.push(U.tracked(x0, y + 13, group.label.toUpperCase(), { size: 9, colour: groupReason ? C.warn : C.moss, track: 0.28 }))
-      if (groupReason) {
-        marks.push(U.text(S.x + S.w - padX, y + 13, U.clipText(groupReason, 8, innerW - 84),
-          { size: 8, colour: C.warn, align: 'right' }))
-      } else {
-        marks.push(U.text(S.x + S.w - padX, y + 13, group.defs.length + (group.hero ? ' heroes' : ' towers'),
-          { size: 8, colour: C.faint, align: 'right' }))
+      if (y + headerH > top && y < bottom) {
+        listMarks.push(U.tracked(x0, y + 13, group.label.toUpperCase(), { size: 9, colour: groupReason ? C.warn : C.moss, track: 0.28 }))
+        if (groupReason) {
+          listOver.push(U.text(x0 + cardW, y + 13, U.clipText(groupReason, 8, cardW - 84),
+            { size: 8, colour: C.warn, align: 'right' }))
+        } else {
+          listOver.push(U.text(x0 + cardW, y + 13, group.defs.length + (group.hero ? ' heroes' : ' towers'),
+            { size: 8, colour: C.faint, align: 'right' }))
+        }
+        listMarks.push(U.rule(x0, y + 18, cardW, { colour: C.line, alpha: 0.6 }))
       }
-      marks.push(U.rule(x0, y + 18, innerW, { colour: C.line, alpha: 0.6 }))
       y += headerH
 
       for (let i = 0; i < group.defs.length; i++) {
         const def = group.defs[i]
         const st = states[i]
-        const cx = x0 + (i % cols) * (cellW + gap)
-        const cy = y + Math.floor(i / cols) * cellH
+        const cy = y
+        y += cardH + rowGap
 
-        const w = U.button('shop.' + def.key, cx, cy, cellW, cellH - 2, {
+        /* CULL, rather than clip alone. A card scrolled out of view must not be
+           in `widgets` at all — otherwise it still answers hit tests and the
+           player buys a tower they cannot see. Clipping fixes the picture and
+           would leave the bug. */
+        if (cy + cardH < top || cy > bottom) continue
+
+        const w = U.button('shop.' + def.key, x0, cy, cardW, cardH, {
           label: '',
           disabled: st.state !== 'ok',
           selected: placingKey === def.key,
@@ -305,29 +364,103 @@
         w.price = st.price
         widgets.push(w)
 
-        const nameColour = st.state === 'ok' ? C.ink : (st.state === 'poor' ? C.dim : C.faint)
-        over.push(U.text(cx + 8, cy + cellH / 2 + 2, U.clipText(def.name || def.key, 10, cellW - 52),
-          { size: 10, colour: nameColour }))
-        if (st.state === 'blocked') {
-          over.push(U.text(cx + cellW - 8, cy + cellH / 2 + 2, 'LOCKED', { size: 8, colour: C.warn, align: 'right' }))
-        } else {
-          over.push(U.text(cx + cellW - 8, cy + cellH / 2 + 2, M.money(st.price),
-            { size: 9, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right' }))
-        }
+        card(sim, listOver, def, st, x0, cy, cardW, cardH, group.hero)
       }
-      y += Math.ceil(group.defs.length / cols) * cellH
     }
 
-    const m = model(marks, widgets, over, app)
-    detail(app, sim, marks, over, m.hovered, S, detailY, detailH)
+    /* The scrollbar is an indicator, not a control: the thumb shows where you are
+       in a list that is taller than the panel. Dragging it would be a second
+       gesture to build and test for no gain over the wheel and the drag that
+       already work anywhere in the list. */
+    if (overflowing) {
+      const trackX = x0 + innerW - barW
+      marks.push(U.box(trackX, top, barW, viewH, { fill: C.line, alpha: 0.35 }))
+      const thumbH = Math.max(24, Math.round(viewH * (viewH / contentH)))
+      const thumbY = top + Math.round((viewH - thumbH) * (state.maxScroll ? state.scroll / state.maxScroll : 0))
+      marks.push(U.box(trackX, thumbY, barW, thumbH, { fill: C.moss, alpha: 0.75 }))
+    }
+
+    // The cards are everything placed so far; chrome widgets are appended after.
+    const cardWidgets = widgets.slice()
+    const m = model(marks, widgets, over, app, {
+      listMarks: listMarks,
+      listOver: listOver,
+      cardWidgets: cardWidgets,
+      chromeWidgets: [],
+      clip: { x: S.x, y: top, w: S.w, h: viewH },
+      contentH: contentH,
+      viewH: viewH,
+      scroll: state.scroll,
+      maxScroll: state.maxScroll
+    })
+    // `detail` appends the upgrade-tree button to `widgets`, so hit testing sees
+    // it; splitting it out here keeps it out of the clipped paint.
+    const before = widgets.length
+    detail(app, sim, marks, over, m.hovered, S, detailY, detailH, widgets)
+    m.chromeWidgets = widgets.slice(before)
+    // Hover is resolved against the full set, chrome included.
+    const io2 = ioOf(app)
+    if (U && io2 && io2.overCanvas) {
+      const h2 = U.hit(widgets, io2.x, io2.y)
+      m.hovered = h2
+      m.hoverId = h2 ? h2.id : null
+    }
     return m
+  }
+
+  /* ---------- one card ----------
+     Portrait, name, what it deals, what it costs, and the one trait a player
+     actually decides on: whether it can see camo. Everything else is in the
+     detail strip — a card that tries to say everything says nothing at 44px. */
+
+  function card (sim, out, def, st, x, y, w, h, isHero) {
+    const U = ui(); const C = colours()
+    const dim = st.state !== 'ok'
+    const nameColour = st.state === 'ok' ? C.ink : (st.state === 'poor' ? C.dim : C.faint)
+    const r = Math.floor(h * 0.36)
+    const px = x + 6 + r
+    const tx = px + r + 8
+
+    out.push(U.portrait(px, y + h / 2, r, def.key, { dim: dim }))
+
+    out.push(U.text(tx, y + 15, U.clipText(def.name || def.key, 11, w - (tx - x) - 54),
+      { size: 11, colour: nameColour, weight: '600' }))
+
+    if (st.state === 'blocked') {
+      out.push(U.text(x + w - 8, y + 15, 'LOCKED', { size: 8, colour: C.warn, align: 'right' }))
+    } else {
+      out.push(U.text(x + w - 8, y + 15, M.money(st.price),
+        { size: 10, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right', weight: '600' }))
+    }
+
+    const traits = OP.Upgrades && OP.Upgrades.traits ? OP.Upgrades.traits(def, sim) : null
+    const bits = []
+    if (isHero) bits.push('HERO')
+    if (traits) {
+      bits.push(String(traits.dmgType).toUpperCase())
+      if (traits.camoNow) bits.push('SEES CAMO')
+      else if (traits.camoLater) bits.push('CAMO VIA UPG')
+    }
+    out.push(U.text(tx, y + 30, U.clipText(bits.join(' · '), 8, w - (tx - x) - 12),
+      { size: 8, colour: C.faint }))
+
+    // A permanent blind spot is the one thing worth shouting on the card itself:
+    // it is the difference between a tower that needs an upgrade and one that will
+    // never answer a round no matter what you spend.
+    if (traits && traits.blindTo.length) {
+      out.push(U.text(x + w - 8, y + 30, 'never: ' + U.clipText(traits.blindTo.join(','), 8, 70),
+        { size: 8, colour: C.bad, align: 'right' }))
+    } else if (traits && traits.fixable.length) {
+      out.push(U.text(x + w - 8, y + 30, 'upg: ' + U.clipText(traits.fixable.join(','), 8, 70),
+        { size: 8, colour: C.warn, align: 'right' }))
+    }
   }
 
   /* ---------- the detail strip ----------
      The blurb lives here rather than in the cell, because a 145-wide cell cannot
      hold a sentence and a truncated blurb is worse than none. */
 
-  function detail (app, sim, marks, over, hovered, S, y, h) {
+  function detail (app, sim, marks, over, hovered, S, y, h, widgets) {
     const U = ui(); const C = colours()
     const padX = 12
     const x0 = S.x + padX
@@ -337,11 +470,11 @@
 
     const def = hovered ? defFor(hovered) : null
     if (!def) {
-      over.push(U.text(x0 + 10, y + 22, 'Point at a critter', { size: 11, colour: C.dim }))
-      over.push(U.text(x0 + 10, y + 40, 'to read what it does, what it', { size: 9, colour: C.faint }))
-      over.push(U.text(x0 + 10, y + 52, 'costs here, and why it might', { size: 9, colour: C.faint }))
-      over.push(U.text(x0 + 10, y + 64, 'be unavailable.', { size: 9, colour: C.faint }))
-      over.push(U.text(x0 + 10, y + 84, 'Tap to place · ESC cancels', { size: 8, colour: C.faint }))
+      over.push(U.text(x0 + 10, y + 20, 'Point at a critter', { size: 11, colour: C.dim }))
+      over.push(U.text(x0 + 10, y + 36, 'to see what it pops, what it', { size: 9, colour: C.faint }))
+      over.push(U.text(x0 + 10, y + 48, 'can never pop, and its whole', { size: 9, colour: C.faint }))
+      over.push(U.text(x0 + 10, y + 60, 'upgrade tree before you buy.', { size: 9, colour: C.faint }))
+      over.push(U.text(x0 + 10, y + 80, 'Tap to place · scroll the list', { size: 8, colour: C.faint }))
       return
     }
 
@@ -350,19 +483,70 @@
       ? 'HERO' + (def.title ? ' · ' + String(def.title).toUpperCase() : '')
       : String((OP.FAMILY_LABELS && OP.FAMILY_LABELS[def.family]) || def.family || '').toUpperCase()
 
-    over.push(U.text(x0 + 10, y + 20, U.clipText(def.name || def.key, 12, innerW - 80),
+    over.push(U.text(x0 + 10, y + 18, U.clipText(def.name || def.key, 12, innerW - 80),
       { size: 12, colour: C.ink, weight: '600' }))
-    over.push(U.text(x0 + innerW - 10, y + 20, M.money(hovered.price === undefined ? def.cost : hovered.price),
+    over.push(U.text(x0 + innerW - 10, y + 18, M.money(hovered.price === undefined ? def.cost : hovered.price),
       { size: 11, colour: hovered.state === 'ok' ? C.moss : C.bad, align: 'right' }))
-    over.push(U.text(x0 + 10, y + 33, U.clipText(famLabel, 8, innerW - 20), { size: 8, colour: C.moss }))
+    over.push(U.text(x0 + 10, y + 30, U.clipText(famLabel, 8, innerW - 20), { size: 8, colour: C.moss }))
 
-    const blurb = U.wrapText(def.blurb, 9, innerW - 20, hovered.state === 'ok' ? 4 : 3)
+    const blurb = U.wrapText(def.blurb, 9, innerW - 20, 2)
     for (let i = 0; i < blurb.length; i++) {
-      over.push(U.text(x0 + 10, y + 47 + i * 11, blurb[i], { size: 9, colour: C.dim }))
+      over.push(U.text(x0 + 10, y + 43 + i * 11, blurb[i], { size: 9, colour: C.dim }))
+    }
+
+    /* ----- the traits summary -----
+       Three lines at most, and only the ones that carry information: what it pops
+       now, what an upgrade would let it pop, and what it will never pop. Printing
+       "pops: red, blue, green…" for every tower would be noise; the interesting
+       set is exactly the tiers something is immune to. */
+    const traits = OP.Upgrades && OP.Upgrades.traits ? OP.Upgrades.traits(def, sim) : null
+    let ty = y + 43 + blurb.length * 11 + 2
+    if (traits) {
+      const canNow = traits.pops.filter(function (p) { return p.now }).map(function (p) { return p.label })
+      if (canNow.length) {
+        over.push(U.text(x0 + 10, ty, U.clipText('pops ' + canNow.join(', '), 8, innerW - 20),
+          { size: 8, colour: C.moss }))
+        ty += 10
+      }
+      if (traits.fixable.length) {
+        over.push(U.text(x0 + 10, ty, U.clipText('upgrades to pop ' + traits.fixable.join(', '), 8, innerW - 20),
+          { size: 8, colour: C.warn }))
+        ty += 10
+      }
+      if (traits.blindTo.length) {
+        over.push(U.text(x0 + 10, ty, U.clipText('never pops ' + traits.blindTo.join(', '), 8, innerW - 20),
+          { size: 8, colour: C.bad }))
+        ty += 10
+      }
+      const camo = traits.camoNow ? 'sees camo' : (traits.camoLater ? 'sees camo once upgraded' : 'cannot see camo')
+      over.push(U.text(x0 + 10, ty, camo, { size: 8, colour: traits.camoNow ? C.moss : (traits.camoLater ? C.warn : C.dim) }))
+    }
+
+    /* ----- the upgrade-tree button -----
+       Buying blind is the worst part of a tower-defense shop: the tree is the
+       whole reason to prefer one tower over another and it is normally invisible
+       until after you have paid. */
+    if (widgets && def.paths && def.paths.length) {
+      const bw = 96
+      const bh = 18
+      const bx = x0 + innerW - bw - 8
+      const by = y + h - bh - 6
+      const w = U.button('shop.tree.' + def.key, bx, by, bw, bh, {
+        label: 'UPGRADES  ▸',
+        action: 'shop-tree',
+        arg: def.key
+      })
+      // Carry the same fields the card does, so the strip renders identically
+      // whether the pointer is on the card or on this button.
+      w.hero = isHero
+      w.state = hovered.state
+      w.price = hovered.price
+      w.reason = hovered.reason
+      widgets.push(w)
     }
 
     if (hovered.reason) {
-      const lines = U.wrapText(hovered.reason, 9, innerW - 20, 2)
+      const lines = U.wrapText(hovered.reason, 9, innerW - 118, 2)
       for (let i = 0; i < lines.length; i++) {
         over.push(U.text(x0 + 10, y + h - 16 + i * 11 - (lines.length - 1) * 11, lines[i],
           { size: 9, colour: hovered.state === 'blocked' ? C.warn : C.bad }))
@@ -370,8 +554,92 @@
     }
   }
 
+  /* ============================================================================
+     THE UPGRADE TREE
+
+     A scrim overlay over the field rather than another sidebar panel: three
+     branches of five upgrades with names, costs and descriptions does not fit in
+     a 170px column, and squeezing it there is how you end up with a tree nobody
+     reads.
+     ============================================================================ */
+
+  function buildTree (app) {
+    const U = ui()
+    const marks = []
+    const widgets = []
+    const over = []
+    const sim = simOf(app)
+    const key = state.tree
+    const def = (OP.TOWERS && OP.TOWERS[key]) || (OP.HEROES && OP.HEROES[key]) || null
+    if (!U || !sim || !def) { state.tree = null; return null }
+
+    const C = colours()
+    const W = 640
+    const H = 400
+    const x0 = Math.round((FIELD_W - W) / 2)
+    const y0 = Math.round((OP.FIELD_H - H) / 2)
+
+    marks.push(U.box(x0, y0, W, H, { fill: C.panel, stroke: C.line, alpha: 0.985 }))
+
+    const r = 22
+    marks.push(U.portrait(x0 + 26 + r, y0 + 30, r, def.key, {}))
+    over.push(U.text(x0 + 26 + r * 2 + 12, y0 + 26, def.name || def.key, { size: 15, colour: C.ink, weight: '600' }))
+    over.push(U.text(x0 + 26 + r * 2 + 12, y0 + 42, 'UPGRADE PATHS · ' + M.money(OP.Economy.price(sim, def.cost)) + ' to place',
+      { size: 9, colour: C.moss }))
+
+    const close = U.button('shop.tree.close', x0 + W - 34, y0 + 14, 22, 22, {
+      label: '×', action: 'shop-tree-close'
+    })
+    widgets.push(close)
+
+    // The crosspath rule is the single most surprising thing about a BTD-shaped
+    // upgrade tree, and it decides which of these columns a player can finish.
+    over.push(U.text(x0 + 26, y0 + 64,
+      'At most one branch past tier 2, at most two branches touched — so 5-2-0 and its permutations.',
+      { size: 8, colour: C.faint }))
+
+    const paths = def.paths || []
+    const colW = Math.floor((W - 52 - 12 * (paths.length - 1)) / Math.max(1, paths.length))
+    const rowH = 52
+
+    for (let p = 0; p < paths.length; p++) {
+      const path = paths[p]
+      const cx = x0 + 26 + p * (colW + 12)
+      over.push(U.text(cx, y0 + 88, U.clipText(String(path.name || 'PATH ' + (p + 1)).toUpperCase(), 9, colW),
+        { size: 9, colour: C.moss, weight: '600' }))
+      marks.push(U.rule(cx, y0 + 94, colW, { colour: C.line }))
+
+      const tiers = path.tiers || []
+      for (let t = 0; t < tiers.length; t++) {
+        const up = tiers[t]
+        if (!up) continue
+        const ry = y0 + 102 + t * rowH
+        marks.push(U.box(cx, ry, colW, rowH - 5, { fill: C.panelHi, stroke: C.line, alpha: 0.7 }))
+        over.push(U.text(cx + 6, ry + 13, String(t + 1), { size: 8, colour: C.faint }))
+        over.push(U.text(cx + 18, ry + 13, U.clipText(up.name || '', 9, colW - 62),
+          { size: 9, colour: C.ink, weight: '600' }))
+        over.push(U.text(cx + colW - 6, ry + 13, M.money(OP.Economy.price(sim, up.cost)),
+          { size: 8, colour: C.moss, align: 'right' }))
+        const lines = U.wrapText(up.desc || '', 8, colW - 22, 2)
+        for (let i = 0; i < lines.length; i++) {
+          over.push(U.text(cx + 18, ry + 25 + i * 10, lines[i], { size: 8, colour: C.dim }))
+        }
+      }
+    }
+
+    over.push(U.text(x0 + 26, y0 + H - 12, 'ESC or × closes · this is a preview, nothing is bought here',
+      { size: 8, colour: C.faint }))
+
+    return model(marks, widgets, over, app, { screen: 'shop-tree', backdrop: 'scrim' })
+  }
+
+  /* Both the card and its own upgrade-tree button resolve to the same tower.
+     Without the second action here, moving the pointer onto UPGRADES made the
+     hovered widget a non-tower and blanked the strip the button sits in — the
+     same shape of bug as a tap clearing the selection before the press lands. */
   function defFor (widget) {
-    if (!widget || widget.action !== 'shop-buy') return null
+    if (!widget) return null
+    if (widget.action !== 'shop-buy' && widget.action !== 'shop-tree') return null
     if (widget.hero) return OP.HEROES ? OP.HEROES[widget.arg] : null
     return OP.TOWERS ? OP.TOWERS[widget.arg] : null
   }
@@ -383,7 +651,27 @@
   function paint (ctx, m) {
     const U = ui()
     if (!U || !m) return 0
-    let n = U.paint(ctx, m, { hoverId: m.hoverId })
+
+    // Chrome first, then the scrolled content inside a clip, then the chrome that
+    // sits over it. Without the clip a card halfway out of the viewport paints
+    // across the header and the detail strip.
+    let n = U.paint(ctx, { marks: m.marks, widgets: [], backdrop: m.backdrop }, {})
+
+    const clipped = m.clip && ctx.save && ctx.beginPath && ctx.clip
+    if (clipped) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(m.clip.x, m.clip.y, m.clip.w, m.clip.h)
+      ctx.clip()
+    }
+    n += U.paint(ctx, { marks: m.listMarks || [], widgets: m.cardWidgets || [] }, { hoverId: m.hoverId })
+    if (m.listOver && m.listOver.length) n += U.paint(ctx, { marks: m.listOver, widgets: [] }, {})
+    if (clipped) ctx.restore()
+
+    // Chrome widgets are NOT clipped: the upgrade-tree button lives in the detail
+    // strip, below the list viewport, and clipping it would paint it nowhere while
+    // leaving it clickable.
+    n += U.paint(ctx, { marks: [], widgets: m.chromeWidgets || [] }, { hoverId: m.hoverId })
     if (m.over && m.over.length) n += U.paint(ctx, { marks: m.over, widgets: [] }, {})
     return n
   }
@@ -392,11 +680,22 @@
 
   Shop.draw = function (ctx, app) {
     if (!showing(app)) return 0
-    return paint(ctx, build(app))
+    let n = paint(ctx, build(app))
+    // The tree is drawn over the sidebar and over the board, because it is a modal
+    // preview: while it is open nothing behind it should look pressable.
+    if (state.tree) {
+      const tm = buildTree(app)
+      if (tm) n += paint(ctx, tm)
+    }
+    return n
   }
 
+  /* While the tree is open it owns the WHOLE field, not just the sidebar —
+     otherwise a tap on the scrim would fall through and place a tower behind an
+     overlay the player is still reading. */
   Shop.chromeAt = function (app, x, y) {
     if (!showing(app)) return false
+    if (state.tree) return true
     const S = sidebar()
     return x >= S.x && x <= S.x + S.w && y >= S.y && y <= S.y + S.h
   }
@@ -404,13 +703,39 @@
   Shop.hitAt = function (app, x, y) {
     const U = ui()
     if (!U || !showing(app)) return null
+    if (state.tree) {
+      const tm = buildTree(app)
+      const hit = tm ? U.hit(tm.widgets, x, y) : null
+      // A press anywhere else on the scrim closes it — the usual way out of a
+      // modal, and it means a player who opened it by accident is not trapped.
+      if (hit) return hit
+      return { id: 'shop.tree.scrim', action: 'shop-tree-close', x: x, y: y, w: 0, h: 0 }
+    }
     return U.hit(build(app).widgets, x, y)
+  }
+
+  /** Wheel over the sidebar scrolls the card list. */
+  Shop.wheelAt = function (app, dy, x, y) {
+    if (!showing(app)) return false
+    if (state.tree) return true          // swallow scroll behind a modal
+    build(app)                            // refresh maxScroll for the live roster
+    return Shop.scrollBy(dy)
+  }
+
+  Shop.key = function (app, key) {
+    if (!showing(app)) return false
+    if (key === 'Escape' && state.tree) { Shop.closeTree(); return true }
+    return false
   }
 
   Shop.activate = function (app, w) {
     const sim = simOf(app)
     const io = ioOf(app)
-    if (!w || !sim || !io || w.action !== 'shop-buy') return false
+    if (!w || !sim || !io) return false
+
+    if (w.action === 'shop-tree') { Shop.openTree(w.arg); click(true); return true }
+    if (w.action === 'shop-tree-close') { Shop.closeTree(); click(true); return true }
+    if (w.action !== 'shop-buy') return false
 
     if (w.state !== 'ok') {
       refuse(w.x + w.w / 2, w.y, w.reason || 'Not available.')
@@ -452,7 +777,8 @@
       OP.HUD.registerPanel('shop', 10, {
         chromeAt: Shop.chromeAt,
         hitAt: Shop.hitAt,
-        activate: Shop.activate
+        activate: Shop.activate,
+        wheelAt: Shop.wheelAt
       })
     }
 

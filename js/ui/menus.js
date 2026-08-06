@@ -220,6 +220,23 @@
   }
 
   /**
+   * A tower or hero portrait, drawn with the SAME sprite the board uses.
+   *
+   * Deliberately not a separate set of shop icons: a second art path is a second
+   * thing to keep in sync, and the whole point is that the critter on the card is
+   * recognisably the critter you are about to place. If the renderer has no sprite
+   * for the key the mark degrades to a labelled disc rather than drawing nothing,
+   * so an unregistered tower is visible as a gap instead of an empty cell.
+   */
+  UI.portrait = function (x, y, r, key, opts) {
+    opts = opts || {}
+    return {
+      kind: 'portrait', x: x, y: y, r: r, key: String(key || ''),
+      dim: !!opts.dim, bg: opts.bg === undefined ? C.deep : opts.bg
+    }
+  }
+
+  /**
    * A miniature of a map's track shape. `paths` is an array of point arrays in
    * field coordinates; the mark scales the whole field into the box so previews
    * are comparable between maps.
@@ -342,6 +359,47 @@
     ctx.restore()
   }
 
+  /* A portrait reuses the board sprite, which expects a tower entity and a frame.
+     A stub is enough: the sprite reads `def`, `key`, `angle`, `id` and the tier
+     counters, and a portrait wants the unupgraded, unrotated, unanimated pose.
+     `reducedMotion` is set so the pose is deterministic — a portrait that bobs
+     with wall-clock time cannot be screenshot-tested. */
+  function drawPortraitMark (ctx, m) {
+    const def = (OP.TOWERS && OP.TOWERS[m.key]) || (OP.HEROES && OP.HEROES[m.key]) || null
+    const fn = OP.Render && OP.Render.towerSprites ? OP.Render.towerSprites[m.key] : null
+
+    ctx.save()
+    if (m.dim) ctx.globalAlpha = 0.42
+
+    if (fn && def) {
+      // The sprite sizes itself off `def.footprint`; scale so any footprint lands
+      // at the requested radius instead of large towers overflowing the card.
+      const drawn = def.footprint || 14
+      const scale = (m.r / (drawn * 0.74)) * 0.92
+      ctx.translate(m.x, m.y)
+      ctx.scale(scale, scale)
+      try {
+        fn(ctx, { key: m.key, def: def, tiers: [0, 0, 0], id: 0, angle: 0, x: 0, y: 0 },
+          0, 0, { reducedMotion: true })
+      } catch (e) {
+        ctx.restore(); ctx.save(); drawPortraitFallback(ctx, m)
+      }
+    } else {
+      drawPortraitFallback(ctx, m)
+    }
+    ctx.restore()
+  }
+
+  function drawPortraitFallback (ctx, m) {
+    ctx.fillStyle = m.bg
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, M.TAU); ctx.fill()
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke()
+    ctx.fillStyle = C.dim
+    ctx.font = '600 ' + Math.max(7, Math.round(m.r * 0.9)) + 'px ' + FONT
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText((m.key[0] || '?').toUpperCase(), m.x, m.y + 1)
+  }
+
   function drawPreview (ctx, m) {
     ctx.save()
     ctx.fillStyle = m.bg
@@ -385,6 +443,7 @@
       case 'box': drawBox(ctx, m); break
       case 'chip': drawChip(ctx, m); break
       case 'balloon': drawBalloonMark(ctx, m); break
+      case 'portrait': drawPortraitMark(ctx, m); break
       case 'preview': drawPreview(ctx, m); break
       default: break        // an unknown mark is skipped, never thrown over
     }

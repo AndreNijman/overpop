@@ -62,6 +62,7 @@
    *   place(key, x, y, isHero)   confirm a placement
    *   widget(x, y, selectedId)   an on-canvas panel claims the tap; return true to
    *                              stop it reaching the board. Gets the LIVE selection.
+   *   wheel(dy, x, y)            a scroll gesture; return true if it was consumed
    *   select(towerId)            select or deselect (-1)
    *   aim(towerId, x, y)         set a point-target tower's aim point
    *   context(towerId, x, y)     long-press / right-click on a tower
@@ -123,6 +124,22 @@
       if (wasTap) Input.tap(io, p.x, p.y)
     }
 
+    /* Wheel is scroll, and scroll is a UI concern only — it never reaches the
+       board. The default is prevented ONLY when a handler says it consumed the
+       gesture, so a wheel over the map still does whatever the page would do
+       rather than being silently swallowed. */
+    const onWheel = ev => {
+      const p = toWorld(ev)
+      io.x = p.x; io.y = p.y
+      io.overCanvas = true
+      // deltaMode 1 is lines and 2 is pages; browsers disagree on pixel
+      // magnitude, so normalise to something roughly like pixels here and let
+      // the panel decide how far a notch should travel.
+      const unit = ev.deltaMode === 1 ? 16 : (ev.deltaMode === 2 ? 100 : 1)
+      const consumed = Input.wheel(io, (ev.deltaY || 0) * unit, p.x, p.y)
+      if (consumed && ev.preventDefault) ev.preventDefault()
+    }
+
     const onCancel = () => { io.down = false; io.pointerId = -1 }
     const onLeave = () => { io.overCanvas = false; io.hoverId = -1 }
     const onContext = ev => {
@@ -133,9 +150,15 @@
 
     const onKeyDown = ev => {
       io.keys[ev.key] = true
-      // Escape always abandons whatever mode we are in — the one shortcut a player
-      // will reach for without being told.
-      if (ev.key === 'Escape') { Input.cancel(io); return }
+      /* Escape abandons whatever mode we are in — the one shortcut a player will
+         reach for without being told. But a modal overlay gets FIRST REFUSAL:
+         otherwise Escape cancelled a placement the player had already forgotten
+         about while leaving the panel they were actually looking at open, which
+         reads as Escape being broken. Same shape as `widget` claiming a tap. */
+      if (ev.key === 'Escape') {
+        if (!claim(io, 'key', ev.key, ev)) Input.cancel(io)
+        return
+      }
       fire(io, 'key', ev.key, ev)
     }
     const onKeyUp = ev => { io.keys[ev.key] = false }
@@ -146,6 +169,7 @@
     canvas.addEventListener('pointercancel', onCancel)
     canvas.addEventListener('pointerleave', onLeave)
     canvas.addEventListener('contextmenu', onContext)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
 
     const target = typeof window !== 'undefined' ? window : null
     if (target) {
@@ -155,7 +179,7 @@
 
     io._bound = {
       canvas, target,
-      onDown, onMove, onUp, onCancel, onLeave, onContext, onKeyDown, onKeyUp
+      onDown, onMove, onUp, onCancel, onLeave, onContext, onWheel, onKeyDown, onKeyUp
     }
     return io
   }
@@ -169,6 +193,7 @@
     b.canvas.removeEventListener('pointercancel', b.onCancel)
     b.canvas.removeEventListener('pointerleave', b.onLeave)
     b.canvas.removeEventListener('contextmenu', b.onContext)
+    b.canvas.removeEventListener('wheel', b.onWheel)
     if (b.target) {
       b.target.removeEventListener('keydown', b.onKeyDown)
       b.target.removeEventListener('keyup', b.onKeyUp)
@@ -188,6 +213,17 @@
       if (typeof console !== 'undefined' && console.error) console.error('OVERPOP: input handler "' + name + '" threw', e)
     }
     return true
+  }
+
+  /** Like `fire`, but reports whether the handler CLAIMED the event. */
+  function claim (io, name) {
+    const fn = io._handlers[name]
+    if (typeof fn !== 'function') return false
+    const args = Array.prototype.slice.call(arguments, 2)
+    try { return !!fn.apply(null, args) } catch (e) {
+      if (typeof console !== 'undefined' && console.error) console.error('OVERPOP: input handler "' + name + '" threw', e)
+      return false
+    }
   }
 
   /**
@@ -256,6 +292,22 @@
     io.selectedId = next
     fire(io, 'select', next)
     return next >= 0 ? 'select' : 'deselect'
+  }
+
+  /**
+   * Resolve a scroll gesture. Exposed separately from the listener for the same
+   * reason as `tap`: the suites drive it directly.
+   *
+   * Returns true when a handler claimed it. Unclaimed scroll is not an error —
+   * most of the screen has nothing to scroll.
+   */
+  Input.wheel = function (io, dy, x, y) {
+    const fn = io._handlers.wheel
+    if (typeof fn !== 'function') return false
+    try { return !!fn(dy, x, y) } catch (e) {
+      if (typeof console !== 'undefined' && console.error) console.error('OVERPOP: wheel handler threw', e)
+      return false
+    }
   }
 
   /** Refresh what the pointer is hovering. Called once per frame by the shell. */
