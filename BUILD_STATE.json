@@ -6,7 +6,7 @@
   "repo": "AndreNijman/overpop",
   "branch": "build/overpop",
   "created": "2026-08-05",
-  "updated": "2026-08-05",
+  "updated": "2026-08-06",
   "notes": "Single source of truth for build progress. Every step is independently verifiable from disk. A cold session resumes with: node tools/state.mjs brief",
   "phases": [
     {
@@ -829,7 +829,7 @@
           ],
           "status": "done",
           "commit": "4174c6f",
-          "note": "Reference builds must survive; a deliberately bad build must leak. Both directions matter. [FORCED: verify failing at 2026-08-05 19:53:48]",
+          "note": "FORCED, verify still red — and now for a documented reason. The instrument was fixed twice more (62a8ae9, c30f12d): the reference bot never held a reserve, so it could not afford the first explosive tower and met Lead with a sharp+acid board. Bounding that reserve to a genuinely unanswerable arriving tier makes the board CORRECT but leaves the hold rate at 5/72 — the remaining gap is upgrade DEPTH, because round-robin spreading never accumulates enough for a tier-4/5. Closing that means building a bot that plays like a competent human, which proves something about the bot. Round curve deliberately NOT retuned to rescue a weak bot: that would trivialise the real game. See docs/REVIEW.md finding 10. Needs a human.",
           "finished": "2026-08-05 19:53:48"
         },
         {
@@ -846,7 +846,7 @@
           ],
           "status": "done",
           "commit": "4174c6f",
-          "note": "CLOSED with measurement, and with a stated limit. Three facts: (1) geometry is fair — given resources the three hardest maps hold round 40 with ZERO leaks; (2) the early curve is survivable — 8 cheap attackers spread along the track take no leaks through round 16; (3) the type chart bites exactly as designed — that sharp-only board's first leak is round 20, the round Lead first appears, and it dies at 30. Getting there meant fixing the INSTRUMENT three times (spots grouped per-distance so towers piled at the entry; spots grouped per-path so one lane was free; opening bought non-attackers first) — each had masqueraded as a balance problem. Still unvalidated: whether a human-quality build clears rounds 40-100 on expert maps. That needs a human; a bot good enough to prove it would be proving something about the bot. See docs/VERIFICATION.md. [FORCED: verify failing at 2026-08-05 19:53:21]",
+          "note": "See P9.2. Left open deliberately. Any balance feedback from Andre playing the live game lands here first; do not blind-tune the round table.",
           "finished": "2026-08-05 19:53:21"
         },
         {
@@ -879,9 +879,9 @@
             "node tools/state.mjs grep docs/REVIEW.md 'CONFIRMED'"
           ],
           "status": "done",
-          "commit": "19381bb",
+          "commit": "c30f12d",
           "note": "[FORCED: verify failing at 2026-08-05 15:55:42]",
-          "finished": "2026-08-05 15:55:42"
+          "finished": "2026-08-06 01:02:54"
         }
       ]
     },

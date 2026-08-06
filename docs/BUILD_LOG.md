@@ -75,3 +75,6 @@ Append-only. Written by `tools/state.mjs`.
 - `2026-08-05 22:56:04` **done** P11.3 — Cloudflare DNS record (grey cloud) (`ac92704`)
 - `2026-08-05 23:00:16` **done** P11.4 — Enforce HTTPS + verify live (`84a03fe`)
 - `2026-08-05 23:00:40` **done** P11.5 — games-site hub: card + meta + JSON-LD + sitemap (`84a03fe`)
+- `2026-08-06 01:02:54` **done** P9.4 — Adversarial review pass on spine + content (`c30f12d`)
+- `2026-08-06 01:03:13` note P9.2 — FORCED, verify still red — and now for a documented reason. The instrument was fixed twice more (62a8ae9, c30f12d): the reference bot never held a reserve, so it could not afford the first explosive tower and met Lead with a sharp+acid board. Bounding that reserve to a genuinely unanswerable arriving tier makes the board CORRECT but leaves the hold rate at 5/72 — the remaining gap is upgrade DEPTH, because round-robin spreading never accumulates enough for a tier-4/5. Closing that means building a bot that plays like a competent human, which proves something about the bot. Round curve deliberately NOT retuned to rescue a weak bot: that would trivialise the real game. See docs/REVIEW.md finding 10. Needs a human.
+- `2026-08-06 01:03:13` note P9.2b — See P9.2. Left open deliberately. Any balance feedback from Andre playing the live game lands here first; do not blind-tune the round table.
