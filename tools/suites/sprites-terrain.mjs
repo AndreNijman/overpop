@@ -655,4 +655,74 @@ export function run (t, OP) {
   t.ok(OP.Render.terrainCache(view, cacheSim) === first, 'and caches it rather than repainting per frame')
   cacheSim.map.cleared = [0]
   t.notOk(OP.Render.terrainCache(view, cacheSim) === first, 'clearing an obstacle invalidates the cache')
+
+  /* ================= batched blobs must not become one polygon ================= */
+
+  t.section('every batched ellipse starts its own subpath')
+  /* THE BUG THIS EXISTS FOR: ctx.ellipse() and ctx.arc() draw a line from the
+     current point to where the curve begins. A loop of them with no moveTo in
+     between is therefore not N separate blobs but ONE connected zig-zag, and
+     filling it fills everything that zig-zag encloses.
+
+     The pebbles scattered along the road were batched that way, so every map got a
+     translucent grey slab across its middle, following the track and closing
+     across its two ends. Andre saw it as a "black net" over the board. It survived
+     every existing assertion because the call COUNTS were all correct — only the
+     path topology was wrong, which no count can see.
+
+     So this asserts the topology: inside any path that ends in a fill, an ellipse
+     or arc may only follow a moveTo, unless it is the only curve in that path. */
+  const topoSim = mkSim(Maps.build(base({ key: 'terrain-topology' })))
+  const topo = recorder()
+  OP.Terrain.paint(topo, topoSim.map, topoSim)
+
+  let group = []
+  const offenders = []
+  for (const c of topo.calls) {
+    if (c.op === 'beginPath') { group = []; continue }
+    if (c.op === 'fill') {
+      const curves = group.filter(g => g.op === 'ellipse' || g.op === 'arc')
+      if (curves.length > 1) {
+        for (let i = 0; i < group.length; i++) {
+          const g = group[i]
+          if (g.op !== 'ellipse' && g.op !== 'arc') continue
+          const prev = group[i - 1]
+          if (!prev || prev.op !== 'moveTo') {
+            offenders.push(`${g.op} at (${Math.round(g.args[0])},${Math.round(g.args[1])}) follows ${prev ? prev.op : 'nothing'}`)
+          }
+        }
+      }
+      group = []
+      continue
+    }
+    group.push(c)
+  }
+  t.eq(offenders.length, 0,
+    offenders.length
+      ? `batched curves with no moveTo before them: ${offenders.slice(0, 4).join('; ')}`
+      : 'no batched curve is connected to the one before it')
+
+  // Proof the check can fail — otherwise it is just decoration.
+  const proof = recorder()
+  proof.beginPath()
+  proof.ellipse(10, 10, 5, 5, 0, 0, 7)
+  proof.ellipse(90, 90, 5, 5, 0, 0, 7)
+  proof.fill()
+  let pg = []; let caught = 0
+  for (const c of proof.calls) {
+    if (c.op === 'beginPath') { pg = []; continue }
+    if (c.op === 'fill') {
+      const curves = pg.filter(g => g.op === 'ellipse' || g.op === 'arc')
+      if (curves.length > 1) {
+        for (let i = 0; i < pg.length; i++) {
+          const g = pg[i]
+          if (g.op !== 'ellipse' && g.op !== 'arc') continue
+          if (!pg[i - 1] || pg[i - 1].op !== 'moveTo') caught++
+        }
+      }
+      pg = []; continue
+    }
+    pg.push(c)
+  }
+  t.gt(caught, 0, 'and the check catches a deliberately connected pair, so it is not vacuous')
 }

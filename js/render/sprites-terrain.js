@@ -304,7 +304,7 @@
         const y = rnd(seed, k, 12) * H
         const rx = 60 + rnd(seed, k, 13) * 150
         const ry = rx * (0.4 + rnd(seed, k, 14) * 0.5)
-        ctx.ellipse(x, y, rx, ry, srnd(seed, k, 15) * Math.PI, 0, TAU)
+        blob(ctx, x, y, rx, ry, srnd(seed, k, 15) * Math.PI)
       }
       ctx.fill()
     }
@@ -408,7 +408,7 @@
       ctx.beginPath()
       for (let k = 0; k < pebbles.length; k++) {
         const p = pebbles[k]
-        ctx.ellipse(p.x, p.y, p.r, p.r * 0.62, p.rot, 0, TAU)
+        blob(ctx, p.x, p.y, p.r, p.r * 0.62, p.rot)
       }
       ctx.fill()
     }
@@ -493,6 +493,26 @@
   }
 
   /** Path for a region, optionally grown by `grow` units. Rect or circle. */
+  /**
+   * Add ONE ellipse as its own subpath, ready to be batched into a single fill.
+   *
+   * The `moveTo` is the whole point and is not optional. `ctx.ellipse()` and
+   * `ctx.arc()` draw a line from the current point to where the curve starts, so a
+   * loop of them with no `moveTo` between is not N separate blobs — it is one
+   * connected zig-zag, and filling it fills everything that zig-zag encloses.
+   *
+   * That bug painted a translucent grey slab across the middle of every map: the
+   * pebbles scattered along the road were being filled as a single polygon that
+   * followed the track and closed across its two ends. It read as a "black net"
+   * over the board. Batching is still worth it — a few hundred blobs in a handful
+   * of fills — but only through here.
+   */
+  function blob (ctx, x, y, rx, ry, rot) {
+    rot = rot || 0
+    ctx.moveTo(x + Math.cos(rot) * rx, y + Math.sin(rot) * rx)
+    ctx.ellipse(x, y, rx, ry, rot, 0, TAU)
+  }
+
   function shapePath (ctx, r, grow) {
     ctx.beginPath()
     if (regionIsCircle(r)) {
@@ -591,14 +611,14 @@
       ctx.beginPath()
       for (let i = 0; i < stones.length; i++) {
         const s = stones[i]
-        ctx.ellipse(s.x, s.y, s.r, s.r * 0.7, s.rot, 0, TAU)
+        blob(ctx, s.x, s.y, s.r, s.r * 0.7, s.rot)
       }
       ctx.fill()
       ctx.fillStyle = rgba(pal.base, 0.35)
       ctx.beginPath()
       for (let i = 0; i < stones.length; i++) {
         const s = stones[i]
-        ctx.ellipse(s.x + 0.7, s.y + 0.9, s.r * 0.8, s.r * 0.55, s.rot, 0, TAU)
+        blob(ctx, s.x + 0.7, s.y + 0.9, s.r * 0.8, s.r * 0.55, s.rot)
       }
       ctx.fill()
     }
@@ -664,7 +684,7 @@
         const px = M.lerp(x0, x1, rnd(seed, j, 41))
         const py = M.lerp(y0, y1, rnd(seed, j, 42))
         const pr = 2 + rnd(seed, j, 43) * 5
-        ctx.ellipse(px, py, pr, pr * 0.65, srnd(seed, j, 44) * Math.PI, 0, TAU)
+        blob(ctx, px, py, pr, pr * 0.65, srnd(seed, j, 44) * Math.PI)
       }
       ctx.fill()
       ctx.restore()
@@ -758,7 +778,7 @@
         const px = b.x + M.lerp(0.05, 0.95, rnd(seed, j, 56)) * b.w
         const py = b.y - lift + rnd(seed, j, 57) * lift * 0.8
         const pr = 1.8 + rnd(seed, j, 58) * 3.4
-        ctx.ellipse(px, py, pr, pr * 0.6, 0, 0, TAU)
+        blob(ctx, px, py, pr, pr * 0.6, 0)
       }
       ctx.fill()
 
@@ -831,7 +851,7 @@
         const a0 = M.lerp(0.15, 1.5, rnd(seed, j, 62)) * Math.PI
         const rr = r * (0.35 + rnd(seed, j, 63) * 0.55)
         const pr = 1.6 + rnd(seed, j, 64) * 3.2
-        ctx.ellipse(x + Math.cos(a0) * rr, y + Math.sin(a0) * rr, pr, pr * 0.65, 0, 0, TAU)
+        blob(ctx, x + Math.cos(a0) * rr, y + Math.sin(a0) * rr, pr, pr * 0.65, 0)
       }
       ctx.fill()
 

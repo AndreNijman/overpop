@@ -200,6 +200,8 @@
 
     draw()
     clearBootOverlay()
+    // An update that arrived mid-round is applied here, the moment play stops.
+    drainPendingReload()
   }
 
   function draw () {
@@ -421,12 +423,84 @@
 
   /* ---------- service worker ---------- */
 
+  /* An update has to apply on its own.
+
+     Caching an offline copy is only half a feature: the other half is noticing
+     that the copy is stale. Without the code below a returning player keeps the
+     build they first loaded until they hard-refresh or clear site data, which is
+     exactly what was reported — the game looked unchanged after a deploy.
+
+     Three pieces, and all three are needed:
+       1. `updateViaCache: 'none'` so the browser fetches sw.js itself over the
+          network rather than out of its own HTTP cache. A cached worker script can
+          never discover that it is out of date.
+       2. An explicit `registration.update()` now and on a timer, plus on regaining
+          focus. Browsers check on navigation, but this game is a single page a
+          player may leave open for hours.
+       3. A reload when the new worker takes over. sw.js calls `skipWaiting()`, so
+          `controllerchange` fires as soon as the new version is fully cached, and
+          reloading there is what swaps the running build.
+
+     RELOADING MID-GAME IS NOT ACCEPTABLE, so it waits: an update that lands
+     during a run is applied when the board is next idle. Losing someone's round 78
+     to a cosmetic patch would be a worse bug than the one this fixes. */
+
+  const UPDATE_POLL_MS = 15 * 60 * 1000
+  let pendingReload = false
+  let reloading = false
+
+  function boardBusy () {
+    const S = App.state
+    if (!S || !S.sim || S.sim.over) return false
+    return S.screen === 'game'
+  }
+
+  function applyUpdate () {
+    if (reloading) return
+    if (boardBusy()) { pendingReload = true; return }
+    reloading = true
+    // `location.reload()` and not a cache-buster query: the new worker is already
+    // in control, so a plain reload is served entirely from the new version.
+    location.reload()
+  }
+
+  /** Called from the frame loop, so a deferred update lands the moment play stops. */
+  function drainPendingReload () {
+    if (pendingReload && !boardBusy()) applyUpdate()
+  }
+
   function registerServiceWorker () {
     // Only over http(s): a service worker cannot register from file://, and
     // attempting it throws a console error that would fail the smoke test.
     if (!('serviceWorker' in navigator)) return
     if (location.protocol !== 'http:' && location.protocol !== 'https:') return
-    navigator.serviceWorker.register('sw.js').catch(() => { /* offline is optional */ })
+
+    // Ignore the very first controller: that is the initial install on a first
+    // visit, where nothing is stale and a reload would be a pointless flash.
+    const hadController = !!navigator.serviceWorker.controller
+
+    // A worker taking control means a different build is now being served, so the
+    // page has to be re-parsed to actually be running it. Feature-tested rather
+    // than assumed: the harness stubs `serviceWorker` with only what it needs, and
+    // a missing listener must not take the whole bundle down at load time.
+    const swc = navigator.serviceWorker
+    if (typeof swc.addEventListener === 'function') {
+      swc.addEventListener('controllerchange', () => {
+        if (!hadController) return
+        applyUpdate()
+      })
+    }
+
+    const reg = swc.register('sw.js', { updateViaCache: 'none' })
+    if (!reg || typeof reg.then !== 'function') return
+    reg.then(r => {
+      if (!r || typeof r.update !== 'function') return
+      const check = () => { try { r.update() } catch (e) { /* offline */ } }
+      check()
+      setInterval(check, UPDATE_POLL_MS)
+      window.addEventListener('focus', check)
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) check() })
+    }).catch(() => { /* offline is optional */ })
   }
 
   /* ---------- test hook ----------
