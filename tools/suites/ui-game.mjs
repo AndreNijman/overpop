@@ -6,6 +6,9 @@ export const needs = [
   'js/ui/results.js'
 ]
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { ROOT } from '../loadgame.mjs'
 import { makeSim, spawn } from './_fixture.mjs'
 import { arena } from './_towerfamily.mjs'
 
@@ -458,13 +461,19 @@ export function run (t, OP, env) {
   // The point of reusing the board sprite is that the shop cannot drift from the
   // board. Asserting the registry is consulted is what makes that true rather
   // than aspirational.
-  // Measured against the SHIPPED roster, not OP.TOWERS: under --all other suites
-  // register throwaway towers into the same registry, and those legitimately have
-  // no sprite — which is the whole reason the portrait mark has a fallback.
-  const shipped = new Set()
-  for (const fam in OP.FAMILY_ROSTERS) for (const k of OP.FAMILY_ROSTERS[fam]) shipped.add(k)
-  for (const k of OP.HERO_ORDER) shipped.add(k)
-  const shippedPortraits = portraits.filter(p => shipped.has(p.key))
+  /* A portrait must be backed by real art — but "shipped" cannot be read from
+     OP.FAMILY_ROSTERS here. Under --all, js/towers/_TEMPLATE.js REPLACES
+     FAMILY_ROSTERS.primary with its own key, so the seven primary towers vanish
+     from the registry that is supposed to be authoritative and this assertion
+     would pass vacuously on zero towers. Scan the shipped sources instead, the
+     same way sprites-towers.mjs does. */
+  const shippedSrc = [
+    'js/towers/primary.js', 'js/towers/military.js', 'js/towers/magic.js',
+    'js/towers/support.js', 'js/towers/heroes.js'
+  ].map(rel => { try { return readFileSync(resolve(ROOT, rel), 'utf8') } catch (e) { return '' } }).join('\n')
+  const isShipped = k => k.indexOf('template-') !== 0 && shippedSrc.indexOf("'" + k + "'") >= 0
+
+  const shippedPortraits = portraits.filter(p => isShipped(p.key))
   t.gt(shippedPortraits.length, 0, 'the visible cards include shipped content')
   t.ok(shippedPortraits.every(p => typeof OP.Render.towerSprites[p.key] === 'function'),
     'every shipped portrait has a real registered sprite behind it')
