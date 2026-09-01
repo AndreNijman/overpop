@@ -130,11 +130,15 @@
     const by = P.y + P.h - 78
     marks.push(U.rule(P.x + 40, by - 22, P.w - 80, { alpha: 0.6 }))
 
-    // Expedition-specific buttons
+// Expedition-specific buttons
     var profile = app && app.state ? app.state.profile : null
     var expResult = app && app.state ? app.state.expeditionResult : null
     var freeplayEligible = won && !sim.freeplay && !expResult &&
       (!app || typeof app.canContinueFreeplay !== 'function' || app.canContinueFreeplay())
+    var defaultAction = freeplayEligible ? 'results.freeplay' : 'results.retry'
+    var hint = freeplayEligible
+      ? 'ENTER continues in freeplay · ESC returns to the title'
+      : 'ENTER plays again · ESC returns to the title'
     if (expResult && expResult.stageComplete && !expResult.expeditionComplete) {
       // Map completed in expedition — show CONTINUE EXPEDITION
       var expDef = profile && OP.Expedition && OP.Expedition.activeDef(profile)
@@ -149,6 +153,8 @@
         label: 'ABANDON', align: 'center', action: 'results-expedition-abandon',
         sub: 'give up this expedition'
       }))
+      defaultAction = 'results.expContinue'
+      hint = 'ENTER continues the expedition · ESC returns to the title'
     } else if (expResult && expResult.expeditionComplete) {
       // Expedition fully complete
       widgets.push(U.button('results.title', P.x + 40, by, 250, 48, {
@@ -158,6 +164,8 @@
       widgets.push(U.button('results.expAbandon', P.x + P.w - 290, by, 250, 48, {
         label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
       }))
+      defaultAction = 'results.title'
+      hint = 'EXPEDITION COMPLETE · ESC returns to the title'
     } else {
       // Normal results buttons
       if (freeplayEligible) {
@@ -183,9 +191,7 @@
       }
     }
 
-    marks.push(U.text(FIELD_W / 2, PANEL.y + PANEL.h + 30, freeplayEligible
-      ? 'ENTER continues in freeplay · ESC returns to the title'
-      : 'ENTER plays again · ESC returns to the title',
+    marks.push(U.text(FIELD_W / 2, PANEL.y + PANEL.h + 30, hint,
       { size: 10, colour: C.faint, align: 'center' }))
 
     return {
@@ -193,7 +199,7 @@
       backdrop: 'scrim',
       marks: marks,
       widgets: widgets,
-      defaultId: freeplayEligible ? 'results.freeplay' : 'results.retry',
+      defaultId: defaultAction,
       hoverId: hoverId(app, widgets)
     }
   }

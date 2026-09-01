@@ -34,7 +34,7 @@
 
 'use strict';
 
-const VERSION = 'cc4183275710';
+const VERSION = '8be5857034d6';
 const CACHE_NAME = 'overpop-' + VERSION;
 
 // Everything index.html can't tell us about.

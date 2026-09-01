@@ -109,7 +109,8 @@ export function run (t, OP, env) {
         app.calls.push(['startGame', mapKey, difficulty, mode])
         return null
       },
-      continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app.state.sim },
+continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app.state.sim },
+      advanceExpedition: function () { app.calls.push(['advanceExpedition']) },
       quitToMenu: function () { app.calls.push(['quitToMenu']); app.state.screen = 'menu' }
     }
     return app
@@ -1173,7 +1174,7 @@ export function run (t, OP, env) {
   t.notOk(fpDense.includes('of ' + fpSim.rules.lastRound), 'the old victory target is not shown as a limit')
   t.notOk(byId(fpModel, 'results.freeplay'), 'freeplay cannot be entered a second time')
 
-  t.section('expedition victories keep their dedicated actions')
+t.section('expedition victories keep their dedicated actions')
   const expSim = sim()
   OP.Economy.endGame(expSim, 'won')
   const expApp = wireShell(makeApp(expSim))
@@ -1181,6 +1182,16 @@ export function run (t, OP, env) {
   const expModel = Results.build(expApp)
   t.notOk(byId(expModel, 'results.freeplay'), 'an expedition result does not offer freeplay')
   t.ok(byId(expModel, 'results.title'), 'its expedition-complete action remains')
+  t.eq(expModel.defaultId, 'results.title', 'ENTER leaves a completed expedition for the title')
+
+  const midApp = wireShell(makeApp(sim()))
+  OP.Economy.endGame(midApp.state.sim, 'won')
+  midApp.state.expeditionResult = { stageComplete: true, expeditionComplete: false }
+  const midModel = Results.build(midApp)
+  t.ok(byId(midModel, 'results.expContinue'), 'a stage-complete expedition offers continue')
+  t.eq(midModel.defaultId, 'results.expContinue', 'and ENTER continues, not the absent retry')
+  t.ok(Results.key(midApp, 'Enter'), 'ENTER is consumed on the expedition screen')
+  t.eq(midApp.calls[midApp.calls.length - 1][0], 'advanceExpedition', 'and advances the expedition')
 
   t.section('the in-game panels stand down once the run is over')
   const overApp = wireShell(makeApp(sim()))
