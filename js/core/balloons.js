@@ -50,9 +50,12 @@
     return total
   }
 
-  /** Full layer HP for a tier, accounting for PLATED. */
+  /** Full layer HP for a tier, accounting for PLATED and FORTIFIED. */
   OP.layerHP = function (tier, props) {
-    return (props & P.PLATED) ? tier.hp * 2 : tier.hp
+    let hp = tier.hp
+    if (props & P.PLATED) hp *= 2
+    if (props & P.FORTIFIED) hp *= 2
+    return hp
   }
 
   /* ---------- pool ---------- */
@@ -102,6 +105,7 @@
     b.t = def.t || 0
     b.props = (def.props || 0) | tier.props
     b.speedMul = 1
+    if (b.props & P.FORTIFIED) b.speedMul *= 0.75
     b.regenT = 0
     b.depth = def.depth || 0
     b.dotAcc = 0

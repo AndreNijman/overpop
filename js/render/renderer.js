@@ -202,6 +202,7 @@
     drawTowerBases(ctx, sim, view, frame)
     drawProjectiles(ctx, sim, view, frame, alpha)
     drawBalloons(ctx, sim, view, frame, alpha)
+    drawBoss(ctx, sim, view, frame, alpha)
     drawTowers(ctx, sim, view, frame, alpha)
     drawFX(ctx, sim, view, frame)
 
@@ -321,6 +322,108 @@
         ctx.restore()
       }
     }
+  }
+
+  function drawBoss (ctx, sim, view, frame, alpha) {
+    if (!OP.Boss || !sim.boss || !sim.boss.alive) return
+    const boss = sim.boss
+    const x = OP.Camera.lerpX(boss, alpha)
+    const y = OP.Camera.lerpY(boss, alpha)
+    const r = boss.radius
+    const ratio = boss.hp / boss.maxHP
+
+    ctx.save()
+
+    // Boss body — a segmented worm-like shape
+    const segCount = 5
+    const segSpacing = r * 0.6
+    const colour = boss.def.colour
+    const shade = boss.def.shade
+
+    // Draw segments from tail to head
+    for (let i = segCount - 1; i >= 0; i--) {
+      const sx = x - i * segSpacing * 0.3
+      const sy = y + Math.sin(frame * 0.05 + i * 0.8) * r * 0.12
+      const sr = r * (0.5 + i * 0.1)
+
+      // Outer hull
+      ctx.fillStyle = shade
+      ctx.beginPath()
+      ctx.arc(sx, sy, sr, 0, M.TAU)
+      ctx.fill()
+
+      // Inner body
+      ctx.fillStyle = colour
+      ctx.beginPath()
+      ctx.arc(sx, sy, sr * 0.82, 0, M.TAU)
+      ctx.fill()
+
+      // Segmentation band
+      if (i > 0 && i < segCount - 1) {
+        ctx.strokeStyle = shade
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(sx, sy, sr * 0.82, 0, M.TAU)
+        ctx.stroke()
+      }
+    }
+
+    // Head highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'
+    ctx.beginPath()
+    ctx.arc(x - r * 0.15, y - r * 0.2, r * 0.28, 0, M.TAU)
+    ctx.fill()
+
+    // Elite crown
+    if (boss.elite) {
+      ctx.fillStyle = '#c9a227'
+      const crownY = y - r * 1.1
+      ctx.beginPath()
+      ctx.moveTo(x - r * 0.4, crownY + r * 0.15)
+      ctx.lineTo(x - r * 0.3, crownY - r * 0.15)
+      ctx.lineTo(x - r * 0.1, crownY + r * 0.05)
+      ctx.lineTo(x, crownY - r * 0.2)
+      ctx.lineTo(x + r * 0.1, crownY + r * 0.05)
+      ctx.lineTo(x + r * 0.3, crownY - r * 0.15)
+      ctx.lineTo(x + r * 0.4, crownY + r * 0.15)
+      ctx.closePath()
+      ctx.fill()
+    }
+
+    // Scorch marks
+    const scorchCount = Math.min(3, Math.floor((1 - ratio) * 5))
+    if (scorchCount > 0) {
+      ctx.fillStyle = 'rgba(30,20,10,0.35)'
+      for (let i = 0; i < scorchCount; i++) {
+        const sx = x + M.jitter(boss.def.key.length + i, 30) * r * 0.5
+        const sy = y + M.jitter(boss.def.key.length + i, 40) * r * 0.4
+        ctx.beginPath()
+        ctx.arc(sx, sy, r * 0.12, 0, M.TAU)
+        ctx.fill()
+      }
+    }
+
+    // Health bar above the boss
+    const barW = r * 2
+    const barH = Math.max(3, r * 0.12)
+    const barX = x - barW * 0.5
+    const barY = y - r * 1.4
+    ctx.fillStyle = '#1a1a1a'
+    ctx.fillRect(barX, barY, barW, barH)
+    const hpColour = ratio > 0.5 ? colour : ratio > 0.25 ? '#e0b64a' : '#d0604f'
+    ctx.fillStyle = hpColour
+    ctx.fillRect(barX + 1, barY + 1, Math.max(0, (barW - 2) * ratio), barH - 2)
+    ctx.strokeStyle = colour
+    ctx.lineWidth = 1
+    ctx.strokeRect(barX, barY, barW, barH)
+
+    // Tier label
+    ctx.fillStyle = '#e8efe6'
+    ctx.font = 'bold 10px ui-monospace, monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('T' + boss.tier, x, barY - 4)
+
+    ctx.restore()
   }
 
   function drawTowers (ctx, sim, view, frame, alpha) {

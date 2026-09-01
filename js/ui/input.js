@@ -64,6 +64,7 @@
    *   widget(x, y, selectedId)   an on-canvas panel claims the tap; return true to
    *                              stop it reaching the board. Gets the LIVE selection.
    *   wheel(dy, x, y)            a scroll gesture; return true if it was consumed
+   *   drag(dy, x, y, sx, sy)     a pointer drag; return true if it was consumed
    *   select(towerId)            select or deselect (-1)
    *   aim(towerId, x, y)         set a point-target tower's aim point
    *   context(towerId, x, y)     long-press / right-click on a tower
@@ -103,12 +104,22 @@
     const onMove = ev => {
       const p = toWorld(ev)
       io.overCanvas = true
-      if (io.down) io.moved += M.dist(io.x, io.y, p.x, p.y)
+      if (io.down) {
+        const pointerId = ev.pointerId === undefined ? 0 : ev.pointerId
+        if (pointerId !== io.pointerId) return
+        const dy = p.y - io.y
+        io.moved += M.dist(io.x, io.y, p.x, p.y)
+        if (io.moved > TAP_SLOP && claim(io, 'drag', dy, p.x, p.y, io.downX, io.downY) && ev.preventDefault) {
+          ev.preventDefault()
+        }
+      }
       setPoint(io, p)
     }
 
     const onUp = ev => {
       if (!io.down) return
+      const pointerId = ev.pointerId === undefined ? 0 : ev.pointerId
+      if (pointerId !== io.pointerId) return
       const p = toWorld(ev)
       setPoint(io, p)
       const heldMs = nowMs() - io.downAt
@@ -141,7 +152,11 @@
       if (consumed && ev.preventDefault) ev.preventDefault()
     }
 
-    const onCancel = () => { io.down = false; io.pointerId = -1 }
+    const onCancel = ev => {
+      const pointerId = ev && ev.pointerId === undefined ? 0 : (ev ? ev.pointerId : io.pointerId)
+      if (io.down && pointerId !== io.pointerId) return
+      io.down = false; io.pointerId = -1
+    }
     const onLeave = () => { io.overCanvas = false; io.hoverId = -1 }
     const onContext = ev => {
       if (ev.preventDefault) ev.preventDefault()
@@ -161,7 +176,7 @@
         if (!claim(io, 'key', ev.key, ev)) Input.cancel(io)
         return
       }
-      fire(io, 'key', ev.key, ev)
+      if (claim(io, 'key', ev.key, ev) && ev.preventDefault) ev.preventDefault()
     }
     const onKeyUp = ev => { io.keys[ev.key] = false }
 
@@ -360,6 +375,11 @@
       if (typeof console !== 'undefined' && console.error) console.error('OVERPOP: wheel handler threw', e)
       return false
     }
+  }
+
+  /** Resolve a pointer drag. Coordinates are in FIELD space. */
+  Input.drag = function (io, dy, x, y, startX, startY) {
+    return claim(io, 'drag', dy, x, y, startX, startY)
   }
 
   /** Refresh what the pointer is hovering. Called once per frame by the shell. */

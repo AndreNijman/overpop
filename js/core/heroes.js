@@ -145,6 +145,7 @@
   Heroes.canPlace = function (sim, key, x, y) {
     const def = OP.HEROES[key]
     if (!def) return { ok: false, reason: 'Unknown hero.' }
+    if (OP.Coop && !OP.Coop.canPlace(sim)) return { ok: false, reason: 'Wait for the player swap.' }
     if (sim.heroId >= 0) return { ok: false, reason: 'You already have a hero on this map.' }
     const cost = OP.Economy.price(sim, def.cost)
     if (!OP.Economy.canAfford(sim, cost)) return { ok: false, reason: 'Not enough cash.' }

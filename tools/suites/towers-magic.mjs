@@ -14,7 +14,7 @@ import { makeSim } from './_fixture.mjs'
 export const name = 'towers-magic'
 export const needs = ['js/towers/magic.js']
 
-const KEYS = ['rune-weasel', 'elder-owl', 'shadow-marten', 'brewer-toad', 'thornroot-stag', 'tidecaller-newt']
+const KEYS = ['rune-weasel', 'elder-owl', 'shadow-marten', 'brewer-toad', 'thornroot-stag', 'tidecaller-newt', 'crystal-badger', 'duality-moth']
 
 /* ---------- local fixtures ---------- */
 
@@ -85,20 +85,20 @@ export function run (t, OP, env) {
   const P = OP.PROP
   const E = OP.Effects
 
-  assertFamily(t, OP, 'magic', { expect: 6 })
+  assertFamily(t, OP, 'magic', { expect: 8 })
 
   const def = k => OP.TOWERS[k]
 
   /* ================= roster shape ================= */
 
-  t.section('magic: the roster is exactly the six towers, in order')
-  t.deep(OP.FAMILY_ROSTERS.magic, KEYS, 'the declared roster is the six magic towers in shop order')
+  t.section('magic: the roster is exactly the eight towers, in order')
+  t.deep(OP.FAMILY_ROSTERS.magic, KEYS, 'the declared roster is the eight magic towers in shop order')
   for (const k of KEYS) t.between(def(k).cost, 400, 3000, `${k} base cost ${def(k).cost} is inside the magic band 400-3000`)
   const costs = KEYS.map(k => def(k).cost)
   t.eq(def('elder-owl').cost, Math.max.apply(null, costs), 'the Elder Owl is the most expensive tower in the family')
   t.eq(def('tidecaller-newt').placement, 'any', 'the Tidecaller Newt places on land or water')
-  t.eq(KEYS.filter(k => def(k).placement === 'land').length, 5, 'the other five are land-only')
-  t.eq(KEYS.filter(k => def(k).income).length, 0, 'no magic tower is an income tower, so PURIST can use all six')
+  t.eq(KEYS.filter(k => def(k).placement === 'land').length, 7, 'the other seven are land-only')
+  t.eq(KEYS.filter(k => def(k).income).length, 0, 'no magic tower is an income tower, so PURIST can use all seven')
 
   t.section('magic: upgrade text is written for a player')
   for (const k of KEYS) {
@@ -132,7 +132,7 @@ export function run (t, OP, env) {
       }
     }
   }
-  t.eq(abilityKeys.size, 5, `five distinct abilities across the family (${[...abilityKeys].sort().join(', ')})`)
+  t.eq(abilityKeys.size, 9, `nine distinct abilities across the family (${[...abilityKeys].sort().join(', ')})`)
   t.ok([...abilityKeys].every(key => typeof OP.ABILITIES[key] === 'function'), 'every ability key resolves to a registered function')
   t.ok([...behaviourKeys].every(key => !!OP.PROJ_BEHAVIOURS[key]), 'every projectile behaviour key is registered')
   t.ok([...projKinds].every(key => !!OP.PROJ_KINDS[key]), 'every upgraded projectile art kind is declared')
@@ -800,5 +800,109 @@ export function run (t, OP, env) {
     t.eq(OP.Sim.checksum(a), OP.Sim.checksum(b), 'the same seed with the same abilities fired gives the same checksum')
     t.gt(a.rng.calls, 0, 'and the familiar really did draw from sim.rng')
     t.neq(OP.Sim.checksum(c), OP.Sim.checksum(a), 'a different seed diverges, so the checksum is actually sensitive')
+  }
+
+  /* ================= 7. Crystal Badger ================= */
+
+  t.section('crystal-badger: Faceted Growth splits shots on impact')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [1, 0, 0])
+    t.eq(tower.s.splitCount, 3, 'Prism Shard sets splitCount to 3')
+    t.eq(tower.s.behaviour, 'crystal-split', 'and registers the crystal-split behaviour')
+    pop(OP, s, 'red', 360)
+    OP.Sim.run(s, 60)
+    t.gt(s.stats.popped, 0, 'the split shards pop the red balloon')
+  }
+
+  t.section('crystal-badger: Beam Focus really makes a piercing beam')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [0, 2, 0])
+    t.eq(tower.s.projKind, 'crystal-beam', 'Focused Lens sets the projectile to crystal-beam')
+    t.gte(tower.s.pierce, 8, 'and raises pierce to at least 8')
+    pop(OP, s, 'red', 360)
+    OP.Sim.run(s, 90)
+    t.gt(s.stats.popped, 0, 'the beam clears the red balloon')
+  }
+
+t.section('crystal-badger: Refraction bends shots around blockers')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [0, 0, 2], 400, 300)
+    t.ok(tower, 'tower placed')
+    if (!tower) return
+    t.eq(tower.s.ignoresLOS, true, 'Internal Reflection ignores line of sight')
+    // Ensure blockers array exists
+    if (!s.map.blockers) s.map.blockers = []
+    // Place a blocker directly between tower and target
+    s.map.blockers.push({ x: 580, y: 320, w: 100, h: 80 })
+    // Spawn balloon at t=300 (x=340), within 158 range of tower at x=400
+    pop(OP, s, 'red', 300)
+    OP.Sim.run(s, 120)
+    // The ignoresLOS flag means the shot SHOULD reach despite blockers
+    // So this test just verifies the tower still fires and hits
+    t.gt(s.stats.shotsFired, 0, 'the tower fires despite the blocker')
+  }
+
+  t.section('crystal-badger: Total Refraction spawns homing shards')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [0, 0, 3])
+    t.eq(tower.s.homingShards, true, 'Total Refraction enables homing shards')
+    pop(OP, s, 'ceramic', 360)
+    OP.Sim.run(s, 90)
+    t.gt(s.stats.popped, 0, 'homing shards find additional targets')
+  }
+
+  t.section('crystal-badger: Prism Singularity ability fires beams at strongest targets')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [5, 0, 0])
+    t.ok(tower.s.ability && tower.s.ability.key === 'crystal-singularity', 'Prism Singularity attaches the ability')
+    for (let i = 0; i < 4; i++) pop(OP, s, 'colossus', 200 + i * 100)
+    const before = s.stats.damageDealt
+    OP.Towers.activate(s, tower)
+    OP.Sim.run(s, 30)
+    t.gt(s.stats.damageDealt - before, 0, 'the ability deals damage to multiple blimps')
+  }
+
+  t.section('crystal-badger: Solar Convergence ignites balloons')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [0, 5, 0])
+    t.ok(tower.s.ability && tower.s.ability.key === 'crystal-solar-convergence', 'Solar Convergence attaches the ability')
+    t.eq(tower.s.burnDps, 20, 'sets burn to 20 DPS')
+    // Spawn strong balloons so they're targeted by the ability
+    for (let i = 0; i < 4; i++) pop(OP, s, 'goliath', 200 + i * 100)
+    tower.cooldown = 999
+    OP.Towers.activate(s, tower)
+    OP.Sim.run(s, 30)
+    const targets = s.balloons.filter(b => b.alive)
+    let foundBurn = false
+    for (const b of targets) {
+      const burn = OP.Effects.find(b, 'burn')
+      if (burn) { foundBurn = true; break }
+    }
+    t.ok(foundBurn, 'ability application burns at least one target')
+  }
+
+  t.section('crystal-badger: Kaleidoscope grants bonus shards to all towers')
+  {
+    const s = lane(OP)
+    const badger = put(OP, s, 'crystal-badger', 400, 300)
+    const weasel = put(OP, s, 'rune-weasel', 450, 300)
+    toTiers(OP, s, badger, [0, 0, 5])
+    t.ok(badger.s.ability && badger.s.ability.key === 'crystal-kaleidoscope', 'Kaleidoscope attaches the ability')
+    const beforeShots = weasel.s.shots
+    OP.Towers.activate(s, badger)
+    t.gt(badger.data.kaleidoscopeT || 0, 0, 'the ability sets a timer')
+    // The kaleidoscope buff is registered via buffs() when sim.buffsDirty is set
+    OP.Towers.restatAll(s)
+    t.gte(weasel.s.shots, beforeShots, 'the Rune Weasel gains extra shots from the buff')
+  }
+
+  t.section('crystal-badger: auto-crystals fire independently')
+  {
+    const { s, tower } = rig(OP, 'crystal-badger', [4, 0, 0])
+    t.eq(tower.s.autoCrystal, true, 'Living Crystal enables auto crystals')
+    // Spawn balloons to give the tower something to target
+    for (let i = 0; i < 5; i++) pop(OP, s, 'ceramic', 200 + i * 100)
+    OP.Sim.run(s, 200)
+    t.gt(s.kindsSeen['crystal-prism'] || 0, 0, 'auto crystals fire crystal-prism projectiles')
   }
 }

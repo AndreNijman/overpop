@@ -32,6 +32,11 @@
 
     const rules = Sim.resolveRules(config)
 
+    // Apply knowledge rule overrides (persistent skill tree bonuses)
+    if (OP.Knowledge && OP.Knowledge.applyRules && config.knowledge && config.knowledge.length) {
+      OP.Knowledge.applyRules(rules, config.knowledge)
+    }
+
     const sim = {
       // identity
       seed: config.seed === undefined ? 'overpop' : config.seed,
@@ -65,6 +70,7 @@
       towers: [], towerById: new Map(),
       buffs: [], buffsDirty: false,
       heroId: -1,
+      boss: null,
       nextEntityId: 1,
 
       // state
@@ -89,7 +95,15 @@
       // kind -> count of projectiles emitted, for the render-coverage assertion
       kindsSeen: {},
 
-      grid: OP.Grid.create(OP.FIELD_W, OP.FIELD_H)
+      grid: OP.Grid.create(OP.FIELD_W, OP.FIELD_H),
+
+      // Knowledge: the set of unlocked skill tree nodes for this run
+      knowledge: Array.isArray(config.knowledge)
+        ? config.knowledge.filter(k => OP.KNOWLEDGE && OP.KNOWLEDGE[k]).slice().sort()
+        : [],
+
+      // Persistent consumables copied from the player profile for this run
+      powers: {}
     }
 
     OP.Balloons.reset(sim)
@@ -97,6 +111,16 @@
     OP.Towers.reset(sim)
     OP.Buffs.reset(sim)
     sim.buffsDirty = false
+
+    // Register knowledge stat buffs globally
+    if (OP.Knowledge && OP.Knowledge.registerBuffs && sim.knowledge.length) {
+      OP.Knowledge.registerBuffs(sim, sim.knowledge)
+    }
+
+    // Initialise coop state if rules.coop is set
+    if (OP.Coop && OP.Coop.init) OP.Coop.init(sim)
+
+    if (OP.Powers && OP.Powers.init) OP.Powers.init(sim, config.powers)
 
     return sim
   }
@@ -145,6 +169,13 @@
     // 3. status effects — before movement, so a new slow bites this tick
     OP.Effects.tick(sim)
 
+    // 3b. boss systems — before movement so the boss is positioned correctly
+    if (OP.Boss) {
+      OP.Boss.move(sim)
+      OP.Boss.minionTick(sim)
+      OP.Boss.abilityTick(sim)
+    }
+
     // 4. regen
     OP.Balloons.regenTick(sim)
 
@@ -174,6 +205,37 @@
     // 13. round completion and payouts
     if (sim.round && !sim.round.done && OP.Rounds.isComplete(sim)) {
       OP.Rounds.complete(sim)
+
+      // Coop: swap active player at round end
+      if (OP.Coop && OP.Coop.swap && sim.coop && !sim.over) {
+        OP.Coop.swap(sim)
+      }
+
+      // Boss event: spawn boss at appropriate rounds
+      if (OP.Boss && sim.mode && sim.mode.indexOf('boss-event') === 0) {
+        const bossKey = sim.rules.bossKey
+        if (bossKey) {
+          const bossDef = OP.bossByKey(bossKey)
+          if (bossDef) {
+            const roundNum = sim.roundIndex
+            const firstBoss = bossDef.spawnsOnRound
+            const interval = bossDef.tierInterval
+            const elite = !!sim.rules.bossElite
+
+            if (roundNum >= firstBoss && (roundNum - firstBoss) % interval === 0) {
+              const tier = Math.min(
+                Math.floor((roundNum - firstBoss) / interval) + 1,
+                bossDef.maxTiers
+              )
+              // Only spawn if no boss is alive
+              if (!sim.boss || !sim.boss.alive) {
+                OP.Boss.spawn(sim, bossKey, tier, elite)
+              }
+            }
+          }
+        }
+      }
+
       if (sim.autostart && !sim.over) OP.Rounds.next(sim)
     }
 
@@ -199,6 +261,7 @@
    * `sim.speed` multiplies how many ticks run, never the size of a tick.
    */
   Sim.advance = function (sim, wallDt) {
+    if (OP.Coop && OP.Coop.advance && sim.coop && sim.coop.swapping) OP.Coop.advance(sim, wallDt)
     if (sim.paused || sim.over) return 0
     sim.accumulator += Math.min(wallDt, 0.25) * sim.speed
     let ran = 0
@@ -299,6 +362,30 @@
       }
     }
 
+    // Boss state
+    if (sim.boss && sim.boss.alive) {
+      h = mix(h, 0xB055)  // boss present marker
+      h = mix(h, sim.boss.tier)
+      h = mix(h, sim.boss.elite ? 1 : 0)
+      h = mixFloat(h, sim.boss.hp, 10)
+      h = mixFloat(h, sim.boss.t, 100)
+      h = mix(h, sim.boss.minionWave)
+      h = mix(h, sim.boss.abilityCd)
+    }
+
+    if (OP.POWER_ORDER && sim.powers) {
+      for (let i = 0; i < OP.POWER_ORDER.length; i++) {
+        h = mix(h, sim.powers[OP.POWER_ORDER[i]] || 0)
+      }
+    }
+
+    if (sim.coop) {
+      const coop = OP.Coop.serialize(sim)
+      h = mix(h, coop.active)
+      h = mixFloat(h, coop.players[0].cash, 100)
+      h = mixFloat(h, coop.players[1].cash, 100)
+    }
+
     return h >>> 0
   }
 
@@ -336,7 +423,11 @@
       balloons: OP.Balloons.serialize(sim),
       projectiles: OP.Projectiles.serialize(sim),
       towers: OP.Towers.serialize(sim),
-      round: OP.Rounds.serialize(sim)
+      boss: OP.Boss ? OP.Boss.serialize(sim) : null,
+      round: OP.Rounds.serialize(sim),
+      knowledge: sim.knowledge || [],
+      powers: OP.Powers ? OP.Powers.copyInventory(sim.powers) : {},
+      coop: OP.Coop ? OP.Coop.serialize(sim) : null
     }
   }
 
@@ -358,7 +449,9 @@
       rules: snap.rules,
       autostart: snap.autostart,
       roundSetKey: snap.roundSetKey,
-      roundSet: opts.roundSet || null
+      roundSet: opts.roundSet || null,
+      knowledge: snap.knowledge || [],
+      powers: snap.powers || {}
     })
     // Only insist on a round set if this save is actually part-way through a
     // game. A snapshot taken before any round started has nothing to resume, and
@@ -397,13 +490,18 @@
     OP.Towers.deserialize(sim, snap.towers || [])
     OP.Balloons.deserialize(sim, snap.balloons || [])
     OP.Projectiles.deserialize(sim, snap.projectiles || [])
+    if (OP.Boss) OP.Boss.deserialize(sim, snap.boss || null)
     OP.Rounds.deserialize(sim, snap.round)
 
     // nextEntityId last, because the deserialisers do not allocate ids but
     // Sim.create reset it.
-    sim.nextEntityId = snap.nextEntityId
+    sim.nextEntityId = Math.max(snap.nextEntityId || 1, sim.nextEntityId)
 
     OP.Grid.rebuild(sim.grid, sim.balloons)
+
+    // Restore coop state if present in the snapshot
+    if (snap.coop && sim.coop && OP.Coop) OP.Coop.restore(sim, snap.coop)
+
     return sim
   }
 

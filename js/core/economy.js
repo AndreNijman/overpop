@@ -6,8 +6,8 @@
      Every difficulty and mode difference is expressed as a field on `sim.rules`,
      resolved once when the game is created. Nothing in the simulation branches on
      "if mode === 'half-cash'" — a mode is a config delta, not a code path
-     (ARCHITECTURE.md §8). That is what keeps eleven modes from becoming eleven
-     sets of subtly divergent behaviour. */
+     (ARCHITECTURE.md §8). That is what keeps the mode roster from becoming a set
+     of subtly divergent behaviours. */
 
   const Economy = {}
 
@@ -26,8 +26,10 @@
       allowIncome: true,    // PURIST forbids income towers
       allowContinue: true,  // PURIST forbids continues
       allowAbilities: true,
+      allowPowers: true,    // PURIST and GRIM forbid consumables
       livesRegain: true,    // PURIST forbids regaining lives
       families: null,       // null = all; ['primary'] for Primary Only
+      allowedTowerKeys: null, // null = unrestricted; profile snapshot for new runs
       firstRound: 1,
       lastRound: 60,
       sellRate: OP.SELL_RATE
@@ -131,8 +133,14 @@
     return allowed.indexOf(family) >= 0
   }
 
+  Economy.progressionAllowsTower = function (sim, def) {
+    const allowed = sim.rules.allowedTowerKeys
+    return !Array.isArray(allowed) || allowed.indexOf(def.key) >= 0
+  }
+
   /** Is this specific tower placeable at all right now? */
   Economy.towerAllowed = function (sim, def) {
+    if (!Economy.progressionAllowsTower(sim, def)) return false
     if (!Economy.familyAllowed(sim, def.family)) return false
     if (def.income && !sim.rules.allowIncome) return false
     return true

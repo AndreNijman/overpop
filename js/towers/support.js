@@ -1,4 +1,4 @@
-/* The support family. Five towers that mostly do not shoot: they print cash,
+/* The support family. Six towers that mostly do not shoot: they print cash,
  * seed the track with hazards, make their neighbours better, or send something
  * out to hunt on its own.
  *
@@ -53,6 +53,14 @@
   OP.declareProjKind('falcon-claw', { shape: 'slash', tint: '#e8ddc0', size: 7, spin: true })
   // Skyfall: the bird itself, dropped as a bomb.
   OP.declareProjKind('falcon-stoop', { shape: 'blob', tint: '#d8c48a', size: 10, trail: true })
+  // Honey Badger: a bee projectile
+  OP.declareProjKind('honey-bee', { shape: 'orb', tint: '#f2d06b', size: 3, trail: true, spin: true })
+  OP.declareProjKind('honey-swarm', { shape: 'orb', tint: '#e8c040', size: 4, trail: true })
+  OP.declareProjKind('honey-queen', { shape: 'blob', tint: '#d4a820', size: 8, trail: true })
+  // Warden Badger: guardian strike
+  OP.declareProjKind('warden-claw', { shape: 'slash', tint: '#b0a080', size: 5, spin: true })
+  // Warden Badger: guardian shout (taunt ability projectile)
+  OP.declareProjKind('warden-shout', { shape: 'ring', tint: '#c8b870', size: 14 })
 
   /* ---------- projectile behaviour ----------
      One shared hook: tear extra damage out of a blimp on contact. Used by both
@@ -174,7 +182,9 @@
     'caltrop-beetle',
     'warren-hall',
     'tinker-shrew',
-    'falconer-ferret'
+    'falconer-ferret',
+    'honey-badger',
+    'warden-badger'
   ]
 
   /* ============================================================================
@@ -1149,7 +1159,7 @@
       return
     }
 
-    OP.Projectiles.fireAt(sim, {
+OP.Projectiles.fireAt(sim, {
       x: d.bx, y: d.by,
       kind: 'falcon-claw',
       damage: s.damage,
@@ -1164,4 +1174,589 @@
       data: s.blimpBonus > 0 ? { shred: s.blimpBonus } : null
     }, M.angleTo(d.bx, d.by, b.x, b.y), s.projSpeed)
   }
+
+  /* ============================================================================
+     6. HONEY BADGER — the swarm caller
+     ============================================================================ */
+
+  OP.defineTower({
+    key: 'honey-badger',
+    name: 'Honey Badger',
+    family: 'support',
+    blurb: 'Does not fight directly. Calls a swarm of bees that hunt balloons independently, and the hive produces honey that boosts nearby towers.',
+
+    cost: 850,
+    footprint: 14,
+    placement: 'land',
+    unlockRound: 0,
+
+    base: {
+      range: 150,
+      cooldown: 1.0,
+      damage: 0,
+      pierce: 1,
+      dmgType: D.NORMAL,
+      projSpeed: 0,
+      projLife: 1,
+      projRadius: 4,
+      camoDetect: false,
+      targetModes: ['first'],
+
+      swarmCount: 3,
+      swarmDamage: 2,
+      swarmPierce: 2,
+      swarmSpeed: 200,
+      swarmLife: 8,
+      swarmRange: 200,
+      honeyRate: 0,
+      honeyAmount: 0,
+      honeyRadius: 0,
+      honeyDamage: 0,
+      honeyCooldown: 1,
+      queenPeriod: 0,
+      queenCount: 0,
+      queenDamage: 0,
+      queenPierce: 0
+    },
+
+    paths: [
+      {
+        name: 'Growing Swarm',
+        tiers: [
+          { name: 'First Brood', cost: 385,
+            desc: 'Summons 3 bees that hunt independently for 8 seconds, each dealing 2 damage with 2 pierce.',
+            apply: function (s) { s.swarmCount = 3; s.swarmDamage = 2; s.swarmPierce = 2 } },
+          { name: 'Larger Colony', cost: 770,
+            desc: 'Swarm grows to 5 bees and they last 12 seconds.',
+            apply: function (s) { s.swarmCount = 5; s.swarmLife = 12 } },
+          { name: 'Angry Bees', cost: 1925,
+            desc: 'Bees deal 4 damage and pierce 3. They now see Veiled balloons.',
+            apply: function (s) { s.swarmDamage = 4; s.swarmPierce = 3; s.camoDetect = true } },
+          { name: 'Killer Swarm', cost: 7700,
+            desc: '8 bees for 18 seconds, 6 damage each with 4 pierce. Bees move 50% faster.',
+            apply: function (s) { s.swarmCount = 8; s.swarmLife = 18; s.swarmDamage = 6; s.swarmPierce = 4; s.swarmSpeed = 300 } },
+          { name: 'Hive Mind', cost: 55000,
+            desc: '12 bees that last 30 seconds, 12 damage each. Ability: Hive Mind — all bees on the map target the strongest balloon for 10 seconds. 45s cooldown.',
+            apply: function (s) {
+              s.swarmCount = 12
+              s.swarmLife = 30
+              s.swarmDamage = 12
+              s.swarmPierce = 5
+              s.ability = { name: 'Hive Mind', cooldown: 45, duration: 10, key: 'honey-hive-mind' }
+            } }
+        ]
+      },
+      {
+        name: 'Honey Production',
+        tiers: [
+          { name: 'Sweet Nectar', cost: 425,
+            desc: 'Produces honey every 3 seconds. Towers in range get +1 damage.',
+            apply: function (s) { s.honeyRate = 3; s.honeyAmount = 1; s.honeyRadius = 120; s.honeyDamage = 1 } },
+          { name: 'Royal Jelly', cost: 850,
+            desc: 'Honey now also grants +1 pierce and +10 range to towers in range.',
+            apply: function (s) { s.honeyDamage = 1; s.honeyPierce = 1; s.honeyRange = 10 } },
+          { name: 'Honey Flow', cost: 2100,
+            desc: 'Honey produced every 1.5 seconds. +2 damage and +2 pierce to affected towers.',
+            apply: function (s) { s.honeyRate = 1.5; s.honeyAmount = 2; s.honeyDamage = 2; s.honeyPierce = 2 } },
+          { name: 'Golden Harvest', cost: 8500,
+            desc: 'Honey every 0.8 seconds. Affected towers also gain 20% faster attacks.',
+            apply: function (s) { s.honeyRate = 0.8; s.honeyAmount = 3; s.honeyDamage = 3; s.honeyPierce = 3; s.honeyCooldown = 0.8 } },
+          { name: 'Ambrosia', cost: 59500,
+            desc: 'Honey grants +8 damage, +5 pierce, +30 range and 35% faster attacks. Ability: Ambrosia — instantly applies max honey to all towers on the map. 60s cooldown.',
+            apply: function (s) {
+              s.honeyAmount = 5
+              s.honeyDamage = 8
+              s.honeyPierce = 5
+              s.honeyRange = 30
+              s.honeyCooldown = 0.65
+              s.ability = { name: 'Ambrosia', cooldown: 60, duration: 0, key: 'honey-ambrosia' }
+            } }
+        ]
+      },
+      {
+        name: 'Queen Bee',
+        tiers: [
+          { name: 'Drone Layer', cost: 400,
+            desc: 'Every 10 seconds, spawns a Queen Bee that fights for 15 seconds: 10 damage, 6 pierce, homing.',
+            apply: function (s) { s.queenPeriod = 10; s.queenCount = 1; s.queenDamage = 10; s.queenPierce = 6 } },
+          { name: 'Royal Guard', cost: 800,
+            desc: 'Queen Bees now deal 18 damage with 8 pierce and last 20 seconds.',
+            apply: function (s) { s.queenDamage = 18; s.queenPierce = 8; s.queenLife = 20 } },
+          { name: 'Queen Bee', cost: 2000,
+            desc: 'Spawns 2 Queen Bees at once. They can see Veiled balloons.',
+            apply: function (s) { s.queenCount = 2; s.camoDetect = true } },
+          { name: 'Matriarch', cost: 8000,
+            desc: '3 Queen Bees, 35 damage each, 12 pierce, and they slow balloons by 40% for 3 seconds on hit.',
+            apply: function (s) { s.queenCount = 3; s.queenDamage = 35; s.queenPierce = 12; s.queenGlue = 0.4; s.queenGlueTime = 3 } },
+          { name: 'Empress', cost: 56000,
+            desc: '5 Empress Bees every 6 seconds, 80 damage each with 15 pierce. They shred blimps for 50 extra damage. Ability: Empress — spawns 10 Empress Bees instantly. 50s cooldown.',
+            apply: function (s) {
+              s.queenPeriod = 6
+              s.queenCount = 5
+              s.queenDamage = 80
+              s.queenPierce = 15
+              s.queenShred = 50
+              s.ability = { name: 'Empress', cooldown: 50, duration: 0, key: 'honey-empress' }
+            } }
+        ]
+      }
+    ],
+
+    onPlace: function (sim, tower) {
+      tower.data.swarmCd = 0
+      tower.data.honeyCd = 0
+      tower.data.honeyTowers = new Map()
+      tower.data.queenCd = 0
+    },
+
+    update: function (sim, tower, dt) {
+      const s = tower.s
+      const d = tower.data
+
+      // Swarm spawning
+      d.swarmCd = (d.swarmCd || 0) - dt
+      if (d.swarmCd <= 0 && s.swarmCount > 0) {
+        d.swarmCd = s.swarmLife
+        const id = OP.Targeting.acquire(sim, tower, 'close')
+        if (id >= 0) {
+          const b = sim.byId.get(id)
+          if (b) {
+            for (let i = 0; i < s.swarmCount; i++) {
+              const angle = (i / s.swarmCount) * M.TAU
+              OP.Projectiles.fireAt(sim, {
+                x: tower.x, y: tower.y,
+                kind: 'honey-bee',
+                damage: s.swarmDamage,
+                dmgType: D.SHARP,
+                pierce: s.swarmPierce,
+                radius: 3,
+                life: s.swarmLife,
+                maxRange: s.swarmRange,
+                ownerId: tower.id,
+                camoDetect: s.camoDetect,
+                homing: 4, turnRate: 4, targetId: b.id,
+                behaviour: 'honey-swarm'
+              }, angle, s.swarmSpeed)
+            }
+          }
+        }
+      }
+
+      // Honey production
+      if (s.honeyRate > 0) {
+        if (!(d.honeyTowers instanceof Map)) d.honeyTowers = new Map()
+        d.honeyCd = (d.honeyCd || 0) - dt
+        if (d.honeyCd <= 0) {
+          d.honeyCd = s.honeyRate
+          // Apply honey to towers in range
+          for (const other of sim.towers) {
+            if (other.id === tower.id) continue
+            if (M.dist2(tower.x, tower.y, other.x, other.y) <= s.honeyRadius * s.honeyRadius) {
+              const key = other.id
+              const existing = d.honeyTowers.get(key) || { stacks: 0, time: 0 }
+              existing.stacks = Math.min(existing.stacks + 1, 5)
+              existing.time = 10
+              d.honeyTowers.set(key, existing)
+            }
+          }
+        }
+      }
+
+      // Honey decay
+      if (d.honeyTowers instanceof Map) {
+        for (const [key, val] of d.honeyTowers) {
+          val.time -= dt
+          if (val.time <= 0) d.honeyTowers.delete(key)
+        }
+      } else {
+        d.honeyTowers = new Map()
+      }
+
+      sim.buffsDirty = true
+
+      // Queen Bee spawning
+      if (s.queenPeriod > 0) {
+        d.queenCd = (d.queenCd || 0) - dt
+        if (d.queenCd <= 0) {
+          d.queenCd = s.queenPeriod
+          const id = OP.Targeting.acquire(sim, tower, 'strong')
+          if (id >= 0) {
+            const b = sim.byId.get(id)
+            if (b) {
+              for (let i = 0; i < s.queenCount; i++) {
+                OP.Projectiles.fireAt(sim, {
+                  x: tower.x, y: tower.y,
+                  kind: 'honey-queen',
+                  damage: s.queenDamage,
+                  dmgType: D.SHARP,
+                  pierce: s.queenPierce,
+                  radius: 6,
+                  life: s.queenLife || 15,
+                  maxRange: s.range * 1.5,
+                  ownerId: tower.id,
+                  camoDetect: s.camoDetect,
+                  homing: 5, turnRate: 5, targetId: b.id,
+                  behaviour: 'honey-queen',
+                  data: s.queenShred > 0 ? { shred: s.queenShred } : (s.queenGlue > 0 ? { glue: s.queenGlue, time: s.queenGlueTime } : null)
+                }, M.angleTo(tower.x, tower.y, b.x, b.y) + (i / s.queenCount) * 0.3 - 0.15, 350)
+              }
+            }
+          }
+        }
+      }
+    },
+
+    buffs: function (sim, tower) {
+      const s = tower.s
+      const d = tower.data
+      if (!(d.honeyTowers instanceof Map) || !d.honeyTowers.size) return
+      for (const [targetId, val] of d.honeyTowers) {
+        if (val.stacks <= 0) continue
+        const target = sim.towerById.get(targetId)
+        if (!target) continue
+        const mods = { damageAdd: s.honeyDamage * val.stacks }
+        if (s.honeyPierce) mods.pierceAdd = s.honeyPierce * val.stacks
+        if (s.honeyRange) mods.rangeAdd = s.honeyRange * val.stacks
+        if (s.honeyCooldown !== 1) mods.cooldownMul = s.honeyCooldown
+        if (s.camoDetect) mods.camoDetect = true
+        OP.Buffs.register(sim, {
+          id: 'honey-buff:' + tower.id + ':' + targetId,
+          sourceId: tower.id,
+          x: target.x, y: target.y, radius: 1,
+          priority: 3,
+          excludeSelf: true,
+          mods: mods
+        })
+      }
+    }
+  })
+
+  OP.ABILITIES['honey-hive-mind'] = function (sim, tower) {
+    const s = tower.s
+    const ids = []
+    OP.Targeting.acquireMany(sim, tower, 'strong', 1, ids)
+    const b = ids.length ? sim.byId.get(ids[0]) : null
+    if (!b) return
+    for (const p of sim.projectiles) {
+      if (p.alive && p.ownerId === tower.id && p.kind === 'honey-bee') {
+        p.homing = 8
+        p.turnRate = 8
+        p.targetId = b.id
+      }
+    }
+    tower.data.hiveMindT = 10
+  }
+
+  OP.ABILITIES['honey-ambrosia'] = function (sim, tower) {
+    const s = tower.s
+    for (const other of sim.towers) {
+      if (other.id === tower.id) continue
+      const key = other.id
+      tower.data.honeyTowers.set(key, { stacks: 5, time: 30 })
+    }
+    sim.buffsDirty = true
+  }
+
+  OP.ABILITIES['honey-empress'] = function (sim, tower) {
+    const s = tower.s
+    const id = OP.Targeting.acquire(sim, tower, 'strong')
+    if (id < 0) return
+    const b = sim.byId.get(id)
+    if (!b) return
+    for (let i = 0; i < 10; i++) {
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'honey-queen',
+        damage: s.queenDamage,
+        dmgType: D.SHARP,
+        pierce: s.queenPierce,
+        radius: 8,
+        life: 20,
+        maxRange: s.range * 2,
+        ownerId: tower.id,
+        camoDetect: true,
+        homing: 8, turnRate: 8, targetId: b.id,
+        behaviour: 'honey-queen',
+        data: { shred: s.queenShred || 50 }
+      }, M.angleTo(tower.x, tower.y, b.x, b.y) + (i / 10) * 0.5 - 0.25, 400)
+    }
+  }
+
+  OP.PROJ_BEHAVIOURS['honey-swarm'] = {
+    onStep: function (sim, p, dt) {
+      // Bees wander slightly
+      if (sim.rng && sim.rng.range(0, 1) < 0.1) {
+        const speed = Math.hypot(p.vx, p.vy)
+        const angle = Math.atan2(p.vy, p.vx) + sim.rng.range(-0.3, 0.3)
+        p.vx = Math.cos(angle) * speed
+        p.vy = Math.sin(angle) * speed
+      }
+    }
+  }
+
+  OP.PROJ_BEHAVIOURS['honey-queen'] = {
+    onHit: function (sim, p, b, res) {
+      const d = p.data
+      if (!d) return
+      if (d.shred > 0 && OP.BALLOON_TIERS[b.tier].blimp) {
+        OP.Damage.hit(sim, b, {
+          damage: d.shred,
+          dmgType: p.dmgType,
+          sourceId: p.ownerId
+        })
+      }
+      if (d.glue > 0) {
+        OP.Effects.apply(b, OP.Effects.make('glue', d.time, d.glue, p.ownerId, D.NORMAL))
+      }
+    }
+  }
+
+  /* ---------- Warden Badger ability ---------- */
+
+  OP.ABILITIES['warden-taunt'] = function (sim, tower) {
+    const s = tower.s
+    const d = tower.data
+    // Guardian emits a shout that taunts nearby balloons toward it
+    if (d.gx === undefined) return
+    const targets = sim.balloons.filter(function (b) {
+      if (!b.alive) return false
+      const dx = b.x - d.gx; const dy = b.y - d.gy
+      return Math.sqrt(dx * dx + dy * dy) < s.tauntRadius
+    })
+    for (let i = 0; i < targets.length; i++) {
+      const b = targets[i]
+      // Pull balloon toward guardian along track (advance by tauntPull units)
+      const pull = Math.min(s.tauntPull, b.t < 100 ? b.t : 100)
+      b.t += pull
+      OP.Damage.hit(sim, b, {
+        damage: s.tauntDamage,
+        dmgType: s.dmgType,
+        sourceId: tower.id
+      })
+    }
+  }
+
+  /* ============================================================================
+     7. WARDEN BADGER — a guardian that patrols the track.
+
+     The guardian is not an entity. It is four numbers in `tower.data` (gx, gy,
+     gAngle and gPatrolT) that `update()` integrates along the nearest track
+     segment, plus real projectiles spawned from wherever the guardian happens to
+     be. Same serialisation story as the Falconer Ferret's bird.
+     ========================================================================== */
+
+  OP.defineTower({
+    key: 'warden-badger',
+    name: 'Warden Badger',
+    family: 'support',
+    blurb: 'Stands guard with quiet authority. The badger patrols the nearest track, warning off anything that passes.',
+
+    cost: 700,
+    footprint: 14,
+    placement: 'land',
+    unlockRound: 0,
+
+    base: {
+      range: 100,
+      cooldown: 1.2,
+      damage: 1,
+      pierce: 2,
+      dmgType: D.NORMAL,
+      projSpeed: 320,
+      projLife: 0.4,
+      projRadius: 5,
+      camoDetect: false,
+      targetModes: ['first', 'last', 'close', 'strong'],
+
+      guardianSpeed: 120,       // units per second along the track
+      guardianRange: 50,        // how far the guardian can reach to strike
+      strikeRange: 30,          // how close the guardian must be to hit
+      patrolArc: 0.4            // fraction of track segment to patrol (0-1)
+    },
+
+    paths: [
+      {
+        name: 'Patrol Route',
+        tiers: [
+          { name: 'Wider Beat', cost: 385,
+            desc: 'The guardian patrols 30% further along the track.',
+            apply: function (s) { s.patrolArc = Math.min(1, s.patrolArc + 0.3) } },
+          { name: 'Steady Pace', cost: 720,
+            desc: 'The guardian moves 35% faster and strikes harder (+1 damage, for 2).',
+            apply: function (s) { s.guardianSpeed *= 1.35; s.damage += 1 } },
+          { name: 'Iron Jaws', cost: 1680,
+            desc: '+3 damage and +2 pierce. The guardian strikes for 5 damage at 4 pierce.',
+            apply: function (s) { s.damage += 3; s.pierce += 2 } },
+          { name: 'Shatter Fangs', cost: 6600,
+            desc: 'Guardian strikes become shatter damage — Lead and armour crack open. +4 damage.',
+            apply: function (s) { s.dmgType = D.SHATTER; s.damage += 4 } },
+          { name: 'Pack Warden', cost: 54000,
+            desc: '+12 damage, +4 pierce, and the guardian patrols the entire nearest track. Adds Taunt: every 30 seconds the guardian roars, pulling all balloons within 180 units forward by 80 units and dealing 20 shatter damage.',
+            apply: function (s) {
+              s.damage += 12
+              s.pierce += 4
+              s.patrolArc = 1
+              s.tauntRadius = 180
+              s.tauntPull = 80
+              s.tauntDamage = 20
+              s.ability = { name: 'Taunt', cooldown: 30, duration: 0, key: 'warden-taunt' }
+            } }
+        ]
+      },
+      {
+        name: 'Watchful Eye',
+        tiers: [
+          { name: 'Sharp Senses', cost: 360,
+            desc: 'The guardian sees Veiled balloons.',
+            apply: function (s) { s.camoDetect = true } },
+          { name: 'Guardian\'s Warning', cost: 680,
+            desc: 'Towers within 90 range of the guardian gain +8% range.',
+            apply: function (s) { s.guardRange = 90; s.guardRangeMul = 1.08 } },
+          { name: 'Patrol Alert', cost: 1500,
+            desc: 'The warning radius grows to 120 and range bonus rises to +15%.',
+            apply: function (s) { s.guardRange = 120; s.guardRangeMul = 1.15 } },
+          { name: 'Perimeter Lock', cost: 5400,
+            desc: 'Towers within 150 range gain +25% range and the guardian moves 40% faster.',
+            apply: function (s) { s.guardRange = 150; s.guardRangeMul = 1.25; s.guardianSpeed *= 1.4 } },
+          { name: 'Pack Alpha', cost: 48000,
+            desc: 'All towers on the map gain +15% range. The guardian\'s strikes deal +8 damage, and it moves at triple speed. Guardian grants camo detection to all towers within 150 range.',
+            apply: function (s) {
+              s.guardRange = 9999
+              s.guardRangeMul = 1.15
+              s.guardianSpeed *= 3
+              s.damage += 8
+              s.globalCamoAura = true
+            } }
+        ]
+      },
+      {
+        name: 'Ironbound',
+        tiers: [
+          { name: 'Thick Hide', cost: 420,
+            desc: '+1 damage, for 2. The guardian takes 50% less knockback.',
+            apply: function (s) { s.damage += 1; s.knockbackResist = (s.knockbackResist || 0) + 0.5 } },
+          { name: 'Shoulder Charge', cost: 780,
+            desc: 'Guardian pushes balloons back 15 units on each strike.',
+            apply: function (s) { s.pushback = 15 } },
+          { name: 'Ironbound', cost: 1800,
+            desc: '+3 damage and +2 pierce. Guardian strikes for 6 damage at 4 pierce.',
+            apply: function (s) { s.damage += 3; s.pierce += 2 } },
+          { name: 'Fortified Den', cost: 7200,
+            desc: 'Guardian gains shatter damage and +5 pierce. Balloons that contact the guardian are slowed by 30% for 2 seconds.',
+            apply: function (s) {
+              s.dmgType = D.SHATTER
+              s.pierce += 5
+              s.contactSlow = 0.3
+              s.contactSlowTime = 2
+            } },
+          { name: 'Unbreakable', cost: 58000,
+            desc: '+18 damage, +6 pierce. Guardian becomes invulnerable for 10 seconds after Taunt activation. All balloons that contact the guardian are slowed 50% for 3 seconds and take 10 shatter damage.',
+            apply: function (s) {
+              s.damage += 18
+              s.pierce += 6
+              s.contactSlow = 0.5
+              s.contactSlowTime = 3
+              s.contactDamage = 10
+              s.invulnAfterTaunt = 10
+            } }
+        ]
+      }
+    ],
+
+    buffs: function (sim, tower) {
+      const s = tower.s
+      if (!s.guardRange || !s.guardRangeMul) return
+      OP.Buffs.register(sim, {
+        id: 'warden-guard:' + tower.id,
+        sourceId: tower.id,
+        x: tower.x, y: tower.y,
+        radius: s.guardRange,
+        priority: 0,
+        excludeSelf: true,
+        mods: { rangeMul: s.guardRangeMul }
+      })
+    },
+
+    onPlace: function (sim, tower) {
+      const d = tower.data
+      d.gx = tower.x
+      d.gy = tower.y - 20
+      d.gAngle = 0
+      d.gPatrolT = 0
+      d.strikeCd = 0
+      d.tauntInvuln = 0
+    },
+
+    update: function (sim, tower, dt) {
+      const s = tower.s
+      const d = tower.data
+      if (d.gx === undefined) {
+        d.gx = tower.x; d.gy = tower.y - 20
+        d.gAngle = 0; d.gPatrolT = 0; d.strikeCd = 0; d.tauntInvuln = 0
+      }
+      d.strikeCd = Math.max(0, d.strikeCd - dt)
+      d.tauntInvuln = Math.max(0, d.tauntInvuln - dt)
+
+      // Find the nearest track segment and patrol along it
+      const found = nearestPath(sim, tower.x, tower.y)
+      if (!found) return
+      const track = found.track
+      const arcLen = track.length * s.patrolArc
+      const halfArc = arcLen / 2
+      const centre = found.near.t
+
+      // Advance patrol phase
+      d.gPatrolT += s.guardianSpeed * dt
+      if (d.gPatrolT > arcLen) d.gPatrolT -= arcLen
+
+      // Map patrol phase to track position
+      const tPos = M.clamp(centre - halfArc + d.gPatrolT, 0, track.length)
+      const spot = track.posAt(tPos)
+      d.gx = spot.x
+      d.gy = spot.y
+
+      // Strike nearby balloons
+      d.strikeCd = Math.max(0, d.strikeCd - 0) // already decremented above
+      if (d.strikeCd > 0) return
+
+      const balloons = sim.balloons
+      for (let i = 0; i < balloons.length; i++) {
+        const b = balloons[i]
+        if (!b.alive) continue
+        if (!s.camoDetect && b.camo) continue
+        const dx = b.x - d.gx; const dy = b.y - d.gy
+        if (Math.sqrt(dx * dx + dy * dy) > s.strikeRange) continue
+
+        d.strikeCd = s.cooldown
+        OP.Projectiles.fireAt(sim, {
+          x: d.gx, y: d.gy,
+          kind: 'warden-claw',
+          damage: s.damage,
+          dmgType: s.dmgType,
+          pierce: s.pierce,
+          radius: s.projRadius,
+          life: s.projLife,
+          maxRange: s.guardianRange,
+          ownerId: tower.id,
+          camoDetect: s.camoDetect,
+          behaviour: s.pushback ? 'magic-shove' : '',
+          data: s.pushback ? { shove: s.pushback } : null
+        }, Math.atan2(dy, dx), s.projSpeed)
+
+        // Contact effects
+        if (s.contactSlow) {
+          OP.Effects.apply(b, OP.Effects.make('chill', s.contactSlowTime, s.contactSlow, tower.id, D.COLD))
+        }
+        if (s.contactDamage) {
+          OP.Damage.hit(sim, b, {
+            damage: s.contactDamage,
+            dmgType: D.SHATTER,
+            sourceId: tower.id
+          })
+        }
+        break
+      }
+    }
+  })
+
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

@@ -23,10 +23,10 @@ import { ROOT } from '../loadgame.mjs'
 export const name = 'towers-support'
 export const needs = ['js/towers/support.js']
 
-const KEYS = ['berry-warren', 'caltrop-beetle', 'warren-hall', 'tinker-shrew', 'falconer-ferret']
+const KEYS = ['berry-warren', 'caltrop-beetle', 'warren-hall', 'tinker-shrew', 'falconer-ferret', 'honey-badger', 'warden-badger']
 
 export function run (t, OP, env) {
-  assertFamily(t, OP, 'support', { expect: 5 })
+  assertFamily(t, OP, 'support', { expect: 7 })
 
   const M = OP.M
   const D = OP.DMG
@@ -83,7 +83,7 @@ export function run (t, OP, env) {
      ======================================================================== */
 
   t.section('support: the family is what it claims to be')
-  t.deep(OP.FAMILY_ROSTERS.support, KEYS, 'the roster is the five declared support towers, in shop order')
+  t.deep(OP.FAMILY_ROSTERS.support, KEYS, 'the roster is the seven declared support towers, in shop order')
   const defs = KEYS.map(k => OP.TOWERS[k])
 
   t.ok(defs[0].income === true, 'berry-warren is flagged income:true so PURIST can ban it')
@@ -95,13 +95,15 @@ export function run (t, OP, env) {
     t.ok(typeof d.update === 'function', d.key + ' is update-driven — support towers do not take a shot slot')
     t.notOk(d.fire, d.key + ' has no fire(), so it never competes for a firing line')
   }
-  for (const kind of ['thorn-patch', 'thorn-pod', 'shrew-bolt', 'falcon-claw', 'falcon-stoop']) {
+  for (const kind of ['thorn-patch', 'thorn-pod', 'shrew-bolt', 'falcon-claw', 'falcon-stoop', 'honey-bee', 'honey-swarm', 'honey-queen']) {
     t.ok(OP.PROJ_KINDS[kind], 'projectile kind "' + kind + '" is declared for the renderer')
   }
-  for (const key of ['berry-collect', 'thorn-seedstorm', 'falcon-stoop']) {
+  for (const key of ['berry-collect', 'thorn-seedstorm', 'falcon-stoop', 'honey-hive-mind', 'honey-ambrosia', 'honey-empress']) {
     t.ok(typeof OP.ABILITIES[key] === 'function', 'ability "' + key + '" is registered by string key')
   }
   t.ok(typeof OP.PROJ_BEHAVIOURS['support-shred'] === 'object', 'the blimp-shred behaviour is registered by string key')
+  t.ok(typeof OP.PROJ_BEHAVIOURS['honey-swarm'] === 'object', 'the honey-swarm behaviour is registered')
+  t.ok(typeof OP.PROJ_BEHAVIOURS['honey-queen'] === 'object', 'the honey-queen behaviour is registered')
 
   t.section('support: nothing borrowed, comments included')
   // The floor greps the definition objects. This greps the whole file, because a
@@ -893,5 +895,98 @@ export function run (t, OP, env) {
 
     while (back.towers.length) OP.Towers.sell(back, back.towers[0])
     t.eq(back.buffs.length, 0, 'selling every support tower leaves no buff behind')
+  }
+
+  /* ========================================================================
+     HONEY BADGER — the swarm caller
+     ======================================================================== */
+
+  t.section('honey-badger: the swarm spawns and hunts')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80)
+    t.ok(badger.s.swarmCount > 0, 'the base tower has a swarm count')
+    stream(s, 'red', 30, 150, 8)
+    OP.Sim.run(s, 600)
+    t.gt(s.stats.popped, 0, 'the swarm pops balloons (' + s.stats.popped + ')')
+    t.gt(s.kindsSeen['honey-bee'] || 0, 0, 'and fires the declared honey-bee projectiles')
+  }
+
+  t.section('honey-badger: honey production buffs nearby towers')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80, [0, 2, 0])
+    const target = build(s, 'caltrop-beetle', 300, 0, -70)
+    OP.Sim.run(s, 180)
+    t.gt(target.s.damage, target.sBase.damage, 'the neighbour gains damage from honey (' + target.sBase.damage + ' -> ' + target.s.damage + ')')
+    t.gt(target.s.pierce, target.sBase.pierce, 'and pierce (' + target.sBase.pierce + ' -> ' + target.s.pierce + ')')
+    t.gt(target.s.buffCount, 0, 'the neighbour sees the honey buff')
+  }
+
+  t.section('honey-badger: the honey does not apply to itself')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80, [0, 1, 0])
+    OP.Sim.run(s, 180)
+    t.eq(badger.s.damage, badger.sBase.damage, 'the badger does not drink its own honey')
+  }
+
+  t.section('honey-badger: Queen Bees spawn and fight')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80, [0, 0, 1])
+    t.gt(badger.s.queenPeriod, 0, 'the base tower has a queen period')
+    stream(s, 'ceramic', 6, 200, 20)
+    OP.Sim.run(s, 300)
+    t.gt(s.kindsSeen['honey-queen'] || 0, 0, 'queen bees are spawned as honey-queen projectiles')
+  }
+
+  t.section('honey-badger: Hive Mind ability redirects all bees')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80, [5, 0, 0])
+    t.ok(badger.s.ability && badger.s.ability.key === 'honey-hive-mind', 'tier 5 attaches Hive Mind')
+    stream(s, 'ceramic', 3, 200, 30)
+    OP.Sim.run(s, 60)
+    OP.Towers.activate(s, badger)
+    t.gt(badger.data.hiveMindT, 0, 'the ability sets a timer in tower.data')
+  }
+
+  t.section('honey-badger: Ambrosia instantly maxes honey on all towers')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80, [0, 5, 0])
+    const t1 = build(s, 'caltrop-beetle', 300, 70, -70)
+    const t2 = build(s, 'caltrop-beetle', 300, -70, -70)
+    t.ok(badger.s.ability && badger.s.ability.key === 'honey-ambrosia', 'tier 5 attaches Ambrosia')
+    OP.Towers.activate(s, badger)
+    t.gte(badger.data.honeyTowers.get(t1.id).stacks, 5, 'tower 1 gets max honey stacks')
+    t.gte(badger.data.honeyTowers.get(t2.id).stacks, 5, 'tower 2 gets max honey stacks')
+  }
+
+  t.section('honey-badger: Empress ability spawns 10 Empress Bees')
+  {
+    const s = sim()
+    const badger = build(s, 'honey-badger', 300, 0, -80, [0, 0, 5])
+    t.ok(badger.s.ability && badger.s.ability.key === 'honey-empress', 'tier 5 attaches Empress')
+    const gid = OP.Balloons.spawn(s, { tier: 'goliath', path: 0, t: 220 }).id
+    OP.Towers.activate(s, badger)
+    t.gt(s.kindsSeen['honey-queen'] || 0, 0, 'the ability spawns honey-queen projectiles')
+    OP.Sim.run(s, 60)
+    t.gt(s.stats.damageDealt, 100, 'and they deal significant damage to the GOLIATH')
+  }
+
+  t.section('honey-badger: snatch never lifts a blimp')
+  {
+    let worst = -1
+    for (const target of OP.Upgrades.legalMaxima()) {
+      const s = sim()
+      const badger = build(s, 'honey-badger', 300, 0, -80, target)
+      if (!badger || badger.tiers.join() !== target.join()) continue
+      if (badger.s.snatch > worst) worst = badger.s.snatch
+    }
+    t.lte(worst, OP.LAST_SIMPLE_TIER,
+      'the highest snatchable tier over every legal build is ' + worst +
+      ', below the blimp class at ' + OP.FIRST_BLIMP_TIER)
   }
 }

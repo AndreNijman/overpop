@@ -49,12 +49,13 @@
   /* ---------- balloon properties (bitmask) ---------- */
 
   OP.PROP = {
-    VEILED: 1,   // untargetable without camoDetect
-    REGEN: 2,    // climbs back a layer periodically
-    PLATED: 4    // double layer HP
+    VEILED: 1,     // untargetable without camoDetect
+    REGEN: 2,      // climbs back a layer periodically
+    PLATED: 4,     // double layer HP
+    FORTIFIED: 8   // double layer HP, 25% slower — the classic fortified variant
   }
 
-  OP.PROP_NAMES = { 1: 'Veiled', 2: 'Regen', 4: 'Plated' }
+  OP.PROP_NAMES = { 1: 'Veiled', 2: 'Regen', 4: 'Plated', 8: 'Fortified' }
 
   OP.REGEN_PERIOD = 3.0   // seconds per layer regained
 

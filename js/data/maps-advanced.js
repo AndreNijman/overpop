@@ -356,6 +356,401 @@
         accent: '#d6bb4e',
         fog: '#0a1412'
       }
+    },
+
+    {
+      key: 'ragged-ridge',
+      name: 'Ragged Ridge',
+      tier: 'advanced',
+      blurb: 'Two lanes climb a jagged ridge with a sheer drop between them — sight lines are broken by the rock face.',
+      trackWidth: 34,
+
+      paths: [
+        { name: 'North Face',
+          smooth: 3,
+          points: [
+            { x: 0, y: 100 }, { x: 140, y: 90 }, { x: 280, y: 130 }, { x: 400, y: 80 },
+            { x: 560, y: 120 }, { x: 700, y: 80 }, { x: 840, y: 130 }, { x: 980, y: 90 },
+            { x: 1120, y: 120 }, { x: 1280, y: 100 }
+          ] },
+        { name: 'South Face',
+          smooth: 3,
+          points: [
+            { x: 0, y: 620 }, { x: 140, y: 630 }, { x: 280, y: 590 }, { x: 400, y: 640 },
+            { x: 560, y: 600 }, { x: 700, y: 640 }, { x: 840, y: 590 }, { x: 980, y: 630 },
+            { x: 1120, y: 600 }, { x: 1280, y: 620 }
+          ] }
+      ],
+
+      water: [
+        { cx: 320, cy: 360, r: 65 },
+        { cx: 960, cy: 360, r: 55 }
+      ],
+
+      blocked: [
+        { x: 0, y: 0, w: 120, h: 100 },
+        { x: 1160, y: 620, w: 120, h: 100 },
+        { x: 580, y: 180, w: 120, h: 100 },
+        { x: 700, y: 440, w: 120, h: 100 }
+      ].concat(RIDGE_WALLS),
+
+      blockers: RIDGE_WALLS,
+
+      removable: [
+        { x: 540, y: 260, r: 30, cost: 280, name: 'Split Boulder', blocksLOS: true },
+        { x: 740, y: 460, r: 28, cost: 260, name: 'Rock Slide', blocksLOS: true },
+        { x: 320, y: 640, r: 26, cost: 200, name: 'Scree Pile' },
+        { x: 960, y: 80, r: 24, cost: 180, name: 'Cairn Stones' }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#334c36',
+        grassAlt: '#3f5e41',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#274f66',
+        rock: '#66655c',
+        accent: '#c9a94a',
+        fog: '#0d1214'
+      }
+    },
+
+    {
+      key: 'widows-cradle',
+      name: "Widow's Cradle",
+      tier: 'advanced',
+      blurb: 'Two lanes swing through a deep ravine like a pendulum — the cradle rocks both ways.',
+      trackWidth: 32,
+
+      paths: [
+        { name: 'Left Swing',
+          smooth: 4,
+          points: [
+            { x: 0, y: 350 }, { x: 160, y: 250 }, { x: 320, y: 180 }, { x: 480, y: 220 },
+            { x: 600, y: 350 }, { x: 720, y: 480 }, { x: 880, y: 540 }, { x: 1040, y: 480 },
+            { x: 1160, y: 350 }, { x: 1280, y: 280 }
+          ] },
+        { name: 'Right Swing',
+          smooth: 4,
+          points: [
+            { x: 0, y: 350 }, { x: 160, y: 450 }, { x: 320, y: 520 }, { x: 480, y: 480 },
+            { x: 600, y: 350 }, { x: 720, y: 220 }, { x: 880, y: 160 }, { x: 1040, y: 220 },
+            { x: 1160, y: 350 }, { x: 1280, y: 420 }
+          ] }
+      ],
+
+      blockers: [
+        { x: 560, y: 310, w: 80, h: 80 }
+      ],
+
+      water: [
+        { cx: 600, cy: 600, r: 60 }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#274f66',
+        rock: '#66655c',
+        accent: '#c9a94a'
+      }
+    },
+
+    {
+      key: 'serpent-spine',
+      name: 'Serpent Spine',
+      tier: 'advanced',
+      blurb: 'A single path winds like a serpent across a narrow ridge — one wrong step and you are off the edge.',
+      trackWidth: 28,
+
+      paths: [{
+        smooth: 5,
+        points: [
+          { x: 0, y: 360 }, { x: 120, y: 280 }, { x: 280, y: 200 }, { x: 440, y: 280 },
+          { x: 560, y: 400 }, { x: 680, y: 480 }, { x: 800, y: 400 }, { x: 920, y: 280 },
+          { x: 1080, y: 200 }, { x: 1200, y: 280 }, { x: 1280, y: 360 }
+        ]
+      }],
+
+      blockers: [
+        { x: 400, y: 340, w: 60, h: 60 },
+        { x: 840, y: 340, w: 60, h: 60 }
+      ],
+
+      removable: [
+        { x: 600, y: 300, r: 26, cost: 300, name: 'Ridge Rock', blocksLOS: true },
+        { x: 720, y: 300, r: 24, cost: 280, name: 'Wind Scoured Stone' }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#1a2f3a',
+        rock: '#66655c',
+        accent: '#c9a94a'
+      }
+    },
+
+    {
+      key: 'ravens-perch',
+      name: "Raven's Perch",
+      tier: 'advanced',
+      blurb: 'Two paths cling to the sides of a towering cliff — the ravens watch from above.',
+      trackWidth: 30,
+
+      paths: [
+        { name: 'North Ridge',
+          smooth: 4,
+          points: [
+            { x: 0, y: 200 }, { x: 160, y: 180 }, { x: 320, y: 200 }, { x: 480, y: 240 },
+            { x: 640, y: 200 }, { x: 800, y: 160 }, { x: 960, y: 200 }, { x: 1120, y: 240 },
+            { x: 1280, y: 200 }
+          ] },
+        { name: 'South Ridge',
+          smooth: 4,
+          points: [
+            { x: 0, y: 520 }, { x: 160, y: 540 }, { x: 320, y: 520 }, { x: 480, y: 480 },
+            { x: 640, y: 520 }, { x: 800, y: 560 }, { x: 960, y: 520 }, { x: 1120, y: 480 },
+            { x: 1280, y: 520 }
+          ] }
+      ],
+
+      blockers: [
+        { x: 580, y: 340, w: 120, h: 40 }
+      ],
+
+      removable: [
+        { x: 640, y: 360, r: 28, cost: 320, name: 'Cliff Edge', blocksLOS: true },
+        { x: 400, y: 360, r: 24, cost: 280, name: 'Loose Rock' }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#1a2f3a',
+        rock: '#66655c',
+        accent: '#c9a94a'
+      }
+    },
+
+    {
+      key: 'scar-cliff',
+      name: 'Scar Cliff',
+      tier: 'advanced',
+      blurb: 'Two paths carved into a cliff face — a pillar of rock divides them and blocks sightlines.',
+      trackWidth: 30,
+
+      paths: [
+        {
+          name: 'Upper Ledge',
+          smooth: 3,
+          points: [
+            { x: 0, y: 180 }, { x: 200, y: 200 }, { x: 400, y: 180 }, { x: 600, y: 200 },
+            { x: 800, y: 180 }, { x: 1000, y: 200 }, { x: 1280, y: 180 }
+          ]
+        },
+        {
+          name: 'Lower Gorge',
+          smooth: 3,
+          points: [
+            { x: 0, y: 520 }, { x: 200, y: 540 }, { x: 400, y: 520 }, { x: 600, y: 540 },
+            { x: 800, y: 520 }, { x: 1000, y: 540 }, { x: 1280, y: 520 }
+          ]
+        }
+      ],
+
+      water: [{ cx: 640, cy: 360, r: 50 }],
+
+      blockers: [
+        { x: 580, y: 320, w: 120, h: 80 }
+      ],
+
+      removable: [
+        { x: 300, y: 360, r: 25, cost: 300, name: 'Fallen Pillar', blocksLOS: true },
+        { x: 900, y: 360, r: 22, cost: 260, name: 'Loose Scree' }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#1a2f3a',
+        rock: '#66655c',
+        accent: '#b0a050'
+      }
+    },
+
+    {
+      key: 'fen-crossing',
+      name: 'Fen Crossing',
+      tier: 'advanced',
+      blurb: 'Two paths wind through a marshy fen, crossing once over a narrow wooden bridge.',
+      trackWidth: 30,
+
+      paths: [
+        {
+          name: 'North Path',
+          smooth: 3,
+          points: [
+            { x: 0, y: 200 }, { x: 250, y: 240 }, { x: 500, y: 340 }, { x: 700, y: 400 },
+            { x: 900, y: 340 }, { x: 1100, y: 240 }, { x: 1280, y: 200 }
+          ]
+        },
+        {
+          name: 'South Path',
+          smooth: 3,
+          points: [
+            { x: 0, y: 520 }, { x: 250, y: 480 }, { x: 500, y: 380 }, { x: 700, y: 320 },
+            { x: 900, y: 380 }, { x: 1100, y: 480 }, { x: 1280, y: 520 }
+          ]
+        }
+      ],
+
+      water: [
+        { cx: 200, cy: 600, r: 50 },
+        { cx: 1080, cy: 120, r: 45 }
+      ],
+
+      blockers: [
+        { x: 620, y: 340, w: 60, h: 40 }
+      ],
+
+      removable: [
+        { x: 400, y: 360, r: 22, cost: 280, name: 'Rotted Log' },
+        { x: 880, y: 360, r: 22, cost: 280, name: 'Tussock Mound' }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#1a2f3a',
+        rock: '#66655c',
+        accent: '#80b060'
+      }
+    },
+
+    {
+      key: 'cragspire',
+      name: 'Cragspire',
+      tier: 'advanced',
+      blurb: 'Three rocky ledges stacked vertically — each one a separate defence problem.',
+      trackWidth: 30,
+
+      paths: [
+        {
+          name: 'Top Ledge',
+          smooth: 3,
+          points: [
+            { x: 0, y: 120 }, { x: 250, y: 140 }, { x: 500, y: 120 }, { x: 750, y: 140 },
+            { x: 1000, y: 120 }, { x: 1280, y: 140 }
+          ]
+        },
+        {
+          name: 'Middle Ledge',
+          smooth: 3,
+          points: [
+            { x: 1280, y: 340 }, { x: 1000, y: 360 }, { x: 750, y: 340 }, { x: 500, y: 360 },
+            { x: 250, y: 340 }, { x: 0, y: 360 }
+          ]
+        },
+        {
+          name: 'Bottom Ledge',
+          smooth: 3,
+          points: [
+            { x: 0, y: 560 }, { x: 250, y: 580 }, { x: 500, y: 560 }, { x: 750, y: 580 },
+            { x: 1000, y: 560 }, { x: 1280, y: 580 }
+          ]
+        }
+      ],
+
+      water: [{ cx: 640, cy: 240, r: 40 }, { cx: 640, cy: 460, r: 40 }],
+
+      blockers: [
+        { x: 400, y: 220, w: 80, h: 30 },
+        { x: 800, y: 440, w: 80, h: 30 }
+      ],
+
+      removable: [
+        { x: 200, y: 240, r: 22, cost: 300, name: 'Boulder', blocksLOS: true },
+        { x: 1000, y: 460, r: 22, cost: 300, name: 'Rock Outcrop', blocksLOS: true },
+        { x: 640, y: 240, r: 18, cost: 200, name: 'Loose Gravel' }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#1a2f3a',
+        rock: '#66655c',
+        accent: '#d0a848'
+      }
+    },
+
+    {
+      key: 'windrift-pass',
+      name: 'Windrift Pass',
+      tier: 'advanced',
+      blurb: 'Two paths threading through wind-carved stone arches — clear the arches to open sightlines.',
+      trackWidth: 30,
+
+      paths: [
+        {
+          name: 'West Approach',
+          smooth: 3,
+          points: [
+            { x: 0, y: 280 }, { x: 200, y: 260 }, { x: 400, y: 300 }, { x: 640, y: 360 },
+            { x: 880, y: 300 }, { x: 1080, y: 260 }, { x: 1280, y: 280 }
+          ]
+        },
+        {
+          name: 'East Approach',
+          smooth: 3,
+          points: [
+            { x: 0, y: 440 }, { x: 200, y: 460 }, { x: 400, y: 420 }, { x: 640, y: 360 },
+            { x: 880, y: 420 }, { x: 1080, y: 460 }, { x: 1280, y: 440 }
+          ]
+        }
+      ],
+
+      water: [{ cx: 300, cy: 150, r: 40 }, { cx: 980, cy: 570, r: 40 }],
+
+      blockers: [
+        { x: 320, y: 340, w: 50, h: 40 },
+        { x: 910, y: 340, w: 50, h: 40 }
+      ],
+
+      removable: [
+        { x: 640, y: 200, r: 22, cost: 280, name: 'Stone Arch', blocksLOS: true },
+        { x: 640, y: 520, r: 22, cost: 280, name: 'Wind Sculpture', blocksLOS: true }
+      ],
+
+      palette: {
+        base: '#0d1214',
+        grass: '#2e4430',
+        grassAlt: '#3a5538',
+        path: '#6a5b46',
+        pathEdge: '#453a28',
+        water: '#1a2f3a',
+        rock: '#66655c',
+        accent: '#c8b048'
+      }
     }
   ]
 

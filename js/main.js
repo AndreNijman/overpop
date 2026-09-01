@@ -98,6 +98,7 @@
     if (OP.HUD && OP.HUD.install) OP.HUD.install(App)
     if (OP.Shop && OP.Shop.install) OP.Shop.install(App)
     if (OP.TowerPanel && OP.TowerPanel.install) OP.TowerPanel.install(App)
+    if (OP.KnowledgeScreen && OP.KnowledgeScreen.install) OP.KnowledgeScreen.install(App)
     if (OP.Bestiary && OP.Bestiary.install) OP.Bestiary.install(App)
     if (OP.Results && OP.Results.install) OP.Results.install(App)
 
@@ -259,6 +260,13 @@
     const map = buildMapFor(def, mode)
     const modeDef = OP.MODES && OP.MODES[mode]
 
+    const runRules = Object.assign({}, opts.rules || {})
+    if (runRules.allowedTowerKeys === undefined) {
+      runRules.allowedTowerKeys = opts.unlockAllTowers
+        ? null
+        : (OP.Save && OP.Save.availableTowerKeys ? OP.Save.availableTowerKeys(S.profile) : null)
+    }
+
     S.mapKey = mapKey
     S.difficulty = difficulty || 'medium'
     S.mode = mode || 'standard'
@@ -268,8 +276,16 @@
       difficulty: S.difficulty,
       mode: S.mode,
       roundSetKey: (modeDef && modeDef.roundSetKey) || 'standard',
-      autostart: !!(S.profile && S.profile.settings && S.profile.settings.autostart)
+      autostart: !!(S.profile && S.profile.settings && S.profile.settings.autostart),
+      knowledge: S.profile && S.profile.knowledge ? S.profile.knowledge.slice() : [],
+      powers: S.profile && S.profile.powers ? Object.assign({}, S.profile.powers) : {},
+      rules: runRules
     })
+    // Rush Trial forces autostart regardless of player settings
+    if (OP.Race && OP.Race.applyForcedAutostart) OP.Race.applyForcedAutostart(S.sim)
+    // Apply expedition carry-over state
+    if (opts.expeditionCash != null) S.sim.cash = opts.expeditionCash
+    if (opts.expeditionLives != null) S.sim.lives = opts.expeditionLives
     S.screen = 'game'
     OP.FX.reset()
     OP.FX.view = S.view
@@ -318,22 +334,121 @@
     if (OP.Audio) OP.Audio.stopMusic()
   }
 
+  /**
+   * Start an expedition from the beginning.
+   */
+  App.startExpedition = function (expeditionKey) {
+    const S = App.state
+    if (!S.profile || !OP.Expedition) return null
+    var def = OP.Expeditions && OP.Expeditions.get(expeditionKey)
+    if (!def) return null
+    var startCash = 650
+    var startLives = 20
+    OP.Expedition.start(S.profile, expeditionKey, startCash, startLives)
+    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    var mapKey = def.maps[0].key
+    return App.startGame(mapKey, def.difficulty, def.mode, {
+      expeditionCash: startCash,
+      expeditionLives: startLives
+    })
+  }
+
+  /**
+   * Advance to the next map in the current expedition.
+   */
+  App.advanceExpedition = function () {
+    const S = App.state
+    if (!S.profile || !OP.Expedition || !OP.Expedition.isActive(S.profile)) return null
+    var exp = S.profile.expedition
+    var def = OP.Expedition.activeDef(S.profile)
+    if (!def || exp.stageIndex >= def.maps.length) return null
+    var mapKey = def.maps[exp.stageIndex].key
+    var result = App.startGame(mapKey, def.difficulty, def.mode, {
+      expeditionCash: exp.cash,
+      expeditionLives: exp.lives
+    })
+    S.expeditionResult = null
+    return result
+  }
+
+  /**
+   * Abandon the current expedition.
+   */
+  App.abandonExpedition = function () {
+    const S = App.state
+    if (!S.profile || !OP.Expedition) return
+    OP.Expedition.abandon(S.profile)
+    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    S.expeditionResult = null
+  }
+
+  /**
+   * Start a trial challenge.
+   */
+  App.startTrial = function (trialKey) {
+    const S = App.state
+    if (!S.profile || !OP.Trial || !OP.Trials) return null
+    var def = OP.Trials.get(trialKey)
+    if (!def) return null
+    OP.Trial.start(S.profile, trialKey)
+    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    return App.startGame(def.mapKey, def.difficulty, def.mode, {
+      rules: def.rules || {}
+    })
+  }
+
   function onGameOver () {
     const S = App.state
     S.screen = 'results'
     if (OP.Save && OP.Save.clearRun) OP.Save.clearRun()
     if (OP.Save && OP.Save.recordResult && S.profile) {
-      OP.Save.recordResult(S.profile, {
+      var levelBefore = OP.Save.playerLevel ? OP.Save.playerLevel(S.profile) : 1
+      var xpBefore = S.profile.playerXp || 0
+      var savedResult = {
         mapKey: S.mapKey,
         difficulty: S.difficulty,
         mode: S.mode,
         won: S.sim.outcome === 'won',
         round: S.sim.roundIndex,
+        roundsCleared: S.sim.stats.roundsCleared,
         pops: S.sim.stats.popped,
-        cash: S.sim.stats.cashEarned
-      })
-      if (OP.Save.save) OP.Save.save(S.profile)
+        cash: S.sim.stats.cashEarned,
+        powers: S.sim.powers
+      }
+      OP.Save.recordResult(S.profile, savedResult)
+      S.progressionResult = {
+        xpEarned: Math.max(0, (S.profile.playerXp || 0) - xpBefore),
+        levelBefore: levelBefore,
+        level: OP.Save.playerLevel ? OP.Save.playerLevel(S.profile) : levelBefore
+      }
     }
+    // Record daily challenge result if one is active
+    if (OP.DailyCore && OP.DailyCore.active() && S.profile) {
+      var dailyResult = OP.DailyCore.resultFromSim(S.sim, S.sim.outcome === 'won')
+      OP.DailyCore.record(S.profile, OP.DailyCore.active().dateKey, dailyResult)
+      OP.DailyCore.updateStreak(S.profile)
+      OP.DailyCore.complete()
+    }
+    // Record race result if Rush Trial
+    if (OP.Race && OP.Race.isActive && OP.Race.isActive(S.sim) && S.profile) {
+      var raceResult = OP.Race.resultFromSim(S.sim, S.sim.outcome === 'won')
+      OP.Race.record(S.profile, S.mapKey, S.difficulty, raceResult)
+    }
+    // Handle expedition map transition
+    if (OP.Expedition && OP.Expedition.isActive(S.profile) && S.sim.outcome === 'won') {
+      OP.Expedition.extractState(S.profile, S.sim)
+      var expResult = OP.Expedition.recordGameOver(S.profile, true)
+      S.expeditionResult = expResult
+    } else if (OP.Expedition && OP.Expedition.isActive(S.profile)) {
+      // Lost during expedition — abandon it
+      OP.Expedition.abandon(S.profile)
+    }
+    // Handle trial completion
+    if (OP.Trial && OP.Trial.isActive(S.profile)) {
+      var trialResult = OP.Trial.recordGameOver(S.profile, S.sim.outcome === 'won', S.sim.roundIndex)
+      S.trialResult = trialResult
+    }
+    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     if (OP.Audio) OP.Audio.stopMusic()
   }
 
@@ -512,7 +627,7 @@
     const S = App.state
     const mapKey = S.mapKey || firstMapKey()
     if (!mapKey) return { ok: false, why: 'no maps registered' }
-    const sim = App.startGame(mapKey, 'easy', 'standard', { seed: 'smoke' })
+    const sim = App.startGame(mapKey, 'easy', 'standard', { seed: 'smoke', unlockAllTowers: true })
     if (!sim) return { ok: false, why: 'startGame failed' }
     sim.cash = 999999
 

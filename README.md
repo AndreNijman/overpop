@@ -16,12 +16,12 @@ open it in Chrome and choose *Add to Home screen* to install it as an app.
 
 ## What's in it
 
-- **25 towers** across four families — Primary, Military, Magic, Support — each
-  with a **three-branch, five-tier upgrade tree** (375 upgrades total) and real
+- **31 towers** across four families — Primary, Military, Magic, Support — each
+  with a **three-branch, five-tier upgrade tree** (465 upgrades total) and real
   crosspath rules: at most one branch past tier 2, at most two branches touched.
-- **Paragon tier** for six of the twenty-five towers: sacrifice your investment in
+- **Paragon tier** for sixteen of the thirty-one towers: sacrifice your investment in
   a tower type to fuse a single degree-scaled tier-6 version of it, where the
-  degree (1–100) comes from the cash, upgrade tiers and pops you gave up. The six,
+  degree (1–100) comes from the cash, upgrade tiers and pops you gave up. The sixteen,
   and nothing else, are:
   - `acorn-fox` → **Stonecrown Vulpine** — a wide fan of ricocheting stone acorns
   - `frost-hare` → **Rimecrown Hare** — freezes and holds a whole track corner
@@ -29,20 +29,52 @@ open it in Chrome and choose *Add to Home screen* to install it as an app.
   - `howitzer-mole` → **Bastion Mole** — a scattered salvo on its own aim point
   - `elder-owl` → **Eclipse Owl** — a closed ring of detonating bolts
   - `berry-warren` → **Thornhold Warren** — pays out a fortune, and finally fights
-- **8 heroes**, one per game, levelling to 20 off pops and round survival, each
+  - `rune-weasel` → **Echo Crown Weasel** — chain-lightning runes that bounce between balloons
+  - `honey-badger` → **Swarmspire Warren** — an endless cloud of bees with a board-wide buff aura
+  - `boomer-badger` → **Ricochet Crown** — ricocheting boomerangs that grow stronger with each hit
+  - `shadow-marten` → **Shadow Crown** — void bolts that ignore all immunities
+  - `cannon-boar` → **Siege Crown** — volcanic cannonballs that chain and burn the whole track
+  - `diver-otter` → **Tidal Crown** — water vortexes that pull balloons inward to their doom
+  - `thistle-hedgehog` → **Thornspire Crown** — bouncing thorns that cover the entire track
+  - `gatling-raccoon` → **Rotavolt Crown** — an unrelenting stream of suppression fire
+  - `brewer-toad` → **Brewing Crown** — potion clouds that blanket the track
+  - `tinker-shrew` → **Gearspun Crown** — mechanical mastery that empowers every tower
+- **20 heroes**, one per game, levelling to 20 off pops and round survival, each
   with a distinct mechanical identity rather than a stat curve.
 - **100 rounds** of balloons and blimps plus **endless freeplay** beyond, with a
   second **Alternate Waves** round set.
-- **16 maps** from beginner to expert — multi-path tracks, water placement,
+- **48 maps** from beginner to expert — multi-path tracks, water placement,
   line-of-sight blockers and removable obstacles.
 - **Damage types and immunities that actually matter**: lead shrugs off sharp,
   black ignores explosions, white ignores cold, zebra ignores both, purple ignores
   fire/plasma/energy. Plus **VEILED** (needs detection), **REGEN** (climbs back)
   and **PLATED** (double layer HP).
-- **4 difficulties** — Easy, Medium, Hard, Relentless — and **11 game modes**:
+- **4 difficulties** — Easy, Medium, Hard, Relentless — and **17 game modes**:
   Standard, Primary Only, Military Only, Magic Only, Deflation, Onslaught,
-  Half Cash, Double HP Blimps, Alternate Waves, Reverse, and **PURIST** (no
-  continues, no income, no selling, one life).
+  Half Cash, Double HP Blimps, Alternate Waves, Reverse, **PURIST** (no
+  continues, no income, no selling, one life), **GRIM** (no abilities, no
+  selling, no income, one life — the definitive challenge),
+  **RAMPART** (one life, expensive towers, no continues), two escalating
+  **Boss Events**, local hot-seat **Tag Team** play, and **Rush Trial**
+  (speed challenge with forced autostart and a clear-time scoreboard).
+- **Three original bosses** with five normal and elite tiers, direct targeting,
+  summoned minions, active mechanics and persistent health bars.
+- **Expeditions** — multi-map campaigns with shared lives, cash and a completion
+  bonus. Five routes from beginner-friendly to half-cash gauntlet, each chaining
+  three maps into a single run that saves mid-way.
+- **Trials** — eight hand-crafted challenge scenarios with specific constraints:
+  restricted tower families, forced selling bans, one-life runs, or a boss at
+  round 30. Each trial has a clear win condition and unique starting rules.
+- **Daily Challenges** — a date-seeded map, difficulty, mode and zero-to-two
+  modifiers (bonus cash, reduced lives, speed burst, limited families, tough
+  blimps) that every player faces identically. Same date, same challenge.
+- **Bestiary** — an in-game reference with three tabs: every balloon tier and its
+  immunities, the full damage-type matrix, and every tower with stats and upgrade
+  trees. Nothing is authored twice; it reads straight from the sim tables.
+- **Critter Wisdom**, a 26-node persistent progression tree across five branches,
+  plus 15 achievements that award knowledge points.
+- **Four persistent consumable powers** earned from wins and activated from the
+  in-game HUD. PURIST and GRIM explicitly disable them.
 - **Activated abilities** on tier-4 and tier-5 upgrades, on real cooldowns.
 - Targeting priorities per tower, 1×/2×/3× speed, mid-round **save and resume**.
 - **PWA**: installable, fully offline, progress saved locally.
@@ -52,13 +84,9 @@ open it in Chrome and choose *Add to Home screen* to install it as an app.
 
 Stated plainly, because "full-featured clone" usually hides a list like this:
 
-- **No co-op multiplayer.** It's a single-player game.
-- **No persistent meta-progression tree.** No account-wide power creep that makes
-  early rounds trivial for veterans — balance is per-run.
+- **No online multiplayer or matchmaking.** Tag Team is local hot-seat play.
 - **No gacha / collection / insta-tower economy.**
-- **No boss events, odysseys, races, or contested territory.**
-- **Consumable powers are absent by design**, which is also what makes the PURIST
-  mode an honest measure of a build.
+- **No contested territory.**
 
 ## How to run it
 

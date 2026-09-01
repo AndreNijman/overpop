@@ -1,15 +1,15 @@
 ;(function (OP) {
   'use strict'
 
-  /* MILITARY — reach and utility rather than raw local damage.
-   *
-   * The family thesis: where you put a Primary tower decides most of what it is
-   * worth, and these deliberately weaken that link. The Longshot Lynx does not
-   * care where it sits, the Diver Otter and the Corsair Beaver take water that
-   * nothing else can use, the Biplane Magpie and the Rotor Kestrel do not sit
-   * still at all, and the Howitzer Mole shoots at a point the player picks
-   * instead of at a balloon. You pay for that in cash and in single-target
-   * damage.
+/* MILITARY — reach and utility rather than raw local damage.
+ *
+ * The family thesis: where you put a Primary tower decides most of what it is
+ * worth, and these deliberately weaken that link. The Longshot Lynx does not
+ * care where it sits, the Diver Otter and the Corsair Beaver take water that
+ * nothing else can use, the Biplane Magpie and the Rotor Kestrel do not sit
+ * still at all, the Howitzer Mole shoots at a point the player picks
+ * instead of at a balloon, the Gatling Raccoon spins up, and the Brood Mother
+ * Moth seeds the track with eggs that hatch into temporary hunters.
    *
    * Conventions this file follows (ARCHITECTURE.md §6):
    *   - every stat an upgrade touches exists in `base` with a default, so
@@ -148,6 +148,18 @@
     return n === 1 ? 0 : spread * (i / (n - 1) - 0.5)
   }
 
+  /** The path this tower sits closest to, plus the nearest point on it. */
+  function nearestPath (sim, x, y) {
+    const paths = sim.map.paths
+    let bestTrack = null
+    let best = null
+    for (let i = 0; i < paths.length; i++) {
+      const near = paths[i].nearest(x, y)
+      if (!best || near.dist < best.dist) { best = near; bestTrack = paths[i] }
+    }
+    return bestTrack ? { track: bestTrack, near: best } : null
+  }
+
   /* ---------- projectile art kinds ---------- */
 
   OP.declareProjKind('mil-round', { shape: 'dart', tint: '#d8dee8', size: 3, trail: true })
@@ -163,6 +175,11 @@
   OP.declareProjKind('mil-wash', { shape: 'ring', tint: '#bcd8e8', size: 8 })
   OP.declareProjKind('mil-plasma', { shape: 'orb', tint: '#b678e8', size: 4, trail: true })
   OP.declareProjKind('mil-lance', { shape: 'beam', tint: '#7de8c6', size: 7, trail: true })
+
+  // Brood Mother Moth: eggs and hatchlings
+  OP.declareProjKind('moth-egg', { shape: 'blob', tint: '#c8b878', size: 4 })
+  OP.declareProjKind('moth-hatchling', { shape: 'dart', tint: '#e0c870', size: 4, trail: true, spin: true })
+  OP.declareProjKind('moth-swarm', { shape: 'orb', tint: '#f0d860', size: 3, trail: true })
 
   /* ---------- projectile behaviours ---------- */
 
@@ -400,7 +417,8 @@
     'biplane-magpie',
     'rotor-kestrel',
     'howitzer-mole',
-    'gatling-raccoon'
+    'gatling-raccoon',
+    'brood-mother-moth'
   ]
 
   /* ============================================================ 1. LONGSHOT LYNX
@@ -1566,4 +1584,312 @@
       }
     }
   })
+
+  /* ---------- Brood Mother Moth: egg hatch behaviour ---------- */
+
+  OP.PROJ_BEHAVIOURS['moth-egg-hatch'] = {
+    onHit: function (sim, p, balloon, res) {
+      const d = p.data
+      if (!d || !d.hatched) return
+      d.hatched = true
+      // Despawn the egg
+      p.life = 0
+      // Spawn a hatchling that homes toward the balloon
+      OP.Projectiles.spawn(sim, {
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        kind: d.hatchlingKind || 'moth-hatchling',
+        damage: d.hatchDamage,
+        dmgType: d.hatchDmgType || D.SHARP,
+        pierce: d.hatchPierce || 1,
+        radius: 3,
+        life: d.hatchLife || 3,
+        ownerId: p.ownerId,
+        camoDetect: d.hatchCamo || false,
+        homing: 10, turnRate: 10, targetId: balloon.id
+      })
+      const hatch = sim.projectiles[sim.projectiles.length - 1]
+      if (hatch) {
+        const a = M.angleTo(p.x, p.y, balloon.x, balloon.y)
+        hatch.vx = Math.cos(a) * 300
+        hatch.vy = Math.sin(a) * 300
+      }
+    }
+  }
+
+  /* ============================================================================
+     7. BROOD MOTHER MOTH — seeds the track with eggs that hatch on contact.
+
+     Eggs are stationary projectiles (like Caltrop Beetle thorns) sitting on the
+     track. When a balloon passes over, the egg hatches into a temporary homing
+     projectile that chases and damages. Same serialisation story as thorn-patches.
+     ========================================================================== */
+
+  OP.defineTower({
+    key: 'brood-mother-moth',
+    name: 'Brood Mother Moth',
+    family: 'military',
+    blurb: 'Quietly lays eggs along the track. They do not stay quiet for long.',
+
+    cost: 800,
+    footprint: 13,
+    placement: 'land',
+    unlockRound: 0,
+
+    base: {
+      range: 100,
+      cooldown: 3.0,
+      damage: 0,
+      pierce: 1,
+      dmgType: D.SHARP,
+      projSpeed: 0,
+      projLife: 30,
+      projRadius: 4,
+      camoDetect: false,
+      targetModes: ['first', 'last', 'close', 'strong'],
+
+      maxEggs: 8,
+      hatchDamage: 2,
+      hatchPierce: 1,
+      hatchLife: 3,
+      hatchCamo: true,
+      hatchDmgType: D.SHARP,
+      trapSpread: 60
+    },
+
+    paths: [
+      {
+        name: 'Clutch',
+        tiers: [
+          { name: 'More Eggs', cost: 420,
+            desc: '+3 max eggs.',
+            apply: function (s) { s.maxEggs += 3 } },
+          { name: 'Quick Hatch', cost: 810,
+            desc: 'Eggs hatch 30% faster and hatchlings deal +1 damage.',
+            apply: function (s) { s.cooldown *= 0.7; s.hatchDamage += 1 } },
+          { name: 'Sharp Shell', cost: 1800,
+            desc: 'Hatchlings deal +2 damage (for 5) and have +1 pierce.',
+            apply: function (s) { s.hatchDamage += 2; s.hatchPierce += 1 } },
+          { name: 'Shatter Shell', cost: 7200,
+            desc: 'Hatchlings deal shatter damage — Lead and armour crack open. +3 damage.',
+            apply: function (s) { s.hatchDmgType = D.SHATTER; s.hatchDamage += 3 } },
+          { name: 'Brood Queen', cost: 58000,
+            desc: '+8 hatch damage, +2 pierce, +5 max eggs. Adds Queen Emergence: every 25 seconds, all eggs on the track hatch simultaneously and each spawns 3 hatchlings instead of 1.',
+            apply: function (s) {
+              s.hatchDamage += 8
+              s.hatchPierce += 2
+              s.maxEggs += 5
+              s.ability = { name: 'Queen Emergence', cooldown: 25, duration: 0, key: 'moth-queen-emerge' }
+            } }
+        ]
+      },
+      {
+        name: 'Brood Mother',
+        tiers: [
+          { name: 'Keen Eyes', cost: 400,
+            desc: 'Hatchlings see Veiled balloons and the tower gains camo detection.',
+            apply: function (s) { s.hatchCamo = true; s.camoDetect = true } },
+          { name: 'Toxic Spit', cost: 780,
+            desc: 'Hatchlings apply a 30% slow for 2 seconds on hit.',
+            apply: function (s) { s.hatchSlow = 0.3; s.hatchSlowT = 2 } },
+          { name: 'Fire Eggs', cost: 1700,
+            desc: 'Hatchlings deal fire damage and apply burn: 4 DPS for 3 seconds.',
+            apply: function (s) { s.hatchDmgType = D.FIRE; s.hatchBurnDps = 4; s.hatchBurnT = 3 } },
+          { name: 'Split Brood', cost: 6800,
+            desc: 'When a hatchling expires, it spawns 1 smaller hatchling (50% damage).',
+            apply: function (s) { s.hatchSplit = 1 } },
+          { name: 'Infinite Swarm', cost: 54000,
+            desc: '+10 hatch damage, +3 pierce. Hatchlings chain to 2 nearby balloons on hit. Eggs last 50% longer and hatchlings live 4 seconds.',
+            apply: function (s) {
+              s.hatchDamage += 10
+              s.hatchPierce += 3
+              s.hatchChain = 2
+              s.projLife *= 1.5
+              s.hatchLife = 4
+            } }
+        ]
+      },
+      {
+        name: 'Nest Architecture',
+        tiers: [
+          { name: 'Woven Nest', cost: 440,
+            desc: 'Eggs last 50% longer before expiring.',
+            apply: function (s) { s.projLife *= 1.5 } },
+          { name: 'Deep Roots', cost: 860,
+            desc: '+3 max eggs.',
+            apply: function (s) { s.maxEggs += 3 } },
+          { name: 'Armored Shell', cost: 1900,
+            desc: 'Eggs gain 2 pierce — each can hatch 2 balloons.',
+            apply: function (s) { s.pierce += 2 } },
+          { name: 'Autonomous Nest', cost: 7600,
+            desc: 'Eggs that have not hatched after 10 seconds launch a single homing hatchling at the nearest balloon.',
+            apply: function (s) { s.autoHatch = true; s.autoHatchTime = 10 } },
+          { name: 'Colony Fortress', cost: 60000,
+            desc: '+8 max eggs, eggs last twice as long, and autonomous nests launch every 5 seconds. Adds Swarm Burst: every 30 seconds, 15 homing hatchlings emerge from the tower and seek the nearest balloons.',
+            apply: function (s) {
+              s.maxEggs += 8
+              s.projLife *= 2
+              s.autoHatchTime = 5
+              s.ability = { name: 'Swarm Burst', cooldown: 30, duration: 0, key: 'moth-swarm-burst' }
+            } }
+        ]
+      }
+    ],
+
+    onPlace: function (sim, tower) {
+      const d = tower.data
+      d.eggCd = 0
+      d.k = 0
+    },
+
+    update: function (sim, tower, dt) {
+      const s = tower.s
+      const d = tower.data
+      d.eggCd = Math.max(0, (d.eggCd || 0) - dt)
+
+      // Autonomous hatch for old eggs
+      if (s.autoHatch) {
+        const list = sim.projectiles
+        for (let i = 0; i < list.length; i++) {
+          const p = list[i]
+          if (!p.alive || p.ownerId !== tower.id || p.kind !== 'moth-egg') continue
+          const eggData = p.data
+          if (!eggData || eggData.autoFired) continue
+          if (p.age < (s.autoHatchTime || 10)) continue
+          eggData.autoFired = true
+          // Find nearest balloon and spawn a hatchling
+          let best = null; let bestDist = s.range
+          for (let j = 0; j < sim.balloons.length; j++) {
+            const b = sim.balloons[j]
+            if (!b.alive) continue
+            const dx = b.x - p.x; const dy = b.y - p.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            if (dist < bestDist) { bestDist = dist; best = b }
+          }
+          if (best) {
+            OP.Projectiles.spawn(sim, {
+              x: p.x, y: p.y, vx: 0, vy: 0,
+              kind: 'moth-hatchling',
+              damage: s.hatchDamage,
+              dmgType: s.hatchDmgType,
+              pierce: s.hatchPierce,
+              radius: 3,
+              life: s.hatchLife,
+              ownerId: tower.id,
+              camoDetect: s.hatchCamo,
+              homing: 10, turnRate: 10, targetId: best.id
+            })
+            const h = sim.projectiles[sim.projectiles.length - 1]
+            if (h) { const a = M.angleTo(p.x, p.y, best.x, best.y); h.vx = Math.cos(a) * 300; h.vy = Math.sin(a) * 300 }
+          }
+        }
+      }
+
+      if (d.eggCd > 0) return
+
+      // Count live eggs
+      let eggCount = 0
+      const projs = sim.projectiles
+      for (let i = 0; i < projs.length; i++) {
+        if (projs[i].alive && projs[i].ownerId === tower.id && projs[i].kind === 'moth-egg') eggCount++
+      }
+      if (eggCount >= s.maxEggs) return
+
+      // Find nearest track and lay an egg
+      const found = nearestPath(sim, tower.x, tower.y)
+      if (!found) return
+      const track = found.track
+      const offset = s.trapSpread * (d.k / Math.max(1, s.maxEggs - 1) - 0.5)
+      d.k = (d.k + 1) % Math.max(1, s.maxEggs)
+      const tPos = M.clamp(found.near.t + offset, 0, track.length)
+      const spot = track.posAt(tPos)
+
+      OP.Projectiles.spawn(sim, {
+        x: spot.x, y: spot.y, vx: 0, vy: 0,
+        kind: 'moth-egg',
+        damage: 0,
+        dmgType: s.hatchDmgType,
+        pierce: s.pierce || 0,
+        radius: s.projRadius,
+        life: s.projLife,
+        ownerId: tower.id,
+        camoDetect: false,
+        behaviour: 'moth-egg-hatch',
+        data: {
+          hatchDamage: s.hatchDamage,
+          hatchPierce: s.hatchPierce,
+          hatchLife: s.hatchLife,
+          hatchCamo: s.hatchCamo,
+          hatchDmgType: s.hatchDmgType,
+          hatchSlow: s.hatchSlow || 0,
+          hatchSlowT: s.hatchSlowT || 0,
+          hatchBurnDps: s.hatchBurnDps || 0,
+          hatchBurnT: s.hatchBurnT || 0,
+          hatchChain: s.hatchChain || 0,
+          hatchSplit: s.hatchSplit || 0,
+          hatchlingKind: 'moth-hatchling',
+          hatched: false
+        }
+      })
+
+      d.eggCd = s.cooldown
+    }
+  })
+
+  OP.ABILITIES['moth-queen-emerge'] = function (sim, tower) {
+    const s = tower.s
+    const list = sim.projectiles
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i]
+      if (!p.alive || p.ownerId !== tower.id || p.kind !== 'moth-egg') continue
+      if (p.data && p.data.hatched) continue
+      // Hatch this egg with triple hatchlings
+      for (let j = 0; j < 3; j++) {
+        OP.Projectiles.spawn(sim, {
+          x: p.x, y: p.y, vx: 0, vy: 0,
+          kind: 'moth-hatchling',
+          damage: s.hatchDamage,
+          dmgType: s.hatchDmgType,
+          pierce: s.hatchPierce,
+          radius: 3,
+          life: s.hatchLife,
+          ownerId: tower.id,
+          camoDetect: s.hatchCamo,
+          homing: 10, turnRate: 10, targetId: -1
+        })
+        const h = sim.projectiles[sim.projectiles.length - 1]
+        if (h) {
+          const angle = (j / 3) * Math.PI * 2 + sim.rng.range(0, 1)
+          h.vx = Math.cos(angle) * 250
+          h.vy = Math.sin(angle) * 250
+        }
+      }
+      p.life = 0
+    }
+  }
+
+  OP.ABILITIES['moth-swarm-burst'] = function (sim, tower) {
+    const s = tower.s
+    for (let i = 0; i < 15; i++) {
+      OP.Projectiles.spawn(sim, {
+        x: tower.x, y: tower.y, vx: 0, vy: 0,
+        kind: 'moth-swarm',
+        damage: Math.max(1, Math.round(s.hatchDamage * 0.5)),
+        dmgType: s.hatchDmgType,
+        pierce: 1,
+        radius: 3,
+        life: 4,
+        ownerId: tower.id,
+        camoDetect: s.hatchCamo,
+        homing: 8, turnRate: 8, targetId: -1
+      })
+      const h = sim.projectiles[sim.projectiles.length - 1]
+      if (h) {
+        const angle = sim.rng.range(0, Math.PI * 2)
+        h.vx = Math.cos(angle) * 200
+        h.vy = Math.sin(angle) * 200
+      }
+    }
+  }
+
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

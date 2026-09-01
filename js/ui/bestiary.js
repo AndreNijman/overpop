@@ -375,7 +375,7 @@
     const famLabel = (OP.FAMILY_LABELS && OP.FAMILY_LABELS[sel.family]) || sel.family || '—'
     marks.push(U.tracked(dx, 232, (sel.name || sel.key).toUpperCase(), { size: 22, colour: C.ink, track: 0.16, weight: '600' }))
     marks.push(U.text(dx, 252, String(famLabel).toUpperCase() + ' · $' + (sel.cost === undefined ? '?' : sel.cost) +
-      ' · ' + (sel.placement || 'land') + (sel.unlockRound ? ' · unlocks round ' + sel.unlockRound : ''),
+      ' · ' + (sel.placement || 'land') + (sel.unlockLevel > 1 ? ' · unlocks level ' + sel.unlockLevel : ''),
       { size: 10, colour: C.moss }))
 
     const blurb = U.wrapText(sel.blurb, 11, dw - 20, 3)

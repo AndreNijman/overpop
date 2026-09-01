@@ -1,7 +1,7 @@
 # How OVERPOP is verified
 
-A hundred rounds, four difficulties, eleven modes, sixteen maps, twenty-five towers
-with three hundred and seventy-five upgrades. Nobody plays that by hand, so the
+A hundred rounds, four difficulties, seventeen modes, forty-eight maps, thirty-one towers
+with four hundred and sixty-five upgrades. Nobody plays that by hand, so the
 claim "it works" has to be backed by something other than a playtest.
 
 This is what backs it, and — more usefully — what each layer is actually capable of
@@ -62,7 +62,7 @@ state, and would diverge on the next roll.
 
 ## 3. Content is graded against a floor it did not write
 
-The 25 towers were authored across four files by four separate agents. The risk is
+The 31 towers were authored across four files. The risk is
 not that one of them writes a bug — it is that each writes its own idea of what
 "correct" means, and its own tests to match.
 

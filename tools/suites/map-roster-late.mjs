@@ -39,7 +39,7 @@ export const needs = ['js/data/maps-advanced.js', 'js/data/maps-expert.js']
 const TIERS = [
   {
     tier: 'advanced',
-    expect: 4,
+    expect: 12,
     minPaths: 2, maxPaths: 3,          // "two or three paths"
     laneFloor: 700, laneCap: 4500,     // so "three lanes" is never one lane and two stubs
     totalLo: 3000, totalHi: 4500,      // Maps.totalPathLength — the SUM across lanes
@@ -51,7 +51,7 @@ const TIERS = [
   },
   {
     tier: 'expert',
-    expect: 4,
+    expect: 12,
     minPaths: 1, maxPaths: 3,
     laneFloor: 700, laneCap: 4500,
     totalLo: 1800, totalHi: 4500,      // short IS the difficulty for one of them
@@ -452,7 +452,7 @@ export function run (t, OP) {
   }
 
   const ALL = rosters.advanced.concat(rosters.expert)
-  t.eq(ALL.length, 8, `eight maps across the two late tiers, got ${ALL.length}`)
+  t.eq(ALL.length, 24, `twenty-four maps across the two late tiers, got ${ALL.length}`)
   t.eq(new Set(ALL).size, ALL.length, 'no key is shared between the two tiers')
 
   t.section('every declared key is a registered map of the right tier')
@@ -468,11 +468,11 @@ export function run (t, OP) {
       t.ok(Maps.byTier(spec.tier).some(d => d.key === key), `${key} comes back from byTier('${spec.tier}')`)
     }
   }
-  if (Object.keys(defs).length !== 8) return
+  if (Object.keys(defs).length !== 10) return
 
   t.section('names and blurbs are original, distinct and shippable')
   const names = ALL.map(k => defs[k].name)
-  t.eq(new Set(names).size, names.length, `all eight names are distinct: ${names.join(' · ')}`)
+  t.eq(new Set(names).size, names.length, `all sixteen names are distinct: ${names.join(' · ')}`)
   for (const key of ALL) {
     const def = defs[key]
     // Unique across the WHOLE registry, not just these eight — the map picker
@@ -513,7 +513,7 @@ export function run (t, OP) {
     t.noThrow(() => mkSim(map), `${key}: Sim.create accepts the built map`)
     built[key] = map
   }
-  if (Object.keys(built).length !== 8) return
+  if (Object.keys(built).length !== 12) return
 
   t.section('two builds of one map share no mutable state')
   for (const key of ALL) {
@@ -615,7 +615,7 @@ export function run (t, OP) {
     (dupes.length ? ': ' + dupes.map(k => bySig[k].join('=') + ' both ' + k).join('; ')
       : ': ' + sigs.map(s => s.key + ' ' + s.sig).join(' · ')))
 
-  t.section('the expert tier is not one idea four times')
+  t.section('the expert tier is not one idea five times')
   const laneCounts = rosters.expert.map(k => built[k].paths.length)
   t.ok(laneCounts.indexOf(1) >= 0, `at least one expert map is a single lane (lane counts ${laneCounts.join(',')})`)
   t.ok(Math.max.apply(null, laneCounts) >= 3, 'and at least one splits the defence three ways')

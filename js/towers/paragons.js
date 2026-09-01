@@ -3,7 +3,7 @@
 
   /* PARAGONS — the tier-6 fusions.
    *
-   * Six of the twenty-five towers have one. Promotion consumes every other tower
+   * Sixteen of the thirty-one towers have one. Promotion consumes every other tower
    * of that type on the board and derives a `degree` (1..100) from the cash,
    * upgrade tiers and pops sacrificed (js/core/paragon.js). README.md lists the
    * six, and tools/suites/paragon-roster.mjs cross-checks that list against this
@@ -76,6 +76,15 @@
   OP.declareProjKind('paragon-eclipse-bolt', { shape: 'orb', tint: '#8f6ce0', size: 7, trail: true, spin: true })
   OP.declareProjKind('paragon-thorn-berry', { shape: 'spike', tint: '#94303f', size: 6, trail: true })
   OP.declareProjKind('paragon-thorn-bramble', { shape: 'blob', tint: '#43602c', size: 9 })
+  OP.declareProjKind('paragon-honey-bee', { shape: 'circle', tint: '#f0d060', size: 4, trail: true })
+  OP.declareProjKind('paragon-boom-crown', { shape: 'dart', tint: '#e8a040', size: 8, trail: true, spin: true })
+  OP.declareProjKind('paragon-shadow-bolt', { shape: 'dart', tint: '#604080', size: 7, trail: true, spin: true })
+  OP.declareProjKind('paragon-cannon-shell', { shape: 'shell', tint: '#d06030', size: 10, trail: true })
+  OP.declareProjKind('paragon-tidal-bolt', { shape: 'orb', tint: '#40a0d0', size: 7, trail: true, spin: true })
+  OP.declareProjKind('paragon-thorn-nova', { shape: 'circle', tint: '#a0c040', size: 1, trail: false })
+  OP.declareProjKind('paragon-brew-deluge', { shape: 'circle', tint: '#60c080', size: 1, trail: false })
+  OP.declareProjKind('paragon-gear-turret', { shape: 'circle', tint: '#c0a040', size: 1, trail: false })
+  OP.declareProjKind('paragon-rotavolt-overdrive', { shape: 'circle', tint: '#e06040', size: 1, trail: false })
 
   /* ---------- shared helpers ----------
      Module scope, never stored on an entity, so nothing here can make the sim
@@ -161,6 +170,45 @@
         p.life += 0.2
         if (p.maxRange > 0) p.maxRange += 70
       }
+    }
+  }
+
+  /* Swarmspire Warren bees. A bee homes in on the nearest balloon, damages it,
+     and then homes in on the next. The bee has a turn rate so it curves rather
+     than snapping, which looks like a swarm and not a teleport. */
+  OP.PROJ_BEHAVIOURS['paragon-bee-hunt'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      p.life = Math.max(p.life, 0.1)
+    },
+    onTick: function (sim, p, dt) {
+      if (!p.data) return
+      const speed = p.data.speed || 300
+      const turnRate = p.data.turnRate || 3.0
+
+      let best = null
+      let bestDist = 200
+      for (const t of sim.balloons) {
+        if (!t.alive) continue
+        const dx = t.x - p.x
+        const dy = t.y - p.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < bestDist) {
+          bestDist = dist
+          best = t
+        }
+      }
+      if (!best) return
+
+      const targetAngle = Math.atan2(best.y - p.y, best.x - p.x)
+      const currentAngle = Math.atan2(p.vy, p.vx)
+      let diff = targetAngle - currentAngle
+      while (diff > Math.PI) diff -= Math.TAU
+      while (diff < -Math.PI) diff += Math.TAU
+      const clamp = Math.min(Math.abs(diff), turnRate * dt)
+      const newAngle = currentAngle + Math.sign(diff) * clamp
+      p.vx = Math.cos(newAngle) * speed
+      p.vy = Math.sin(newAngle) * speed
     }
   }
 
@@ -326,6 +374,145 @@
         radius: 16 + Math.round(d * 18),
         life: s.thornLife || 5,
         ownerId: tower.id, camoDetect: true
+      })
+    }
+  }
+
+  /* Echo Crown Weasel: a storm of runes rains down on the strongest targets,
+     each one chaining to nearby balloons. The chains overlap, covering the
+     entire screen in bouncing magical projectiles. */
+  OP.ABILITIES['paragon-weasel-rune-storm'] = function (sim, tower) {
+    const s = tower.s
+    const d = norm(tower.paragonDegree)
+    const count = 8 + Math.floor(tower.paragonDegree / 5)
+    const chainLen = 4 + Math.round(d * 10)
+
+    OP.Targeting.acquireMany(sim, tower, 'strong', count, IDS)
+    for (let i = 0; i < IDS.length; i++) {
+      const b = sim.byId.get(IDS[i])
+      if (!b || !b.alive) continue
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'paragon-rune-echo',
+        damage: Math.round(s.damage * (2 + d * 4)),
+        dmgType: D.VOID, pierce: 1,
+        radius: 6, life: 1.5, maxRange: s.range * 1.5,
+        ownerId: tower.id, camoDetect: true,
+        behaviour: 'paragon-rune-chain',
+        data: { hits: 0, maxChain: chainLen }
+      }, M.angleTo(tower.x, tower.y, b.x, b.y), 500)
+    }
+  }
+
+  /* Swarmspire Warren: a massive burst of bees floods the track, each one
+     homing independently. The bees persist for a long time and turn fast,
+     creating an inescapable cloud of damage. */
+  OP.ABILITIES['paragon-badger-hive-mind'] = function (sim, tower) {
+    const s = tower.s
+    const d = norm(tower.paragonDegree)
+    const count = 20 + Math.round(d * 40)
+
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * M.TAU
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'paragon-honey-bee',
+        damage: Math.round(s.beeDamage * (1.5 + d * 2)),
+        dmgType: D.NORMAL, pierce: 3,
+        radius: 5, life: s.beeLife * 1.5, maxRange: 9999,
+        ownerId: tower.id, camoDetect: true,
+        behaviour: 'paragon-bee-hunt',
+        data: { speed: s.beeSpeed * 1.2, turnRate: 5.0 }
+      }, angle, s.beeSpeed * 1.2)
+    }
+  }
+
+  /* Ricochet Crown: a hail of ricocheting boomerangs that bounce between
+     balloons, each one growing stronger with each hit. The densest group
+     cannot survive. */
+  OP.ABILITIES['paragon-boom-storm'] = function (sim, tower) {
+    const s = tower.s
+    const d = norm(tower.paragonDegree)
+    const count = 8 + Math.floor(tower.paragonDegree / 6)
+
+    OP.Targeting.acquireMany(sim, tower, 'strong', count, IDS)
+    for (let i = 0; i < IDS.length; i++) {
+      const b = sim.byId.get(IDS[i])
+      if (!b || !b.alive) continue
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'paragon-boom-crown',
+        damage: Math.round(s.damage * (2 + d * 3)),
+        dmgType: D.SHARP, pierce: 1,
+        radius: s.projRadius, life: 2, maxRange: s.range * 1.5,
+        ownerId: tower.id, camoDetect: true,
+        behaviour: 'paragon-boom-ricochet',
+        data: { hits: 0, maxBounces: 6 + Math.round(d * 10) }
+      }, M.angleTo(tower.x, tower.y, b.x, b.y), s.projSpeed)
+    }
+  }
+
+  /* Shadow Crown: a wave of void energy hits every balloon on the field,
+     applying brittle and dealing massive damage. Nothing is immune. */
+  OP.ABILITIES['paragon-shadow-domination'] = function (sim, tower) {
+    const s = tower.s
+    const d = norm(tower.paragonDegree)
+    const damage = Math.round(s.damage * (3 + d * 5))
+
+    fieldIds(sim, true, IDS)
+    for (let i = 0; i < IDS.length; i++) {
+      const b = sim.byId.get(IDS[i])
+      if (!b || !b.alive) continue
+      OP.Damage.hit(sim, b, {
+        damage: damage,
+        dmgType: D.VOID,
+        sourceId: tower.id,
+        effects: [
+          E.make('brittle', 3 + d * 3, 2 + d * 3, tower.id, D.NORMAL)
+        ]
+      })
+    }
+  }
+
+  /* Siege Crown: a carpet of explosive shells rains down across the entire track,
+      each one exploding on impact and leaving burning craters. */
+  OP.ABILITIES['paragon-cannon-bombardment'] = function (sim, tower) {
+    const s = tower.s
+    const d = norm(tower.paragonDegree)
+    const count = 12 + Math.floor(tower.paragonDegree / 4)
+    const damage = Math.round(s.damage * (1 + d * 1.5))
+    const blastRadius = s.blastRadius || 80
+
+    for (let i = 0; i < count; i++) {
+      const x = sim.rng.range(100, OP.FIELD_W - 100)
+      const y = sim.rng.range(100, OP.FIELD_H - 100)
+      OP.Damage.blast(sim, x, y, blastRadius, {
+        damage: damage, dmgType: D.EXPLOSIVE, sourceId: tower.id
+      }, { camoDetect: true, maxTargets: 60 })
+      sim.blastEvents.push({ x: x, y: y, radius: blastRadius, kind: 'paragon-cannon-shell', hits: 0 })
+    }
+  }
+
+  /* Tidal Crown: a massive wave sweeps across the entire track, slowing all
+      balloons and dealing damage over time. The whole track becomes a pool. */
+  OP.ABILITIES['paragon-tidal-surge'] = function (sim, tower) {
+    const s = tower.s
+    const d = norm(tower.paragonDegree)
+    const damage = Math.round(s.damage * (1 + d * 1.5))
+    const hold = 3 + d * 3
+
+    fieldIds(sim, true, IDS)
+    for (let i = 0; i < IDS.length; i++) {
+      const b = sim.byId.get(IDS[i])
+      if (!b || !b.alive) continue
+      OP.Damage.hit(sim, b, {
+        damage: damage,
+        dmgType: D.NORMAL,
+        sourceId: tower.id,
+        effects: [
+          E.make('glue', hold, 0.8, tower.id, D.NORMAL),
+          E.make('brittle', hold, 1 + d * 2, tower.id, D.NORMAL)
+        ]
       })
     }
   }
@@ -772,4 +959,840 @@
       }
     }
   })
+
+  /* ======================================================================
+     7. ECHO CROWN WEASEL  ·  rune-weasel  ·  magic chain
+
+     The chain-caster paragon. Every rune fires from the tower and chains to
+     nearby targets, hitting more balloons with each bounce. At high degree the
+     chain length is enormous and each link applies a random debuff. The magic
+     family's answer to late-game mass popping.
+     ====================================================================== */
+
+  OP.declareProjKind('paragon-rune-echo', { shape: 'circle', tint: '#f0d870', size: 6, trail: true })
+
+  OP.PROJ_BEHAVIOURS['paragon-rune-chain'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      const hits = p.data.hits || 0
+      const maxChain = p.data.maxChain || 0
+      if (hits >= maxChain) return
+
+      const range = 180
+      let best = null
+      let bestDist = range
+      for (const t of sim.balloons) {
+        if (!t.alive || t.id === b.id) continue
+        const dx = t.x - b.x
+        const dy = t.y - b.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < bestDist) {
+          bestDist = dist
+          best = t
+        }
+      }
+      if (!best) return
+
+      OP.Projectiles.fireAt(sim, {
+        x: b.x, y: b.y,
+        kind: 'paragon-rune-echo',
+        damage: Math.round(p.damage * 0.8),
+        dmgType: p.dmgType, pierce: 1,
+        radius: p.radius, life: 0.8, maxRange: range,
+        ownerId: p.ownerId, camoDetect: true,
+        behaviour: 'paragon-rune-chain',
+        data: { hits: hits + 1, maxChain: maxChain }
+      }, M.angleTo(b.x, b.y, best.x, best.y), 420)
+    }
+  }
+
+  OP.defineParagon({
+    towerKey: 'rune-weasel',
+    name: 'Echo Crown Weasel',
+    blurb: 'Channels the wisdom of every weasel into a single staff. Fires chain-lightning runes that bounce between balloons, each link applying a random debuff. The chain grows longer with degree.',
+    cost: 130000,
+
+    ability: {
+      name: 'Rune Storm',
+      cooldown: 45,
+      duration: 0,
+      key: 'paragon-weasel-rune-storm'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.VOID
+      s.ignoresLOS = true
+      s.camoDetect = true
+
+      s.shots = Math.max(s.shots, 1) + Math.round(d * 3)
+      s.damage += Math.round(8 + d * 50)
+      s.pierce += Math.round(4 + d * 20)
+      s.range += 60 + d * 200
+      s.projSpeed = Math.max(s.projSpeed, 400) * (1.3 + d * 0.4)
+      s.projRadius += 3
+
+      s.behaviour = 'paragon-rune-chain'
+      s.maxChain = 3 + Math.round(d * 12)
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed, AIM)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.2
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-rune-echo',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-rune-chain',
+          data: { hits: 0, maxChain: s.maxChain }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     8. SWARMSPIRE WARREN  ·  honey-badger  ·  support swarm
+
+     The swarm paragon. Spawns an endless cloud of bees that hunt independently,
+     and its aura buffs every tower on the board with massive attack speed and
+     damage. The support family's capstone: scale IS the point.
+     ====================================================================== */
+
+  OP.defineParagon({
+    towerKey: 'honey-badger',
+    name: 'Swarmspire Warren',
+    blurb: 'A thousand hives in one. Its bees blanket the entire track while its aura grants every tower on the board a surge of fury. The swarm does not stop.',
+    cost: 180000,
+
+    ability: {
+      name: 'Hive Mind',
+      cooldown: 35,
+      duration: 10,
+      key: 'paragon-badger-hive-mind'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.NORMAL
+      s.camoDetect = true
+      s.beeCount = 4 + Math.round(d * 20)
+      s.beeDamage = Math.round(3 + d * 30)
+      s.beeSpeed = 300 + d * 100
+      s.beeLife = 3 + d * 4
+
+      s.range = 9999
+      s.damage += Math.round(2 + d * 10)
+      s.pierce += Math.round(1 + d * 5)
+
+      s.auraDamageMul = 1.0 + d * 0.8
+      s.auraAttackSpeedMul = 1.0 + d * 0.6
+      s.auraPierceMul = 1.0 + d * 0.4
+
+      // Initialize honeyTowers if not present (needed by update function)
+      if (!tower.data.honeyTowers) tower.data.honeyTowers = new Map()
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const count = Math.max(1, Math.round(s.beeCount))
+
+      for (let i = 0; i < count; i++) {
+        const angle = M.TAU * (i / count)
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-honey-bee',
+          damage: s.beeDamage, dmgType: s.dmgType, pierce: 2,
+          radius: 4, life: s.beeLife, maxRange: 9999,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-bee-hunt',
+          data: { speed: s.beeSpeed, turnRate: 4.0 }
+        }, angle, s.beeSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     9. RICOCHET CROWN  ·  boomer-badger  ·  primary bounce
+
+     The bounce paragon. Every boomerang ricochets between balloons endlessly,
+     and each bounce increases its damage. At high degree the ricochet count is
+     enormous and the damage scaling makes each hit harder than the last. The
+     primary family's answer to dense grouped balloons.
+     ====================================================================== */
+
+  OP.PROJ_BEHAVIOURS['paragon-boom-ricochet'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      const hits = p.data.hits || 0
+      const maxBounces = p.data.maxBounces || 0
+      if (hits >= maxBounces) return
+
+      const range = 200
+      let best = null
+      let bestDist = range
+      for (const t of sim.balloons) {
+        if (!t.alive || t.id === b.id) continue
+        const dx = t.x - b.x
+        const dy = t.y - b.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < bestDist) {
+          bestDist = dist
+          best = t
+        }
+      }
+      if (!best) return
+
+      p.data.hits = hits + 1
+      p.damage = Math.round(p.damage * 1.15)
+
+      OP.Projectiles.fireAt(sim, {
+        x: b.x, y: b.y,
+        kind: 'paragon-boom-crown',
+        damage: p.damage,
+        dmgType: p.dmgType, pierce: 1,
+        radius: p.radius, life: 1.2, maxRange: range,
+        ownerId: p.ownerId, camoDetect: true,
+        behaviour: 'paragon-boom-ricochet',
+        data: { hits: hits + 1, maxBounces: maxBounces }
+      }, M.angleTo(b.x, b.y, best.x, best.y), 450)
+    }
+  }
+
+  OP.defineParagon({
+    towerKey: 'boomer-badger',
+    name: 'Ricochet Crown',
+    blurb: 'Every boomerang becomes a crown that bounces between balloons, growing stronger with each hit. The densest group cannot survive.',
+    cost: 120000,
+
+    ability: {
+      name: 'Crown Storm',
+      cooldown: 40,
+      duration: 0,
+      key: 'paragon-boom-storm'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.SHARP
+      s.camoDetect = true
+
+      s.shots = Math.max(s.shots, 1) + Math.round(d * 3)
+      s.spread = Math.max(s.spread, 0.3) + d * 0.2
+      s.damage += Math.round(4 + d * 40)
+      s.pierce += Math.round(3 + d * 12)
+      s.range += 50 + d * 180
+      s.projSpeed = Math.max(s.projSpeed, 350) * (1.2 + d * 0.4)
+      s.projRadius += 3
+
+      s.behaviour = 'paragon-boom-ricochet'
+      s.maxBounces = 4 + Math.round(d * 14)
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.3
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-boom-crown',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-boom-ricochet',
+          data: { hits: 0, maxBounces: s.maxBounces }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     10. SHADOW CROWN  ·  shadow-marten  ·  magic stealth
+
+     The stealth paragon. Every shot ignores all immunities and can hit any
+     balloon regardless of camo/lead/white status. The marten's sabotage
+     becomes total: no balloon is safe from its empowered strikes.
+     ====================================================================== */
+
+  OP.PROJ_BEHAVIOURS['paragon-shadow-pierce'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('brittle', 2, 2, p.ownerId, D.VOID))
+    }
+  }
+
+  OP.defineParagon({
+    towerKey: 'shadow-marten',
+    name: 'Shadow Crown',
+    blurb: 'The shadow that cannot be escaped. Every bolt ignores all immunities and leaves balloons brittle and vulnerable. No camo, no lead, no white can stop it.',
+    cost: 150000,
+
+    ability: {
+      name: 'Shadow Domination',
+      cooldown: 45,
+      duration: 0,
+      key: 'paragon-shadow-domination'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.VOID
+      s.ignoresLOS = true
+      s.camoDetect = true
+
+      s.shots = Math.max(s.shots, 1) + Math.round(d * 4)
+      s.damage += Math.round(6 + d * 55)
+      s.pierce += Math.round(4 + d * 18)
+      s.range += 60 + d * 200
+      s.projSpeed = Math.max(s.projSpeed, 400) * (1.3 + d * 0.5)
+      s.projRadius += 2
+
+      s.behaviour = 'paragon-shadow-pierce'
+      s.brittleTime = 2 + d * 2
+      s.brittleMag = 2 + d * 3
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.4
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-shadow-bolt',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-shadow-pierce',
+          data: { brittleTime: s.brittleTime, brittleMag: s.brittleMag }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     11. SIEGE CROWN  ·  cannon-boar  ·  primary explosive
+
+     The explosive paragon. Every shell is a massive cannonball that explodes
+     on impact, dealing area damage and leaving burning craters. At high degree
+     the explosions chain, creating a carpet of fire across the track.
+     ====================================================================== */
+
+  OP.defineParagon({
+    towerKey: 'cannon-boar',
+    name: 'Siege Crown',
+    blurb: 'Every shell is a volcanic eruption. The explosions chain across the track, leaving burning craters that damage everything they touch. The densest groups turn to ash.',
+    cost: 140000,
+
+    ability: {
+      name: 'Carpet Bombardment',
+      cooldown: 50,
+      duration: 0,
+      key: 'paragon-cannon-bombardment'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.EXPLOSIVE
+      s.camoDetect = true
+
+      s.shots = Math.max(s.shots, 1) + Math.round(d * 2)
+      s.damage += Math.round(10 + d * 80)
+      s.pierce += Math.round(5 + d * 20)
+      s.range += 50 + d * 180
+      s.projSpeed = Math.max(s.projSpeed, 320) * (1.2 + d * 0.4)
+      s.projRadius += 4
+
+      s.burnDps = 15 + Math.round(d * 20)
+      s.burnTime = 3 + d * 2
+      s.blastRadius = 60 + Math.round(d * 80)
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.3
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-cannon-shell',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-cannon-explode',
+          data: { blastRadius: s.blastRadius, burnDps: s.burnDps, burnTime: s.burnTime }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     12. TIDAL CROWN  ·  diver-otter  ·  military depth
+
+     The depth paragon. Every projectile creates a water vortex that pulls
+     balloons inward and deals damage over time. The otter's mastery of
+     water becomes total: the whole track is a killing pool.
+     ====================================================================== */
+
+  OP.PROJ_BEHAVIOURS['paragon-tidal-vortex'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('glue', 2, 0.6, p.ownerId, D.NORMAL))
+    }
+  }
+
+  OP.defineParagon({
+    towerKey: 'diver-otter',
+    name: 'Tidal Crown',
+    blurb: 'The ocean answers to no one but the otter. Every bolt creates a vortex that pulls balloons inward, and the whole track becomes a killing pool.',
+    cost: 160000,
+
+    ability: {
+      name: 'Tidal Surge',
+      cooldown: 45,
+      duration: 0,
+      key: 'paragon-tidal-surge'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.NORMAL
+      s.camoDetect = true
+      s.ignoresLOS = true
+      s.onlyBlimps = false
+
+      s.shots = Math.max(s.shots, 1) + Math.round(d * 4)
+      s.damage += Math.round(5 + d * 50)
+      s.pierce += Math.round(4 + d * 16)
+      s.range += 60 + d * 200
+      s.projSpeed = Math.max(s.projSpeed, 380) * (1.3 + d * 0.5)
+      s.projRadius += 3
+
+      s.behaviour = 'paragon-tidal-vortex'
+      s.vortexRadius = 80 + Math.round(d * 60)
+      s.vortexDps = 10 + Math.round(d * 25)
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.4
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-tidal-bolt',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-tidal-vortex',
+          data: { vortexRadius: s.vortexRadius, vortexDps: s.vortexDps }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     13. THORNSPIRE CROWN  ·  thistle-hedgehog  ·  primary crowd-control
+
+     The bouncing-crowd-control paragon. Every thorn splits and bounces
+     between targets, covering the entire track in a web of damage. At high
+     degree the thorns apply slow and stun, making it a control powerhouse.
+     ====================================================================== */
+
+  OP.declareProjKind('paragon-thorn-spire', { shape: 'spike', tint: '#a0c040', size: 7, trail: true, spin: true })
+  OP.declareProjKind('paragon-thorn-shard', { shape: 'spike', tint: '#80a030', size: 4, trail: true })
+
+  OP.PROJ_BEHAVIOURS['paragon-thorn-bounce'] = {
+    onHit: function (sim, p, balloon, res) {
+      if (!p.data) return
+      const bounces = p.data.bounces || 0
+      if (bounces <= 0) return
+      p.data.bounces--
+
+      const range = 200
+      let best = null
+      let bestDist = range
+      const list = sim.balloons
+      for (let i = 0; i < list.length; i++) {
+        const b = list[i]
+        if (!b.alive || b.id === balloon.id) continue
+        if ((b.props & OP.PROP.VEILED) && !p.camoDetect) continue
+        const dx = b.x - p.x, dy = b.y - p.y
+        const dist = dx * dx + dy * dy
+        if (dist < bestDist) { bestDist = dist; best = b }
+      }
+      if (!best) return
+
+      const a = Math.atan2(best.y - p.y, best.x - p.x)
+      const speed = p.data.speed || 350
+      OP.Projectiles.spawn(sim, {
+        x: p.x, y: p.y,
+        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+        kind: 'paragon-thorn-shard',
+        damage: p.damage * 0.7, dmgType: p.dmgType, pierce: 2,
+        radius: 3, life: 0.8,
+        ownerId: p.ownerId, camoDetect: true,
+        behaviour: 'paragon-thorn-bounce',
+        data: { bounces: p.data.bounces, speed: speed }
+      })
+    }
+  }
+
+  OP.ABILITIES['paragon-thorn-nova'] = function (sim, tower) {
+    const s = tower.s
+    const n = 12 + Math.round(s.pierce)
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * M.TAU
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'paragon-thorn-spire',
+        damage: s.damage * 1.5, dmgType: s.dmgType, pierce: 4,
+        radius: s.projRadius, life: 1.2,
+        maxRange: s.range * 1.6,
+        ownerId: tower.id, camoDetect: true,
+        behaviour: 'paragon-thorn-bounce',
+        data: { bounces: 3, speed: s.projSpeed }
+      }, a, s.projSpeed)
+    }
+    sim.blastEvents.push({ x: tower.x, y: tower.y, radius: s.range * 1.6, kind: 'paragon-thorn-nova', hits: 0 })
+  }
+
+  OP.defineParagon({
+    towerKey: 'thistle-hedgehog',
+    name: 'Thornspire Crown',
+    blurb: 'Bouncing thorns cover the entire track. At high degree, every thorn slows and stuns on contact.',
+    cost: 75000,
+
+    ability: {
+      name: 'Thorn Nova',
+      cooldown: 45,
+      duration: 0,
+      key: 'paragon-thorn-nova'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.SHARP
+      s.damage += Math.round(4 + d * 40)
+      s.pierce = Math.max(s.pierce, 3) + Math.round(4 + d * 16)
+      s.projSpeed = Math.max(s.projSpeed, 360) * (1.2 + d * 0.6)
+      s.projRadius += 3
+      s.range += 50 + d * 140
+      s.shots = Math.max(s.shots, 2) + Math.round(d * 6)
+      s.spread = 0.35 + d * 0.3
+      s.targetModes = OP.TARGET_MODES.slice()
+
+      s.bounceCount = 2 + Math.round(d * 6)
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed, AIM)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.3
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-thorn-spire',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-thorn-bounce',
+          data: { bounces: s.bounceCount, speed: s.projSpeed }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     14. ROTAVOLT CROWN  ·  gatling-raccoon  ·  military suppression
+
+     The rapid-fire suppression paragon. A stream of high-velocity bolts
+     that applies suppression to every balloon it touches. At high degree
+     the fire rate is insane and the suppression stacks.
+     ====================================================================== */
+
+  OP.declareProjKind('paragon-rotavolt-bolt', { shape: 'bolt', tint: '#e06040', size: 5, trail: true })
+
+  OP.PROJ_BEHAVIOURS['paragon-rotavolt-suppress'] = {
+    onHit: function (sim, p, balloon, res) {
+      if (!balloon.alive) return
+      balloon.speedMul *= 0.7
+      balloon.effects.push({ type: 'slow', dur: 0.3, id: p.ownerId })
+    }
+  }
+
+  OP.ABILITIES['paragon-rotavolt-overdrive'] = function (sim, tower) {
+    tower.data.overdriveT = 5
+    sim.blastEvents.push({ x: tower.x, y: tower.y, radius: 60, kind: 'paragon-rotavolt-overdrive', hits: 0 })
+  }
+
+  OP.defineParagon({
+    towerKey: 'gatling-raccoon',
+    name: 'Rotavolt Crown',
+    blurb: 'An unrelenting stream of suppression fire. At high degree the fire rate is overwhelming and slows everything it touches.',
+    cost: 160000,
+
+    ability: {
+      name: 'Overdrive',
+      cooldown: 40,
+      duration: 5,
+      key: 'paragon-rotavolt-overdrive'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.SHARP
+      s.damage += Math.round(1 + d * 12)
+      s.pierce = Math.max(s.pierce, 2) + Math.round(1 + d * 6)
+      s.cooldown *= Math.max(0.15, 0.5 - d * 0.35)
+      s.projSpeed = Math.max(s.projSpeed, 500) * (1.1 + d * 0.4)
+      s.projRadius += 2
+      s.range += 40 + d * 100
+      s.shots = Math.max(s.shots, 4) + Math.round(d * 8)
+      s.spread = 0.15 + d * 0.15
+      s.targetModes = OP.TARGET_MODES.slice()
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed, AIM)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.3
+      const n = Math.max(1, Math.round(s.shots))
+      const overdrive = (tower.data.overdriveT || 0) > 0
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-rotavolt-bolt',
+          damage: overdrive ? s.damage * 2 : s.damage,
+          dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-rotavolt-suppress'
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    },
+
+    update: function (sim, tower, dt) {
+      if (tower.data.overdriveT > 0) tower.data.overdriveT = Math.max(0, tower.data.overdriveT - dt)
+    }
+  })
+
+  /* ======================================================================
+     15. BREWING CROWN  ·  brewer-toad  ·  magic zone-control
+
+     The zone-control paragon. Every shot creates a lingering potion cloud
+     that damages and debuffs foes inside. At high degree the clouds
+     cover the entire track and apply every debuff.
+     ====================================================================== */
+
+  OP.declareProjKind('paragon-brew-potion', { shape: 'orb', tint: '#60c080', size: 8, trail: true, spin: true })
+
+  OP.PROJ_BEHAVIOURS['paragon-brew-cloud'] = {
+    onHit: function (sim, p, balloon, res) {
+      if (!p.data || !balloon.alive) return
+      const d = p.data
+      if (d.cloudRadius && d.cloudDps) {
+        sim.dotEvents = sim.dotEvents || []
+        sim.dotEvents.push({ x: p.x, y: p.y, radius: d.cloudRadius, dps: d.cloudDps, ownerId: p.ownerId, dur: 2.0 })
+      }
+    }
+  }
+
+  OP.ABILITIES['paragon-brew-deluge'] = function (sim, tower) {
+    const s = tower.s
+    const n = 8
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * M.TAU
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'paragon-brew-potion',
+        damage: s.damage * 2, dmgType: D.ACID, pierce: 8,
+        radius: s.projRadius + 4, life: 1.5,
+        maxRange: s.range * 1.5,
+        ownerId: tower.id, camoDetect: true,
+        behaviour: 'paragon-brew-cloud',
+        data: { cloudRadius: 80, cloudDps: 20 + Math.round(s.damage) }
+      }, a, s.projSpeed * 0.8)
+    }
+    sim.blastEvents.push({ x: tower.x, y: tower.y, radius: s.range * 1.5, kind: 'paragon-brew-deluge', hits: 0 })
+  }
+
+  OP.defineParagon({
+    towerKey: 'brewer-toad',
+    name: 'Brewing Crown',
+    blurb: 'Potion clouds blanket the track, damaging and debuffing every foe inside. At high degree the clouds cover everything.',
+    cost: 220000,
+
+    ability: {
+      name: 'Deluge',
+      cooldown: 50,
+      duration: 0,
+      key: 'paragon-brew-deluge'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.ACID
+      s.damage += Math.round(3 + d * 25)
+      s.pierce = Math.max(s.pierce, 4) + Math.round(3 + d * 12)
+      s.projSpeed = Math.max(s.projSpeed, 300) * (1.2 + d * 0.5)
+      s.projRadius += 4
+      s.range += 60 + d * 160
+      s.shots = Math.max(s.shots, 2) + Math.round(d * 4)
+      s.spread = 0.3 + d * 0.2
+      s.targetModes = OP.TARGET_MODES.slice()
+
+      s.cloudRadius = 50 + Math.round(d * 40)
+      s.cloudDps = 8 + Math.round(d * 20)
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed, AIM)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.3
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-brew-potion',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true,
+          behaviour: 'paragon-brew-cloud',
+          data: { cloudRadius: s.cloudRadius, cloudDps: s.cloudDps }
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    }
+  })
+
+  /* ======================================================================
+     16. GEARSPUN CROWN  ·  tinker-shrew  ·  support mastery
+
+     The support mastery paragon. Every shot buffs nearby towers, and the
+     ability creates a field of rapid-fire support turrets. At high degree
+     the buffs are enormous and the turrets are numerous.
+     ====================================================================== */
+
+  OP.declareProjKind('paragon-gear-bolt', { shape: 'bolt', tint: '#c0a040', size: 6, trail: true })
+
+  OP.ABILITIES['paragon-gear-turrets'] = function (sim, tower) {
+    const s = tower.s
+    const n = 4 + Math.round(s.shots)
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * M.TAU
+      const x = tower.x + Math.cos(a) * 60
+      const y = tower.y + Math.sin(a) * 60
+      sim.blastEvents.push({ x: x, y: y, radius: 40, kind: 'paragon-gear-turret', hits: 0 })
+      OP.Damage.blast(sim, x, y, 40, {
+        damage: s.damage * 3,
+        dmgType: D.SHARP,
+        sourceId: tower.id,
+        effects: [OP.Effects.make('slow', 0.5, 2, tower.id, D.NORMAL)]
+      }, { camoDetect: true, maxTargets: 20 })
+    }
+  }
+
+  OP.defineParagon({
+    towerKey: 'tinker-shrew',
+    name: 'Gearspun Crown',
+    blurb: 'Mechanical mastery that empowers every tower on the field. Support turrets create overlapping fields of damage and control.',
+    cost: 130000,
+
+    ability: {
+      name: 'Deploy Turrets',
+      cooldown: 40,
+      duration: 0,
+      key: 'paragon-gear-turrets'
+    },
+
+    apply: function (s, tower, sim, degree) {
+      const d = norm(degree)
+
+      s.dmgType = D.NORMAL
+      s.damage += Math.round(5 + d * 50)
+      s.pierce = Math.max(s.pierce, 3) + Math.round(3 + d * 14)
+      s.projSpeed = Math.max(s.projSpeed, 400) * (1.2 + d * 0.5)
+      s.projRadius += 3
+      s.range += 50 + d * 120
+      s.shots = Math.max(s.shots, 2) + Math.round(d * 5)
+      s.spread = 0.25 + d * 0.2
+      s.targetModes = OP.TARGET_MODES.slice()
+
+      s.supportRange = 150 + Math.round(d * 100)
+      s.supportDamageMul = 1.3 + d * 0.7
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed, AIM)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const reach = s.range * 1.3
+      const n = Math.max(1, Math.round(s.shots))
+
+      for (let i = 0; i < n; i++) {
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'paragon-gear-bolt',
+          damage: s.damage, dmgType: s.dmgType, pierce: s.pierce,
+          radius: s.projRadius, life: flightLife(s, reach), maxRange: reach,
+          ownerId: tower.id, camoDetect: true
+        }, centre + fanOffset(i, n, s.spread), s.projSpeed)
+      }
+    },
+
+    buffs: function (sim, tower) {
+      const s = tower.s
+      const range = s.supportRange || 150
+      const mul = s.supportDamageMul || 1.5
+      for (let i = 0; i < sim.towers.length; i++) {
+        const t = sim.towers[i]
+        if (!t.alive || t.id === tower.id) continue
+        if (M.dist2(tower.x, tower.y, t.x, t.y) > range * range) continue
+        OP.Buffs.register(sim, {
+          id: 'paragon-gearspun:' + tower.id + ':' + t.id,
+          sourceId: tower.id,
+          x: t.x, y: t.y, radius: 1,
+          priority: 8,
+          excludeSelf: false,
+          mods: { damageMul: mul, cooldownMul: 0.85 }
+        })
+      }
+    }
+  })
+
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

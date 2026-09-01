@@ -165,7 +165,7 @@ export function run (t, OP, env) {
 
   t.gt(KEYS.length, 0, `js/towers/paragons.js declares ${KEYS.length} paragons`)
   t.eq(new Set(KEYS).size, KEYS.length, 'no tower is given two paragons')
-  t.eq(KEYS.length, 6, 'exactly six of the twenty-five towers get a paragon')
+  t.eq(KEYS.length, 16, 'exactly sixteen of the thirty-one towers get a paragon')
 
   const unregistered = KEYS.filter(k => !P.exists(k))
   t.eq(unregistered.length, 0, unregistered.length

@@ -1,7 +1,7 @@
 ;(function (OP) {
   'use strict'
 
-  /* The magic family — six towers.
+  /* The magic family — seven towers.
    *
    * The highest-ceiling, highest-cost family, and the one allowed to bend the
    * rules: exotic damage types, effects nothing else has, and the strongest
@@ -47,6 +47,15 @@
 
   OP.declareProjKind('newt-jet', { shape: 'droplet', tint: '#7fc6e8', size: 5, trail: true })
   OP.declareProjKind('newt-frost', { shape: 'droplet', tint: '#cdeeff', size: 6, trail: true })
+
+  OP.declareProjKind('crystal-shard', { shape: 'spike', tint: '#a8d0e6', size: 4, trail: true, spin: true })
+  OP.declareProjKind('crystal-beam', { shape: 'beam', tint: '#cceeff', size: 8, trail: true })
+  OP.declareProjKind('crystal-prism', { shape: 'star', tint: '#e0f0ff', size: 5, spin: true })
+
+  // Duality Moth: fire and cold streams
+  OP.declareProjKind('moth-fire', { shape: 'orb', tint: '#e86030', size: 5, trail: true })
+  OP.declareProjKind('moth-cold', { shape: 'orb', tint: '#80c8e8', size: 5, trail: true })
+  OP.declareProjKind('moth-combo', { shape: 'orb', tint: '#d0a0e0', size: 7, trail: true, spin: true })
 
   /* ---------- shared projectile behaviour ---------- */
 
@@ -248,7 +257,9 @@
     'shadow-marten',
     'brewer-toad',
     'thornroot-stag',
-    'tidecaller-newt'
+    'tidecaller-newt',
+    'crystal-badger',
+    'duality-moth'
   ]
 
   /* ================================================================= *
@@ -1173,4 +1184,546 @@
       volley(sim, tower, target, 'newt-jet', 0)
     }
   })
+
+  /* ================================================================= *
+   * 7. Crystal Badger — prism refraction                                *
+   * ================================================================= */
+
+  OP.defineTower({
+    key: 'crystal-badger',
+    name: 'Crystal Badger',
+    family: 'magic',
+    blurb: 'Grows crystals that refract shots in every direction. Each crystal splits a projectile into three, and the shards deal energy damage that nothing resists except Purple.',
+
+    cost: 1200,
+    footprint: 14,
+    placement: 'land',
+    unlockRound: 0,
+
+    base: {
+      range: 140,
+      cooldown: 1.1,
+      damage: 2,
+      pierce: 2,
+      dmgType: D.ENERGY,
+      projSpeed: 450,
+      projLife: 1.2,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    paths: [
+      {
+        name: 'Faceted Growth',
+        tiers: [
+          { name: 'Prism Shard', cost: 540,
+            desc: 'Each shot splits into 3 crystal shards on impact.',
+            apply: function (s) { s.splitCount = 3; s.behaviour = 'crystal-split' } },
+          { name: 'Refined Lattice', cost: 1188,
+            desc: '+1 damage and shards pierce 2 more balloons.',
+            apply: function (s) { s.damage += 1; s.pierce += 2 } },
+          { name: 'Faceted Growth', cost: 2860,
+            desc: 'Shards split again on second impact, creating a cascade. +2 damage.',
+            apply: function (s) { s.splitCount = 5; s.damage += 2 } },
+          { name: 'Living Crystal', cost: 12540,
+            desc: 'Crystals grow on the track, firing automatically at nearby balloons. +3 damage and +1 pierce.',
+            apply: function (s) { s.autoCrystal = true; s.damage += 3; s.pierce += 1 } },
+          { name: 'Prism Singularity', cost: 92400,
+            desc: 'Ability: Prism Singularity — every crystal on the map fires a beam at the strongest balloon for 10 seconds. 60s cooldown.',
+            apply: function (s) {
+              s.damage += 15
+              s.pierce += 4
+              s.ability = { name: 'Prism Singularity', cooldown: 60, duration: 10, key: 'crystal-singularity' }
+            } }
+        ]
+      },
+      {
+        name: 'Beam Focus',
+        tiers: [
+          { name: 'Collimated Light', cost: 528,
+            desc: '+20 range and shots travel 30% faster.',
+            apply: function (s) { s.range += 20; s.projSpeed *= 1.3 } },
+          { name: 'Focused Lens', cost: 1210,
+            desc: 'Attacks 20% faster and the main shot becomes a piercing beam.',
+            apply: function (s) { s.cooldown *= 0.8; s.projKind = 'crystal-beam'; s.pierce = Math.max(s.pierce, 8) } },
+          { name: 'Beam Focus', cost: 2750,
+            desc: 'Beam pierces 20 balloons and deals energy damage over its full length. +3 damage.',
+            apply: function (s) { s.pierce = Math.max(s.pierce, 20); s.damage += 3 } },
+          { name: 'Prism Cannon', cost: 13200,
+            desc: 'Beam splits into 3 parallel beams covering a wide angle. +8 damage.',
+            apply: function (s) { s.shots = 3; s.spread = 0.15; s.damage += 8 } },
+          { name: 'Solar Convergence', cost: 88000,
+            desc: '5 beams in a fan, +25 damage, and beams ignite balloons for 20 fire DPS over 4s. Purple ignores fire.',
+            apply: function (s) {
+              s.shots = 5
+              s.spread = 0.25
+              s.damage += 25
+              s.burnDps = 20
+              s.burnT = 4
+              s.ability = { name: 'Solar Convergence', cooldown: 50, duration: 0, key: 'crystal-solar-convergence' }
+            } }
+        ]
+      },
+      {
+        name: 'Refraction',
+        tiers: [
+          { name: 'Bent Light', cost: 506,
+            desc: '+18 range and sees Veiled balloons.',
+            apply: function (s) { s.range += 18; s.camoDetect = true } },
+          { name: 'Internal Reflection', cost: 1100,
+            desc: 'Shots bounce off terrain and blockers. +1 damage.',
+            apply: function (s) { s.ignoresLOS = true; s.damage += 1 } },
+          { name: 'Total Refraction', cost: 2640,
+            desc: 'Every balloon hit spawns a homing shard that seeks the nearest other balloon. +2 damage.',
+            apply: function (s) { s.homingShards = true; s.damage += 2 } },
+          { name: 'Prism Storm', cost: 11000,
+            desc: 'Homing shards now target 3 balloons each and deal 50% more damage. +4 damage and +1 pierce.',
+            apply: function (s) { s.homingCount = 3; s.homingMult = 1.5; s.damage += 4; s.pierce += 1 } },
+          { name: 'Kaleidoscope', cost: 81400,
+            desc: 'Ability: Kaleidoscope — for 8 seconds, every tower on the map fires an extra crystal shard per shot. 55s cooldown.',
+            apply: function (s) {
+              s.damage += 10
+              s.pierce += 3
+              s.ability = { name: 'Kaleidoscope', cooldown: 55, duration: 8, key: 'crystal-kaleidoscope' }
+            } }
+        ]
+      }
+    ],
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const shots = Math.max(1, Math.round(s.shots))
+      const effects = s.burnDps > 0 ? [OP.Effects.make('burn', s.burnT, s.burnDps, tower.id, D.FIRE)] : null
+      for (let i = 0; i < shots; i++) {
+        const offset = shots === 1 ? 0 : s.spread * (i / (shots - 1) - 0.5)
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: s.projKind || 'crystal-shard',
+          damage: s.damage,
+          dmgType: s.dmgType,
+          pierce: s.pierce,
+          radius: s.projRadius,
+          life: s.projLife,
+          maxRange: s.range * 1.4,
+          ownerId: tower.id,
+          camoDetect: s.camoDetect,
+          behaviour: s.behaviour || '',
+          data: s.splitCount > 0 ? { split: s.splitCount, dmg: s.damage } : (s.homingShards ? { homing: true, count: s.homingCount || 1, mult: s.homingMult || 1 } : null),
+          effects: effects
+        }, centre + offset, s.projSpeed)
+      }
+    },
+
+    update: function (sim, tower, dt) {
+      const s = tower.s
+      const d = tower.data
+      if (s.autoCrystal) {
+        d.crystalCd = (d.crystalCd || 0) - dt
+        if (d.crystalCd <= 0) {
+          d.crystalCd = 2.0
+          const id = OP.Targeting.acquire(sim, tower, 'close')
+          if (id >= 0) {
+            const b = sim.byId.get(id)
+            if (b) {
+              OP.Projectiles.fireAt(sim, {
+                x: tower.x, y: tower.y,
+                kind: 'crystal-prism',
+                damage: Math.max(1, Math.round(s.damage * 0.6)),
+                dmgType: D.ENERGY,
+                pierce: Math.max(1, Math.round(s.pierce * 0.5)),
+                radius: 4,
+                life: 0.8,
+                maxRange: s.range,
+                ownerId: tower.id,
+                camoDetect: s.camoDetect
+              }, M.angleTo(tower.x, tower.y, b.x, b.y), 400)
+            }
+          }
+        }
+      }
+    }
+  })
+
+  OP.ABILITIES['crystal-singularity'] = function (sim, tower) {
+    const s = tower.s
+    const ids = []
+    OP.Targeting.acquireMany(sim, tower, 'strong', 5, ids)
+    for (let i = 0; i < ids.length; i++) {
+      const b = sim.byId.get(ids[i])
+      if (!b || !b.alive) continue
+      OP.Projectiles.fireAt(sim, {
+        x: tower.x, y: tower.y,
+        kind: 'crystal-beam',
+        damage: s.damage * 3,
+        dmgType: D.ENERGY,
+        pierce: 30,
+        radius: 6,
+        life: 2.0,
+        maxRange: s.range * 2,
+        ownerId: tower.id,
+        camoDetect: true
+      }, M.angleTo(tower.x, tower.y, b.x, b.y), 600)
+    }
+  }
+
+  OP.ABILITIES['crystal-solar-convergence'] = function (sim, tower) {
+    const s = tower.s
+    const ids = []
+    OP.Targeting.acquireMany(sim, tower, 'strong', 8, ids)
+    for (let i = 0; i < ids.length; i++) {
+      const b = sim.byId.get(ids[i])
+      if (!b || !b.alive) continue
+      for (let j = 0; j < 5; j++) {
+        const angle = M.angleTo(tower.x, tower.y, b.x, b.y) + (j - 2) * 0.08
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'crystal-beam',
+          damage: s.damage * 2,
+          dmgType: D.FIRE,
+          pierce: s.pierce,
+          radius: 6,
+          life: 1.5,
+          maxRange: s.range * 1.5,
+          ownerId: tower.id,
+          camoDetect: s.camoDetect,
+          effects: [OP.Effects.make('burn', 4, 20, tower.id, D.FIRE)]
+        }, angle, 500)
+      }
+    }
+  }
+
+  OP.ABILITIES['crystal-kaleidoscope'] = function (sim, tower) {
+    tower.data.kaleidoscopeT = 8
+    sim.buffsDirty = true
+  }
+
+  OP.PROJ_BEHAVIOURS['crystal-split'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data || !(p.data.split > 0) || !b) return
+      const n = Math.min(5, Math.max(1, p.data.split | 0))
+      const heading = Math.atan2(p.vy, p.vx)
+      const speed = Math.max(80, Math.hypot(p.vx, p.vy) * 0.8)
+      for (let i = 0; i < n; i++) {
+        const a = heading + (i - (n - 1) / 2) * 0.5
+        OP.Projectiles.fireAt(sim, {
+          x: b.x, y: b.y,
+          kind: 'crystal-shard',
+          damage: Math.max(1, Math.round(p.data.dmg * 0.5)),
+          dmgType: p.dmgType,
+          pierce: 2,
+          radius: p.radius,
+          life: 0.5,
+          ownerId: p.ownerId,
+          camoDetect: p.camoDetect,
+          data: { split: 0 },
+          behaviour: 'crystal-split'
+        }, a, speed)
+      }
+    }
+  }
+
+  OP.PROJ_BEHAVIOURS['crystal-homing'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data || !p.data.homing || !b) return
+      const count = p.data.count || 1
+      const mult = p.data.mult || 1
+      const near = sim._crystalHoming || (sim._crystalHoming = [])
+      OP.Grid.queryCircle(sim.grid, b.x, b.y, 180, near)
+      let found = 0
+      for (let i = 0; i < near.length && found < count; i++) {
+        const o = near[i]
+        if (!o.alive || o.id === b.id) continue
+        if ((o.props & OP.PROP.VEILED) && !p.camoDetect) continue
+        found++
+        OP.Projectiles.fireAt(sim, {
+          x: b.x, y: b.y,
+          kind: 'crystal-shard',
+          damage: Math.max(1, Math.round(p.damage * mult * 0.4)),
+          dmgType: p.dmgType,
+          pierce: 2,
+          radius: 4,
+          life: 0.6,
+          ownerId: p.ownerId,
+          camoDetect: p.camoDetect,
+          homing: 6, turnRate: 6, targetId: o.id
+        }, M.angleTo(b.x, b.y, o.x, o.y), 350)
+      }
+    }
+  }
+  OP.ABILITIES['moth-storm'] = function (sim, tower) {
+    const s = tower.s
+    const ids = []
+    screenTargets(sim, s.camoDetect, ids)
+    for (let i = 0; i < ids.length; i++) {
+      const b = sim.byId.get(ids[i])
+      if (!b) continue
+      // Combo damage: both elements hit simultaneously
+      OP.Damage.hit(sim, b, {
+        damage: s.stormDamage,
+        dmgType: D.FIRE,
+        sourceId: tower.id,
+        effects: [
+          OP.Effects.make('burn', 3, s.stormBurnDps, tower.id, D.FIRE),
+          OP.Effects.make('cold', 3, 0.4, tower.id, D.COLD)
+        ]
+      })
+    }
+  }
+
+  /* ============================================================================
+     6. DUALITY MOTH — two elemental streams, simultaneously.
+
+     One stream of fire, one stream of cold, each targeting independently.
+     The fire stream applies burn; the cold stream applies chill.
+     When both hit the same target within a short window, bonus combo damage.
+     ========================================================================== */
+
+  OP.defineTower({
+    key: 'duality-moth',
+    name: 'Duality Moth',
+    family: 'magic',
+    blurb: 'Flits between two flames. One burns, one freezes, and both strike at once.',
+
+    cost: 1100,
+    footprint: 13,
+    placement: 'land',
+    unlockRound: 0,
+
+    base: {
+      range: 120,
+      cooldown: 0.9,
+      damage: 2,
+      pierce: 2,
+      dmgType: D.ENERGY,
+      projSpeed: 350,
+      projLife: 1.0,
+      projRadius: 4,
+      camoDetect: false,
+      targetModes: ['first', 'last', 'close', 'strong'],
+
+      fireDamage: 2,
+      coldDamage: 1,
+      fireBurnDps: 3,
+      fireBurnT: 2,
+      coldSlowMag: 0.3,
+      coldSlowT: 1.5,
+      comboWindow: 0.5,
+      comboDamage: 3
+    },
+
+    paths: [
+      {
+        name: 'Twin Flames',
+        tiers: [
+          { name: 'Brighter Sparks', cost: 590,
+            desc: '+1 damage to each stream, for 3 fire and 2 cold.',
+            apply: function (s) { s.fireDamage += 1; s.coldDamage += 1 } },
+          { name: 'Embertrail', cost: 1100,
+            desc: 'Fire stream applies burn: 5 DPS for 3 seconds.',
+            apply: function (s) { s.fireBurnDps = 5; s.fireBurnT = 3 } },
+          { name: 'Frosttrail', cost: 2400,
+            desc: 'Cold stream slows 40% for 2 seconds and deals +1 damage, for 4 cold.',
+            apply: function (s) { s.coldSlowMag = 0.4; s.coldSlowT = 2; s.coldDamage += 1 } },
+          { name: 'Convergence', cost: 8800,
+            desc: '+3 fire damage, +2 cold damage. Combo bonus rises to 15.',
+            apply: function (s) { s.fireDamage += 3; s.coldDamage += 2; s.comboDamage = 15 } },
+          { name: 'Apocalypse Bloom', cost: 72000,
+            desc: '+8 fire damage, +5 cold damage, and each stream fires 2 shots. Adds Elemental Storm: every 40 seconds, every balloon on screen takes 50 fire damage + 30 cold damage, is burned for 8 DPS over 4 seconds, and chilled 50% for 3 seconds.',
+            apply: function (s) {
+              s.fireDamage += 8
+              s.coldDamage += 5
+              s.shots = 2
+              s.spread = 0.15
+              s.stormDamage = 50
+              s.stormBurnDps = 8
+              s.ability = { name: 'Elemental Storm', cooldown: 40, duration: 0, key: 'moth-storm' }
+            } }
+        ]
+      },
+      {
+        name: 'Elemental Mastery',
+        tiers: [
+          { name: 'Deep Freeze', cost: 540,
+            desc: 'Cold stream applies brittle: +25% damage for 3 seconds.',
+            apply: function (s) { s.brittleT = 3; s.brittleMag = 0.25 } },
+          { name: 'Fireball', cost: 1050,
+            desc: 'Fire stream gains 40-unit blast radius.',
+            apply: function (s) { s.blastRadius = 40; s.blastFalloff = 0.5 } },
+          { name: 'Night Eyes', cost: 2200,
+            desc: 'Both streams see Veiled balloons. +5 range.',
+            apply: function (s) { s.camoDetect = true; s.range += 5 } },
+          { name: 'Shatter Frost', cost: 8200,
+            desc: 'Cold stream becomes shatter damage. +3 fire damage, +2 cold damage.',
+            apply: function (s) { s.dmgType = D.SHATTER; s.fireDamage += 3; s.coldDamage += 2 } },
+          { name: 'Primordial Fusion', cost: 68000,
+            desc: '+10 fire damage, +8 cold damage. When both streams hit the same target, they merge into a combo bolt for 40 bonus damage. Combo window extends to 1 second.',
+            apply: function (s) {
+              s.fireDamage += 10
+              s.coldDamage += 8
+              s.comboDamage = 40
+              s.comboWindow = 1
+            } }
+        ]
+      },
+      {
+        name: 'Resonance',
+        tiers: [
+          { name: 'Linked Rhythm', cost: 500,
+            desc: 'Both streams share cooldown: firing one resets the other 15% faster.',
+            apply: function (s) { s.cooldown *= 0.85 } },
+          { name: 'Homing Sparks', cost: 980,
+            desc: 'Both streams gain weak homing (turn rate 4).',
+            apply: function (s) { s.homing = 4; s.turnRate = 4 } },
+          { name: 'Resonance Pulse', cost: 2100,
+            desc: 'When both streams hit the same target within 0.5s, +5 bonus damage.',
+            apply: function (s) { s.comboDamage += 5 } },
+          { name: 'Chain Lightning', cost: 7600,
+            desc: 'Each stream chains to 1 nearby balloon for 40% damage.',
+            apply: function (s) { s.chainCount = 1; s.chainDamageMul = 0.4 } },
+          { name: 'Absolute Duality', cost: 64000,
+            desc: '+6 fire damage, +4 cold damage. Both streams fire 3x as fast. Chains to 3 targets. Combo bonus rises to 25.',
+            apply: function (s) {
+              s.fireDamage += 6
+              s.coldDamage += 4
+              s.cooldown *= 0.34
+              s.chainCount = 3
+              s.comboDamage = 25
+            } }
+        ]
+      }
+    ],
+
+    onPlace: function (sim, tower) {
+      tower.data.comboTracker = {}  // balloon id -> last-hit timestamp
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const d = tower.data
+      if (!target) return
+
+      // Track combo hits
+      const now = sim.time
+
+      // Fire stream: targets first
+      const fireTarget = OP.Targeting.acquire(sim, tower, 'first')
+      const ft = fireTarget >= 0 ? sim.byId.get(fireTarget) : null
+      if (ft) {
+        const aim = OP.Targeting.leadPoint(sim, tower, ft, s.projSpeed)
+        const angle = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+        const fireEffects = [
+          OP.Effects.make('burn', s.fireBurnT, s.fireBurnDps, tower.id, D.FIRE)
+        ]
+        if (s.brittleT > 0) fireEffects.push(OP.Effects.make('brittle', s.brittleT, s.brittleMag, tower.id, D.NORMAL))
+        const shots = Math.max(1, Math.round(s.shots || 1))
+        for (let i = 0; i < shots; i++) {
+          const offset = shots === 1 ? 0 : (s.spread || 0.15) * (i / (shots - 1) - 0.5)
+          OP.Projectiles.fireAt(sim, {
+            x: tower.x, y: tower.y,
+            kind: 'moth-fire',
+            damage: s.fireDamage,
+            dmgType: s.dmgType,
+            pierce: s.pierce,
+            radius: s.projRadius,
+            life: s.projLife,
+            maxRange: s.range * 1.4,
+            ownerId: tower.id,
+            camoDetect: s.camoDetect,
+            blastRadius: s.blastRadius || 0,
+            blastFalloff: s.blastFalloff || 0,
+            homing: s.homing || 0,
+            turnRate: s.turnRate || 0,
+            targetId: ft.id,
+            effects: fireEffects,
+            behaviour: s.chainCount ? 'moth-chain' : '',
+            data: s.chainCount ? { chainCount: s.chainCount, chainDamageMul: s.chainDamageMul, dmgType: s.dmgType } : null
+          }, angle + offset, s.projSpeed)
+        }
+        // Combo tracking
+        d.comboTracker[ft.id] = now
+      }
+
+      // Cold stream: targets strong
+      const coldTarget = OP.Targeting.acquire(sim, tower, 'strong')
+      const ct = coldTarget >= 0 ? sim.byId.get(coldTarget) : null
+      if (ct) {
+        const aim = OP.Targeting.leadPoint(sim, tower, ct, s.projSpeed)
+        const angle = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+        const coldEffects = [
+          OP.Effects.make('cold', s.coldSlowT, s.coldSlowMag, tower.id, D.COLD)
+        ]
+        if (s.brittleT > 0) coldEffects.push(OP.Effects.make('brittle', s.brittleT, s.brittleMag, tower.id, D.NORMAL))
+        const shots = Math.max(1, Math.round(s.shots || 1))
+        for (let i = 0; i < shots; i++) {
+          const offset = shots === 1 ? 0 : (s.spread || 0.15) * (i / (shots - 1) - 0.5)
+          OP.Projectiles.fireAt(sim, {
+            x: tower.x, y: tower.y,
+            kind: 'moth-cold',
+            damage: s.coldDamage,
+            dmgType: s.dmgType,
+            pierce: s.pierce,
+            radius: s.projRadius,
+            life: s.projLife,
+            maxRange: s.range * 1.4,
+            ownerId: tower.id,
+            camoDetect: s.camoDetect,
+            homing: s.homing || 0,
+            turnRate: s.turnRate || 0,
+            targetId: ct.id,
+            effects: coldEffects,
+            behaviour: s.chainCount ? 'moth-chain' : '',
+            data: s.chainCount ? { chainCount: s.chainCount, chainDamageMul: s.chainDamageMul, dmgType: s.dmgType } : null
+          }, angle + offset, s.projSpeed)
+        }
+        // Combo tracking — if both streams hit same target within window
+        if (d.comboTracker[ct.id] && (now - d.comboTracker[ct.id]) < s.comboWindow) {
+          OP.Damage.hit(sim, ct, {
+            damage: s.comboDamage,
+            dmgType: D.ENERGY,
+            sourceId: tower.id
+          })
+          delete d.comboTracker[ct.id]
+        } else {
+          d.comboTracker[ct.id] = now
+        }
+      }
+
+      // Clean stale combo entries
+      for (const id in d.comboTracker) {
+        if (now - d.comboTracker[id] > s.comboWindow * 2) delete d.comboTracker[id]
+      }
+    }
+  })
+
+  /* ---------- Duality Moth chain behaviour ---------- */
+
+  OP.PROJ_BEHAVIOURS['moth-chain'] = {
+    onHit: function (sim, p, balloon, res) {
+      const d = p.data
+      if (!d || !d.chainCount || d.chainCount <= 0) return
+      // Find nearest other balloon
+      let best = null; let bestDist = 120
+      for (let i = 0; i < sim.balloons.length; i++) {
+        const b = sim.balloons[i]
+        if (!b.alive || b.id === balloon.id) continue
+        if (p.hits && p.hits.has(b.id)) continue
+        const dx = b.x - balloon.x; const dy = b.y - balloon.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < bestDist) { bestDist = dist; best = b }
+      }
+      if (!best) return
+      d.chainCount--
+      OP.Damage.hit(sim, best, {
+        damage: Math.max(1, Math.round(p.damage * d.chainDamageMul)),
+        dmgType: d.dmgType || p.dmgType,
+        sourceId: p.ownerId
+      })
+    }
+  }
+
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

@@ -100,6 +100,23 @@
       ['Towers standing', String(sim.towers ? sim.towers.length : 0)],
       ['Time played', M.time(sim.time || 0)]
     ]
+    // Race-specific rows
+    if (OP.Race && OP.Race.isActive && OP.Race.isActive(sim)) {
+      var raceTime = OP.Race.elapsed(sim)
+      var profile = app && app.state ? app.state.profile : null
+      var best = profile && OP.Race.bestFor ? OP.Race.bestFor(profile, app.state.mapKey, app.state.difficulty) : null
+      rows.push(['Clear time', OP.Race.formatTime(raceTime)])
+      if (best && best.won && best.time > 0) {
+        rows.push(['Best time', OP.Race.formatTime(best.time)])
+        if (raceTime > 0 && best.time > 0) {
+          var timeDiff = raceTime - best.time
+          var prefix = timeDiff > 0 ? '+' : ''
+          rows.push(['vs Best', prefix + OP.Race.formatTime(Math.abs(timeDiff))])
+        }
+      } else if (won) {
+        rows.push(['Best time', OP.Race.formatTime(raceTime) + ' (new!)'])
+      }
+    }
     for (let i = 0; i < rows.length; i++) {
       const y = P.y + 158 + i * 26
       marks.push(U.text(P.x + 40, y, rows[i][0], { size: 11, colour: C.dim }))
@@ -109,13 +126,43 @@
 
     const by = P.y + P.h - 78
     marks.push(U.rule(P.x + 40, by - 22, P.w - 80, { alpha: 0.6 }))
-    widgets.push(U.button('results.retry', P.x + 40, by, 250, 48, {
-      label: 'PLAY AGAIN', tone: 'primary', align: 'center', action: 'results-retry',
-      sub: 'same map, same rules'
-    }))
-    widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
-      label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
-    }))
+
+    // Expedition-specific buttons
+    var profile = app && app.state ? app.state.profile : null
+    var expResult = app && app.state ? app.state.expeditionResult : null
+    if (expResult && expResult.stageComplete && !expResult.expeditionComplete) {
+      // Map completed in expedition — show CONTINUE EXPEDITION
+      var expDef = profile && OP.Expedition && OP.Expedition.activeDef(profile)
+      var stageIdx = profile && OP.Expedition ? OP.Expedition.stageIndex(profile) : 0
+      var totalMaps = expDef ? expDef.maps.length : 0
+      widgets.push(U.button('results.expContinue', P.x + 40, by, 250, 48, {
+        label: 'CONTINUE EXPEDITION', tone: 'primary', align: 'center',
+        action: 'results-expedition-continue',
+        sub: 'stage ' + (stageIdx + 1) + ' of ' + totalMaps
+      }))
+      widgets.push(U.button('results.expAbandon', P.x + P.w - 290, by, 250, 48, {
+        label: 'ABANDON', align: 'center', action: 'results-expedition-abandon',
+        sub: 'give up this expedition'
+      }))
+    } else if (expResult && expResult.expeditionComplete) {
+      // Expedition fully complete
+      widgets.push(U.button('results.title', P.x + 40, by, 250, 48, {
+        label: 'EXPEDITION COMPLETE', tone: 'primary', align: 'center',
+        action: 'results-title', sub: 'all maps cleared'
+      }))
+      widgets.push(U.button('results.expAbandon', P.x + P.w - 290, by, 250, 48, {
+        label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
+      }))
+    } else {
+      // Normal results buttons
+      widgets.push(U.button('results.retry', P.x + 40, by, 250, 48, {
+        label: 'PLAY AGAIN', tone: 'primary', align: 'center', action: 'results-retry',
+        sub: 'same map, same rules'
+      }))
+      widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
+        label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
+      }))
+    }
 
     marks.push(U.text(FIELD_W / 2, PANEL.y + PANEL.h + 30, 'ENTER plays again · ESC returns to the title',
       { size: 10, colour: C.faint, align: 'center' }))
@@ -172,6 +219,19 @@
       click(true)
       if (app && typeof app.quitToMenu === 'function') app.quitToMenu()
       else if (app && app.state) { app.state.sim = null; app.state.screen = 'menu' }
+      if (OP.Menus && OP.Menus.go) OP.Menus.go(app, 'title')
+      return true
+    }
+
+    if (w.action === 'results-expedition-continue') {
+      click(true)
+      if (app && typeof app.advanceExpedition === 'function') app.advanceExpedition()
+      return true
+    }
+
+    if (w.action === 'results-expedition-abandon') {
+      click(true)
+      if (app && typeof app.abandonExpedition === 'function') app.abandonExpedition()
       if (OP.Menus && OP.Menus.go) OP.Menus.go(app, 'title')
       return true
     }

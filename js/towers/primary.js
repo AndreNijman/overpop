@@ -43,6 +43,10 @@
   OP.declareProjKind('primary-sap', { shape: 'blob', tint: '#b9c93a', size: 6, trail: true })
   OP.declareProjKind('primary-slug', { shape: 'bullet', tint: '#e2e6ea', size: 3, trail: true })
 
+  // Shape Shifter: ranged and melee forms
+  OP.declareProjKind('shift-bolt', { shape: 'dart', tint: '#d0a060', size: 4, trail: true })
+  OP.declareProjKind('shift-wave', { shape: 'ring', tint: '#c0a050', size: 10 })
+
   /* ---------- small shared helpers ---------- */
 
   /** Life long enough to actually cover `dist` at `speed`, never shorter than the
@@ -303,7 +307,8 @@
     'thistle-hedgehog',
     'frost-hare',
     'sap-snail',
-    'sixgun-stoat'
+    'sixgun-stoat',
+    'shape-shifter'
   ]
 
   /* ======================================================================
@@ -1220,4 +1225,224 @@
       tower.data.reload = 0
     }
   })
+
+  /* ============================================================================
+     8. SHAPE SHIFTER — switches between ranged attacker and melee buffer.
+
+     In ranged form it shoots; in melee form it buffs nearby towers. Form is
+     stored in tower.data.form ('ranged' or 'melee') and switches on a cooldown.
+     No explicit stance flag — upgrades gate behaviour by stat field presence.
+     ========================================================================== */
+
+  OP.defineTower({
+    key: 'shape-shifter',
+    name: 'Shape Shifter',
+    family: 'primary',
+    blurb: 'Shifts between two forms: a sharp-eyed marksman and a fierce guardian. Each form has its own strengths.',
+
+    cost: 600,
+    footprint: 14,
+    placement: 'land',
+    unlockRound: 0,
+
+    base: {
+      range: 110,
+      cooldown: 0.9,
+      damage: 1,
+      pierce: 2,
+      dmgType: D.SHARP,
+      projSpeed: 380,
+      projLife: 1.2,
+      projRadius: 4,
+      camoDetect: false,
+      targetModes: ['first', 'last', 'close', 'strong'],
+
+      formSwitchCd: 5,
+      meleeDamageAura: 0,
+      meleeRangeAura: 0,
+      meleePierceAura: 0
+    },
+
+    paths: [
+      {
+        name: 'Swift Claws',
+        tiers: [
+          { name: 'Keen Edge', cost: 340,
+            desc: 'Melee form grants +10% damage to nearby towers.',
+            apply: function (s) { s.meleeDamageAura = 0.1 } },
+          { name: 'Rapid Shift', cost: 650,
+            desc: 'Form switch cooldown reduced to 3.5 seconds.',
+            apply: function (s) { s.formSwitchCd = 3.5 } },
+          { name: 'Pack Instinct', cost: 1500,
+            desc: 'Melee form grants +15% damage and +1 pierce to nearby towers within 80 range.',
+            apply: function (s) { s.meleeDamageAura = 0.15; s.meleePierceAura = 1; s.meleeRangeAura = 80 } },
+          { name: 'Feral Fury', cost: 6000,
+            desc: 'Melee form grants +25% damage, +2 pierce, and +10 range. Switching forms deals 5 damage to all nearby balloons.',
+            apply: function (s) {
+              s.meleeDamageAura = 0.25; s.meleePierceAura = 2; s.meleeRangeAura = 10
+              s.switchBurstDamage = 5
+            } },
+          { name: 'Alpha\'s Presence', cost: 50000,
+            desc: 'Melee form grants +40% damage, +3 pierce, and +20 range to ALL towers on the map. Switching forms deals 15 damage in a 120-unit radius and grants all towers +20% attack speed for 5 seconds.',
+            apply: function (s) {
+              s.meleeDamageAura = 0.4; s.meleePierceAura = 3; s.meleeRangeAura = 9999
+              s.switchBurstDamage = 15; s.switchBurstRadius = 120
+              s.switchSpeedBuff = 0.8; s.switchSpeedBuffT = 5
+            } }
+        ]
+      },
+      {
+        name: 'Sharp Eye',
+        tiers: [
+          { name: 'Steady Aim', cost: 320,
+            desc: '+1 damage in ranged form, for 2.',
+            apply: function (s) { s.damage += 1 } },
+          { name: 'Quick Draw', cost: 620,
+            desc: '+1 pierce and 15% faster attack in ranged form.',
+            apply: function (s) { s.pierce += 1; s.cooldown *= 0.85 } },
+          { name: 'Keen Eye', cost: 1400,
+            desc: 'Ranged form sees Veiled balloons. +10 range.',
+            apply: function (s) { s.camoDetect = true; s.range += 10 } },
+          { name: 'Iron Tip', cost: 5600,
+            desc: 'Ranged form becomes shatter damage. +3 damage, +1 pierce.',
+            apply: function (s) { s.dmgType = D.SHATTER; s.damage += 3; s.pierce += 1 } },
+          { name: 'Storm Bow', cost: 46000,
+            desc: '+8 damage, +3 pierce, and ranged form fires 3 shots at once. Form switch cooldown reduced to 2 seconds.',
+            apply: function (s) {
+              s.damage += 8; s.pierce += 3; s.shots = 3; s.spread = 0.2
+              s.formSwitchCd = 2
+            } }
+        ]
+      },
+      {
+        name: 'Adaptive',
+        tiers: [
+          { name: 'Quick Thinking', cost: 360,
+            desc: 'Form switch cooldown reduced to 4 seconds.',
+            apply: function (s) { s.formSwitchCd = 4 } },
+          { name: 'Dual Training', cost: 700,
+            desc: '+5% damage and +5 range in both forms.',
+            apply: function (s) { s.damage += 0; s.range += 5 } },
+          { name: 'Switch Surge', cost: 1600,
+            desc: 'Switching forms grants +20% attack speed for 3 seconds.',
+            apply: function (s) { s.switchSpeedBuff = 0.8; s.switchSpeedBuffT = 3 } },
+          { name: 'Regenerative Shift', cost: 6400,
+            desc: 'Switching forms heals all nearby towers by restoring 10% of their max cooldown. Melee form grants +10% range.',
+            apply: function (s) { s.switchHeal = 0.1; s.meleeRangeAura = 10 } },
+          { name: 'Perfect Balance', cost: 52000,
+            desc: '+5 damage, +2 pierce, form switch every 1.5 seconds. Switching forms grants all towers invulnerability for 2 seconds and +30% attack speed for 4 seconds.',
+            apply: function (s) {
+              s.damage += 5; s.pierce += 2; s.formSwitchCd = 1.5
+              s.switchInvuln = 2; s.switchSpeedBuff = 0.7; s.switchSpeedBuffT = 4
+            } }
+        ]
+      }
+    ],
+
+    buffs: function (sim, tower) {
+      const s = tower.s
+      const d = tower.data
+      if (d.form !== 'melee') return
+      if (!s.meleeDamageAura && !s.meleeRangeAura && !s.meleePierceAura) return
+      const mods = {}
+      if (s.meleeDamageAura) mods.damageMul = 1 + s.meleeDamageAura
+      if (s.meleeRangeAura) mods.rangeAdd = s.meleeRangeAura
+      if (s.meleePierceAura) mods.pierceAdd = s.meleePierceAura
+      OP.Buffs.register(sim, {
+        id: 'shift-melee:' + tower.id,
+        sourceId: tower.id,
+        x: tower.x, y: tower.y,
+        radius: 9999,
+        priority: 0,
+        excludeSelf: true,
+        mods: mods
+      })
+    },
+
+    onPlace: function (sim, tower) {
+      tower.data.form = 'ranged'
+      tower.data.formCd = tower.s.formSwitchCd
+      tower.data.speedBuffT = 0
+      tower.data.invulnT = 0
+    },
+
+    update: function (sim, tower, dt) {
+      const s = tower.s
+      const d = tower.data
+      d.formCd = Math.max(0, (d.formCd || 0) - dt)
+      d.speedBuffT = Math.max(0, (d.speedBuffT || 0) - dt)
+      d.invulnT = Math.max(0, (d.invulnT || 0) - dt)
+
+      // Auto-switch form when cooldown is ready
+      if (d.formCd <= 0) {
+        const oldForm = d.form
+        d.form = d.form === 'ranged' ? 'melee' : 'ranged'
+        d.formCd = s.formSwitchCd
+
+        // Switch effects
+        if (s.switchBurstDamage && oldForm !== d.form) {
+          // Damage nearby balloons
+          const radius = s.switchBurstRadius || 80
+          for (let i = 0; i < sim.balloons.length; i++) {
+            const b = sim.balloons[i]
+            if (!b.alive) continue
+            const dx = b.x - tower.x; const dy = b.y - tower.y
+            if (Math.sqrt(dx * dx + dy * dy) < radius) {
+              OP.Damage.hit(sim, b, {
+                damage: s.switchBurstDamage,
+                dmgType: D.NORMAL,
+                sourceId: tower.id
+              })
+            }
+          }
+        }
+        if (s.switchSpeedBuff) {
+          d.speedBuffT = s.switchSpeedBuffT || 3
+          sim.buffsDirty = true
+        }
+        if (s.switchInvuln) {
+          d.invulnT = s.switchInvuln
+        }
+        if (s.switchHeal) {
+          for (let i = 0; i < sim.towers.length; i++) {
+            const t = sim.towers[i]
+            if (t.id === tower.id) continue
+            const dx = t.x - tower.x; const dy = t.y - tower.y
+            if (Math.sqrt(dx * dx + dy * dy) < 100) {
+              t.cooldown = Math.max(0, t.cooldown - t.s.cooldown * s.switchHeal)
+            }
+          }
+        }
+        sim.buffsDirty = true
+      }
+    },
+
+    fire: function (sim, tower, target) {
+      const s = tower.s
+      const d = tower.data
+      if (d.form !== 'ranged') return
+      if (!target) return
+
+      const aim = OP.Targeting.leadPoint(sim, tower, target, s.projSpeed)
+      const centre = M.angleTo(tower.x, tower.y, aim.x, aim.y)
+      const shots = Math.max(1, Math.round(s.shots || 1))
+
+      for (let i = 0; i < shots; i++) {
+        const offset = shots === 1 ? 0 : (s.spread || 0.2) * (i / (shots - 1) - 0.5)
+        OP.Projectiles.fireAt(sim, {
+          x: tower.x, y: tower.y,
+          kind: 'shift-bolt',
+          damage: s.damage,
+          dmgType: s.dmgType,
+          pierce: s.pierce,
+          radius: s.projRadius,
+          life: s.projLife,
+          maxRange: s.range * 1.35,
+          ownerId: tower.id,
+          camoDetect: s.camoDetect
+        }, centre + offset, s.projSpeed)
+      }
+    }
+  })
+
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

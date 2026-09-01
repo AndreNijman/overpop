@@ -241,7 +241,7 @@
 
   /* ---------- shared critter anatomy ----------
      The whole roster is one body plan plus a job. Keeping it shared is what makes
-     twenty-five towers legible as a family rather than twenty-five doodles.
+     thirty-one towers legible as a family rather than thirty-one doodles.
 
      The body is ALWAYS drawn upright. Only weapons and held things enter a
      rotating frame; the critter's facing is expressed by mirroring the head, so a

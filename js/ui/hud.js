@@ -310,7 +310,8 @@
     if (lowCash) marks.push(U.box(12, 6, 148, 32, { fill: C.warn, alpha: 0.14 }))
     if (lowLives) marks.push(U.box(168, 6, 120, 32, { fill: C.bad, alpha: 0.18 }))
 
-    label(marks, 20, 18, lowCash ? 'CASH · TOO LOW TO BUILD' : 'CASH', lowCash ? C.warn : C.faint)
+    const cashLabel = sim.coop ? 'PLAYER ' + (sim.coop.active + 1) + ' CASH' : 'CASH'
+    label(marks, 20, 18, lowCash ? cashLabel + ' / TOO LOW TO BUILD' : cashLabel, lowCash ? C.warn : C.faint)
     value(marks, 20, 35, M.money(sim.cash), lowCash ? C.warn : C.moss, 17)
 
     label(marks, 176, 18, lowLives ? 'LIVES · CRITICAL' : 'LIVES', lowLives ? C.bad : C.faint)
@@ -345,6 +346,36 @@
       { size: 11, colour: C.ink, align: 'right', weight: '600' }))
     marks.push(U.text(FIELD_W - 20, 34, ((mode && mode.name) || sim.mode || '?').toUpperCase(),
       { size: 9, colour: C.moss, align: 'right' }))
+
+    /* ----- race timer ----- */
+    if (OP.Race && OP.Race.isActive && OP.Race.isActive(sim)) {
+      var raceTime = OP.Race.elapsed(sim)
+      label(marks, 850, 18, 'TIME')
+      value(marks, 850, 35, OP.Race.formatTime(raceTime), C.gold, 17)
+    }
+
+    /* ----- boss health bar ----- */
+    if (OP.Boss && OP.Boss.isActive && OP.Boss.isActive(sim)) {
+      const bi = OP.Boss.info(sim)
+      if (bi) {
+        const bx = 12, by2 = 48, bw = 420, bh = 18
+        // Boss name and tier
+        marks.push(U.text(bx, by2 - 2, bi.name.toUpperCase() + ' T' + bi.tier + (bi.elite ? ' ELITE' : ''),
+          { size: 10, colour: bi.colour, weight: '600' }))
+        // Background bar
+        marks.push(U.box(bx, by2 + 10, bw, bh, { fill: C.deep }))
+        // Health fill
+        const hpFrac = M.clamp01(bi.fraction)
+        const hpColour = hpFrac > 0.5 ? bi.colour : hpFrac > 0.25 ? C.warn : C.bad
+        marks.push(U.box(bx, by2 + 10, Math.max(1, Math.round(bw * hpFrac)), bh,
+          { fill: hpColour, alpha: 0.9 }))
+        // Border
+        marks.push(U.box(bx, by2 + 10, bw, bh, { stroke: bi.colour, alpha: 0.6 }))
+        // HP text
+        marks.push(U.text(bx + bw / 2, by2 + 22, M.compact(bi.hp) + ' / ' + M.compact(bi.maxHP),
+          { size: 9, colour: C.ink, align: 'center', weight: '600' }))
+      }
+    }
 
     /* ----- the bottom strip: everything you press between rounds ----- */
 
@@ -383,13 +414,38 @@
       label: 'AUTOSTART', on: !!sim.autostart, action: 'hud-autostart'
     }))
 
-    marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 14,
-      'SPACE start · 1 2 3 speed · P pause', { size: 9, colour: C.faint, align: 'right' }))
-    marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 27,
-      'right-click a tower cycles its targeting', { size: 9, colour: C.faint, align: 'right' }))
+    if (OP.POWER_ORDER && OP.POWERS && sim.powers) {
+      for (let i = 0; i < OP.POWER_ORDER.length; i++) {
+        const key = OP.POWER_ORDER[i]
+        const def = OP.POWERS[key]
+        const count = sim.powers[key] || 0
+        widgets.push(U.button('hud.power.' + key, 668 + i * 70, by, 66, 34, {
+          label: def.short + ' ' + count,
+          align: 'center',
+          action: 'hud-power',
+          arg: key,
+          disabled: count <= 0 || !sim.rules.allowPowers,
+          reason: !sim.rules.allowPowers ? 'Powers are disabled in this mode.' : 'None left.'
+        }))
+      }
+    } else {
+      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 14,
+        'SPACE start / 1 2 3 speed / P pause', { size: 9, colour: C.faint, align: 'right' }))
+      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 27,
+        'right-click a tower cycles its targeting', { size: 9, colour: C.faint, align: 'right' }))
+    }
 
     if (sim.paused) {
       marks.push(U.text(FIELD_W / 2, 90, 'PAUSED', { size: 22, colour: C.warn, align: 'center', weight: '600' }))
+    }
+    if (sim.coop && sim.coop.swapping) {
+      marks.push(U.box(FIELD_W / 2 - 190, 292, 380, 104, { fill: C.deep, stroke: C.gold, alpha: 0.96 }))
+      marks.push(U.text(FIELD_W / 2, 334, 'PLAYER ' + (sim.coop.active + 1) + ' TURN', {
+        size: 24, colour: C.gold, align: 'center', weight: '600'
+      }))
+      marks.push(U.text(FIELD_W / 2, 362, 'Pass control to the next player.', {
+        size: 11, colour: C.ink, align: 'center'
+      }))
     }
 
     /* ----- the hero panel ----- */
@@ -589,6 +645,23 @@
         : OP.Towers.activate(sim, tower)
       if (res && res.ok) click(true)
       else refuse(tower.x, tower.y - 24, (res && res.reason) || 'Not ready.')
+      return true
+    }
+
+    if (w.action === 'hud-power') {
+      const res = OP.Powers && OP.Powers.activate
+        ? OP.Powers.activate(sim, w.arg)
+        : { ok: false, reason: 'Powers are unavailable.' }
+      if (res.ok) {
+        const profile = app && app.state ? app.state.profile : null
+        if (profile) {
+          profile.powers = OP.Powers.copyInventory(sim.powers)
+          if (OP.Save && OP.Save.save) OP.Save.save(profile)
+        }
+        click(true)
+      } else {
+        refuse(FIELD_W - 150, L.bottom.y - 10, res.reason || 'Power unavailable.')
+      }
       return true
     }
 

@@ -39,6 +39,7 @@
   const V = P.VEILED
   const RG = P.REGEN
   const PL = P.PLATED
+  const FT = P.FORTIFIED
 
   OP.ROUNDS_STANDARD = {
 
@@ -346,6 +347,7 @@
     ] },
     50: { groups: [
       { tier: 'ceramic', count: 2, spacing: 1.4 },
+      { tier: 'ceramic', count: 1, spacing: 1.4, delay: 3, props: FT },
       { tier: 'goliath', count: 3, spacing: 3, delay: 4 }
     ] },
     51: { groups: [
@@ -414,8 +416,8 @@
     /* LEVIATHAN: slow, enormous, and four GOLIATHs deep. Slowing it further is
        almost free — killing it is not. */
     60: { groups: [
-      { tier: 'rainbow', count: 4, spacing: 0.9 },
       { tier: 'ceramic', count: 8, spacing: 0.6, delay: 3 },
+      { tier: 'goliath', count: 1, spacing: 2.5, delay: 8, props: FT },
       { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
       { tier: 'wraith', count: 2, spacing: 3, delay: 13 },
       { tier: 'leviathan', count: 1, delay: 20 }
@@ -553,7 +555,8 @@
       { tier: 'ceramic', count: 16, spacing: 0.45 },
       { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
       { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 12, spacing: 2, delay: 19 },
+      { tier: 'leviathan', count: 2, spacing: 2, delay: 19, props: FT },
+      { tier: 'leviathan', count: 10, spacing: 2, delay: 19 },
       { tier: 'colossus', count: 1, delay: 30 }
     ] },
     /* From here the escort trades one thing for the other: a round that adds a

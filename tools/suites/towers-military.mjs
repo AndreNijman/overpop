@@ -15,7 +15,7 @@ export const name = 'towers-military'
 export const needs = ['js/towers/military.js']
 
 export function run (t, OP, env) {
-  const defs = assertFamily(t, OP, 'military', { expect: 7 })
+  const defs = assertFamily(t, OP, 'military', { expect: 8 })
   if (!defs.length) return
 
   const D = OP.DMG
@@ -76,9 +76,9 @@ export function run (t, OP, env) {
 
   /* ---------- roster shape ---------- */
 
-  t.section('military: the roster is the seven towers the phase asked for')
+  t.section('military: the roster is the eight towers the phase asked for')
   const want = ['longshot-lynx', 'diver-otter', 'corsair-beaver', 'biplane-magpie',
-    'rotor-kestrel', 'howitzer-mole', 'gatling-raccoon']
+    'rotor-kestrel', 'howitzer-mole', 'gatling-raccoon', 'brood-mother-moth']
   t.deep(OP.FAMILY_ROSTERS.military, want, 'declared roster matches the design brief, in order')
   for (const k of want) t.ok(T[k], k + ' is registered')
 
@@ -956,11 +956,11 @@ export function run (t, OP, env) {
 
   /* ---------- family-wide behaviour under the real sim ---------- */
 
-  t.section('military: seven military towers on one board stay deterministic')
+  t.section('military: eight military towers on one board stay deterministic')
   {
     function board (seed) {
       const s = makeSim(OP, { tracks: [arena(OP)], cash: 100000000, lives: 100000, seed: seed })
-      const spots = [[120, 60], [300, 60], [500, 60], [700, 60], [900, 60], [1100, 60], [1200, 300]]
+      const spots = [[120, 60], [300, 60], [500, 60], [700, 60], [900, 60], [1100, 60], [1200, 300], [640, 600]]
       want.forEach(function (key, i) {
         const tower = OP.Towers.place(s, key, spots[i][0], spots[i][1], { free: true })
         if (tower) OP.Upgrades.buy(s, tower, i % 3)
@@ -971,7 +971,7 @@ export function run (t, OP, env) {
     }
     const a = board('mil-det')
     const b = board('mil-det')
-    t.eq(a.towers.length, 7, 'all seven fit on the board together')
+    t.eq(a.towers.length, 8, 'all eight fit on the board together')
     t.eq(OP.Sim.checksum(a), OP.Sim.checksum(b), 'two runs of the same seed agree exactly')
     t.gt(a.stats.popped, 0, 'and the board actually did something (' + a.stats.popped + ' popped)')
 

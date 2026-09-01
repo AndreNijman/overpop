@@ -1,7 +1,7 @@
 ;(function (OP) {
   'use strict'
 
-  /* Freeplay — rounds past the end of the authored table.
+  /* Freeplay â€” rounds past the end of the authored table.
 
      The authored sets stop at 100. A player who wins and keeps going needs an
      unbounded supply of rounds, and OP.Rounds.definition falls through to here
@@ -13,7 +13,7 @@
      The reason is in OP.Sim.deserialize (js/core/sim.js): a save stores the RNG
      *state*, not the sequence of rounds. If round 137 were rolled from sim.rng,
      then saving during round 136 and reloading would produce a different round
-     137 to the one the un-interrupted run would have produced — the RNG would
+     137 to the one the un-interrupted run would have produced â€” the RNG would
      have been advanced a different number of times by the towers that fired
      before the save. The round table is content, and content must not depend on
      the simulation's entropy budget. Everything below is integer arithmetic on
@@ -48,7 +48,7 @@
   }
 
   /**
-   * The HUD's copy of the difficulty curve — and the single source of truth for
+   * The HUD's copy of the difficulty curve â€” and the single source of truth for
    * the scaling the generator writes into each group.
    *
    *   hpScale    quadratic. Gentle for the first stretch (round 120 is about
@@ -70,7 +70,7 @@
   /* ---------- composition ---------- */
 
   // Spacing tightens as the rounds climb: the same count arriving over less time.
-  // Also keeps a round's release window bounded — without it, a round-500 group
+  // Also keeps a round's release window bounded â€” without it, a round-500 group
   // of 400 GOLIATHs at 0.45s apart would take three minutes to come out.
   function pace (base, over) {
     return Math.max(0.05, q(base * 60 / (60 + over)))
@@ -122,7 +122,7 @@
     const blimpProps = (over % 6 === 0 ? P.VEILED : 0)
 
     /* Counts grow on five different periods, so the mix shifts as the rounds
-       climb — the GOLIATH count piles up fastest, the OMEN count slowest.
+       climb â€” the GOLIATH count piles up fastest, the OMEN count slowest.
 
        Every term here is monotonically non-decreasing in `over`, and the GOLIATH
        term rises every single round, so both blimp density and round RBE
@@ -171,7 +171,7 @@
     }
 
     // Belt and braces. Every count above starts at 3 or more, so this cannot
-    // trigger today — but an empty round would silently complete the instant it
+    // trigger today â€” but an empty round would silently complete the instant it
     // began and hand the player a free round bonus forever, which is a worse
     // failure than a hardcoded fallback wave.
     if (!groups.length) {

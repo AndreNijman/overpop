@@ -9,7 +9,7 @@
 //   node tools/playthroughs.mjs --report docs/BALANCE.md
 //
 // This is what makes "rounds 1-100 verified" a claim rather than a hope. Playing a
-// hundred rounds by hand across four difficulties and eleven modes is not a thing
+// hundred rounds by hand across four difficulties and seventeen modes is not a thing
 // anyone does, so it is done headlessly with a deterministic simulation instead.
 //
 // It asserts in BOTH directions, which is the part that matters:

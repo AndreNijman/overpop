@@ -395,19 +395,19 @@
           ],
           "status": "done",
           "commit": "9a067d8",
-          "note": "Easy/Medium/Hard/Relentless. Modes: Standard, Primary Only, Military Only, Magic Only, Deflation, Onslaught, Half Cash, Double HP Blimps, Alternate Waves, Reverse, PURIST.",
+          "note": "Easy/Medium/Hard/Relentless. Modes: Standard, Primary Only, Military Only, Magic Only, Deflation, Onslaught, Half Cash, Double HP Blimps, Alternate Waves, Reverse, PURIST, GRIM, RAMPART.",
           "finished": "2026-08-05 12:55:23"
         }
       ]
     },
     {
       "id": "P3",
-      "title": "Tower roster — 25 towers, 3x5 upgrade trees",
+      "title": "Tower roster — 31 towers, 3x5 upgrade trees",
       "goal": "Fan-out phase. One agent per family, disjoint files, all coding against the P1.9 contract.",
       "steps": [
         {
           "id": "P3.1",
-          "title": "Primary family (7 towers)",
+          "title": "Primary family (8 towers)",
           "deps": [
             "P2.3",
             "P1.11"
@@ -420,12 +420,12 @@
           ],
           "status": "done",
           "commit": "b593b00",
-          "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat. MUST declare OP.FAMILY_ROSTERS.primary and its suite MUST call assertFamily(t, OP, \"primary\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "note": "Acorn Fox, Boomer Badger, Cannon Boar, Thistle Hedgehog, Frost Hare, Sap Snail, Sixgun Stoat, Shape Shifter. MUST declare OP.FAMILY_ROSTERS.primary and its suite MUST call assertFamily(t, OP, \"primary\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
           "finished": "2026-08-05 13:11:42"
         },
         {
           "id": "P3.2",
-          "title": "Military family (7 towers)",
+          "title": "Military family (8 towers)",
           "deps": [
             "P2.3",
             "P1.11"
@@ -438,12 +438,12 @@
           ],
           "status": "done",
           "commit": "b593b00",
-          "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon. MUST declare OP.FAMILY_ROSTERS.military and its suite MUST call assertFamily(t, OP, \"military\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "note": "Longshot Lynx, Diver Otter, Corsair Beaver, Biplane Magpie, Rotor Kestrel, Howitzer Mole, Gatling Raccoon, Brood Mother Moth. MUST declare OP.FAMILY_ROSTERS.military and its suite MUST call assertFamily(t, OP, \"military\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
           "finished": "2026-08-05 13:11:43"
         },
         {
           "id": "P3.3",
-          "title": "Magic family (6 towers)",
+          "title": "Magic family (8 towers)",
           "deps": [
             "P2.3",
             "P1.11"
@@ -456,12 +456,12 @@
           ],
           "status": "done",
           "commit": "3c93d13",
-          "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt. MUST declare OP.FAMILY_ROSTERS.magic and its suite MUST call assertFamily(t, OP, \"magic\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "note": "Rune Weasel, Elder Owl, Shadow Marten, Brewer Toad, Thornroot Stag, Tidecaller Newt, Crystal Badger, Duality Moth. MUST declare OP.FAMILY_ROSTERS.magic and its suite MUST call assertFamily(t, OP, \"magic\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
           "finished": "2026-08-05 13:01:40"
         },
         {
           "id": "P3.4",
-          "title": "Support family (5 towers)",
+          "title": "Support family (7 towers)",
           "deps": [
             "P2.3",
             "P1.11"
@@ -474,7 +474,7 @@
           ],
           "status": "done",
           "commit": "10bf9ee",
-          "note": "Berry Warren, Caltrop Beetle, Warren Hall, Tinker Shrew, Falconer Ferret. Buff aggregation must be idempotent and order-independent. MUST declare OP.FAMILY_ROSTERS.support and its suite MUST call assertFamily(t, OP, \"support\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
+          "note": "Berry Warren, Caltrop Beetle, Warren Hall, Tinker Shrew, Falconer Ferret, Honey Badger, Warden Badger. Buff aggregation must be idempotent and order-independent. MUST declare OP.FAMILY_ROSTERS.support and its suite MUST call assertFamily(t, OP, \"support\") from _towerfamily.mjs. Costs must sit inside OP.Upgrades.COST_LADDER. Declare every projectile kind with OP.declareProjKind().",
           "finished": "2026-08-05 13:03:00"
         },
         {
@@ -566,7 +566,7 @@
         },
         {
           "id": "P5.2",
-          "title": "16 maps (beginner -> expert)",
+          "title": "48 maps (beginner -> expert)",
           "deps": [
             "P5.1",
             "P2.3"
@@ -632,7 +632,7 @@
         },
         {
           "id": "P6.3",
-          "title": "Critter tower sprites (25 towers x visible tier states)",
+          "title": "Critter tower sprites (31 towers x visible tier states)",
           "deps": [
             "P6.1"
           ],

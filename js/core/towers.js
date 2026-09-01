@@ -7,13 +7,27 @@
      This is the contract the content phases write against (ARCHITECTURE.md §6).
 
      `defineTower` validates hard and throws on anything malformed. That is
-     deliberate. Twenty-five towers get authored across four separate files, and a
+     deliberate. Thirty-one towers are authored across four separate files, and a
      tower with four branches, or six tiers, or a missing `fire`, must fail at
      load with a message naming the file — not silently produce a tower that
      cannot be upgraded past tier 4 and gets noticed in a playtest three phases
      later. */
 
   const Towers = {}
+
+  /* One starter from every family, then one new critter per player level. The
+     schedule is data rather than registry order so loading a family file earlier
+     cannot accidentally make that whole family unlock first. */
+  const UNLOCK_LEVEL = {
+    'acorn-fox': 1, 'longshot-lynx': 1, 'rune-weasel': 1, 'berry-warren': 1,
+    'boomer-badger': 2, 'diver-otter': 3, 'elder-owl': 4, 'caltrop-beetle': 5,
+    'cannon-boar': 6, 'corsair-beaver': 7, 'shadow-marten': 8, 'warren-hall': 9,
+    'thistle-hedgehog': 10, 'biplane-magpie': 11, 'brewer-toad': 12, 'tinker-shrew': 13,
+    'frost-hare': 14, 'rotor-kestrel': 15, 'thornroot-stag': 16, 'falconer-ferret': 17,
+    'sap-snail': 18, 'howitzer-mole': 19, 'tidecaller-newt': 20, 'honey-badger': 21,
+    'sixgun-stoat': 22, 'gatling-raccoon': 23, 'crystal-badger': 24, 'warden-badger': 25,
+    'shape-shifter': 26, 'brood-mother-moth': 27, 'duality-moth': 28
+  }
 
   /* ---------- definition registry ---------- */
 
@@ -31,6 +45,7 @@
     def.footprint = def.footprint === undefined ? 14 : def.footprint
     def.placement = def.placement || 'land'
     def.unlockRound = def.unlockRound || 0
+    def.unlockLevel = UNLOCK_LEVEL[def.key] || def.unlockLevel || 1
     def.income = !!def.income
     def.base.shots = def.base.shots === undefined ? 1 : def.base.shots
     def.base.spread = def.base.spread || 0
@@ -207,6 +222,11 @@
   Towers.canPlace = function (sim, key, x, y) {
     const def = OP.TOWERS[key]
     if (!def) return { ok: false, reason: 'Unknown tower.' }
+    if (OP.Coop && !OP.Coop.canPlace(sim)) return { ok: false, reason: 'Wait for the player swap.' }
+
+    if (OP.Economy.progressionAllowsTower && !OP.Economy.progressionAllowsTower(sim, def)) {
+      return { ok: false, reason: 'Unlocks at player level ' + def.unlockLevel + '.' }
+    }
 
     if (!OP.Economy.towerAllowed(sim, def)) {
       return { ok: false, reason: def.income && !sim.rules.allowIncome

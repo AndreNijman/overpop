@@ -10,19 +10,19 @@
   <meta name="application-name" content="OVERPOP">
   <meta name="theme-color" content="#0e1410">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="OVERPOP is a free, original tower defense game you play in your browser. 25 critter towers with three-branch upgrade trees, 100 rounds of balloons and blimps, 16 maps, heroes, and eleven game modes including PURIST. No download, works offline.">
+  <meta name="description" content="OVERPOP is a free, original tower defense game you play in your browser. 31 critter towers, 100 rounds, 48 maps, heroes, bosses, persistent progression and seventeen game modes. No download, works offline.">
   <title>OVERPOP — Free Browser Tower Defense Game</title>
   <link rel="canonical" href="https://overpop.andrenijman.com/">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="OVERPOP">
   <meta property="og:title" content="OVERPOP — Free Browser Tower Defense Game">
-  <meta property="og:description" content="An original round-based tower defense game: 25 critter towers, three-branch upgrade trees, 100 rounds, 16 maps, heroes and eleven modes. Free, no download — play it in your browser.">
+  <meta property="og:description" content="An original round-based tower defense game: 31 critter towers, 100 rounds, 48 maps, heroes, bosses and seventeen modes. Free, no download — play it in your browser.">
   <meta property="og:url" content="https://overpop.andrenijman.com/">
   <meta property="og:image" content="https://overpop.andrenijman.com/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="OVERPOP — Free Browser Tower Defense Game">
-  <meta name="twitter:description" content="An original round-based tower defense game: 25 critter towers, three-branch upgrade trees, 100 rounds, 16 maps, heroes and eleven modes. Free, no download.">
+  <meta name="twitter:description" content="An original round-based tower defense game: 31 critter towers, 100 rounds, 48 maps, heroes, bosses and seventeen modes. Free, no download.">
   <meta name="twitter:image" content="https://overpop.andrenijman.com/og-image.png">
 
   <script type="application/ld+json">
@@ -31,9 +31,9 @@
     "@type": "VideoGame",
     "name": "OVERPOP",
     "url": "https://overpop.andrenijman.com/",
-    "description": "A free, original round-based tower defense game played in the browser. Twenty-five woodland-critter towers with three-branch, five-tier upgrade trees, a hundred rounds of balloons and blimps, sixteen maps, levelling heroes, paragons and eleven game modes. Installable as a PWA and fully playable offline.",
+    "description": "A free, original round-based tower defense game played in the browser. Thirty-one woodland-critter towers, a hundred rounds, forty-eight maps, levelling heroes, paragons, bosses, persistent progression and seventeen game modes. Installable as a PWA and fully playable offline.",
     "genre": ["Tower defense", "Strategy"],
-    "playMode": "SinglePlayer",
+    "playMode": ["SinglePlayer", "MultiPlayer"],
     "gamePlatform": "Web browser",
     "applicationCategory": "Game",
     "operatingSystem": "Any",
@@ -59,8 +59,9 @@
       <a href="https://andrenijman.com/">Andre Nijman</a>. Place woodland-critter
       towers along winding tracks, upgrade them down three branching paths, and
       hold a hundred rounds of balloons, blimps and camouflaged threats across
-      sixteen maps. Levelling heroes, paragon towers, and eleven game modes from
-      Deflation to PURIST. Every sprite is drawn in code and every sound is
+       forty-eight maps. Levelling heroes, paragon towers, bosses, Critter Wisdom,
+       consumable powers, and seventeen game modes from Deflation to PURIST, GRIM,
+       RAMPART and Tag Team. Every sprite is drawn in code and every sound is
       synthesised — no engine, no asset packs. Free, no download, works offline.
     </p>
     <p><a href="https://games.andrenijman.com/">More games by Andre Nijman</a></p>
@@ -112,6 +113,15 @@
   <script src="js/core/rounds.js"></script>
   <script src="js/core/freeplay.js"></script>
   <script src="js/core/maps.js"></script>
+  <script src="js/core/boss.js"></script>
+  <script src="js/core/knowledge.js"></script>
+  <script src="js/core/coop.js"></script>
+  <script src="js/core/powers.js"></script>
+  <script src="js/core/race.js"></script>
+  <script src="js/data/expeditions.js"></script>
+  <script src="js/core/expedition.js"></script>
+  <script src="js/data/trials.js"></script>
+  <script src="js/core/trial.js"></script>
   <script src="js/core/sim.js"></script>
 
   <!-- content data -->
@@ -119,10 +129,15 @@
   <script src="js/data/rounds-alternate.js"></script>
   <script src="js/data/difficulties.js"></script>
   <script src="js/data/modes.js"></script>
+  <script src="js/data/bosses.js"></script>
   <script src="js/data/maps-beginner.js"></script>
   <script src="js/data/maps-intermediate.js"></script>
   <script src="js/data/maps-advanced.js"></script>
   <script src="js/data/maps-expert.js"></script>
+  <script src="js/data/knowledge.js"></script>
+  <script src="js/data/achievements.js"></script>
+  <script src="js/data/powers.js"></script>
+  <script src="js/data/daily.js"></script>
 
   <!-- tower roster -->
   <script src="js/towers/primary.js"></script>
@@ -143,11 +158,13 @@
 
   <!-- shell -->
   <script src="js/save.js"></script>
+  <script src="js/core/daily.js"></script>
   <script src="js/ui/input.js"></script>
   <script src="js/ui/menus.js"></script>
   <script src="js/ui/hud.js"></script>
   <script src="js/ui/shop.js"></script>
   <script src="js/ui/tower-panel.js"></script>
+  <script src="js/ui/knowledge.js"></script>
   <script src="js/ui/bestiary.js"></script>
   <script src="js/ui/results.js"></script>
   <script src="js/main.js"></script>

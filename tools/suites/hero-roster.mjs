@@ -34,7 +34,7 @@ export function run (t, OP, env) {
   /* ---------- the roster ---------- */
 
   t.section('roster')
-  t.eq(KEYS.length, 8, `eight heroes registered (${KEYS.length})`)
+  t.eq(KEYS.length, 20, `twenty heroes registered (${KEYS.length})`)
   t.eq(new Set(KEYS).size, KEYS.length, 'keys are unique')
   t.eq(new Set(KEYS.map(k => OP.HEROES[k].name)).size, KEYS.length, 'display names are unique')
   t.eq(new Set(KEYS.map(k => OP.HEROES[k].title)).size, KEYS.length, 'titles are unique')

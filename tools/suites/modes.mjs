@@ -27,7 +27,8 @@ export function run (t, OP, env) {
 
   const DIFF_KEYS = ['easy', 'medium', 'hard', 'relentless']
   const MODE_KEYS = ['standard', 'primary-only', 'military-only', 'magic-only', 'deflation',
-    'onslaught', 'half-cash', 'double-hp-blimps', 'alternate-waves', 'reverse', 'purist']
+    'onslaught', 'half-cash', 'double-hp-blimps', 'alternate-waves', 'reverse', 'purist', 'grim', 'rampart',
+    'boss-event', 'boss-event-elite', 'tag-team', 'rush-trial']
 
   /** A readable label for the junk values fed to the fallback paths below. */
   function fmtJunk (v) {
@@ -51,17 +52,17 @@ export function run (t, OP, env) {
   t.ok(D && typeof D === 'object', 'OP.DIFFICULTIES exists')
   t.ok(M && typeof M === 'object', 'OP.MODES exists')
   t.eq(Object.keys(D).length, 4, 'exactly four difficulties')
-  t.eq(Object.keys(M).length, 11, 'exactly eleven modes')
+  t.eq(Object.keys(M).length, 17, 'exactly seventeen modes')
   t.deep(OP.DIFFICULTY_ORDER, DIFF_KEYS, 'DIFFICULTY_ORDER is easiest-first')
-  t.eq(OP.MODE_ORDER.length, 11, 'MODE_ORDER lists eleven modes')
+  t.eq(OP.MODE_ORDER.length, 17, 'MODE_ORDER lists seventeen modes')
 
   // The order arrays are what the menus render. A mode missing from one is a mode
   // the player can never pick; a mode listed twice renders twice.
   t.deep(OP.MODE_ORDER.slice().sort(), Object.keys(M).sort(), 'MODE_ORDER is a permutation of the registry')
-  t.eq(new Set(OP.MODE_ORDER).size, 11, 'MODE_ORDER has no duplicates')
+  t.eq(new Set(OP.MODE_ORDER).size, 17, 'MODE_ORDER has no duplicates')
   t.deep(OP.DIFFICULTY_ORDER.slice().sort(), Object.keys(D).sort(), 'DIFFICULTY_ORDER is a permutation of the registry')
   t.eq(new Set(OP.DIFFICULTY_ORDER).size, 4, 'DIFFICULTY_ORDER has no duplicates')
-  t.deep(OP.MODE_ORDER, MODE_KEYS, 'the eleven modes are exactly the ones §8 names, in menu order')
+  t.deep(OP.MODE_ORDER, MODE_KEYS, 'the seventeen modes are exactly the ones §8 names, in menu order')
 
   t.section('every entry agrees with the key it is registered under')
   for (const k of DIFF_KEYS) {
@@ -155,13 +156,16 @@ export function run (t, OP, env) {
   // their own typo by adding it. Every entry has to earn its place twice below:
   // it must be genuinely absent from defaultRules(), and a named file in the
   // shipped bundle has to be shown reading it. Nothing is admitted on a promise.
-  const EXTRA = ['heroXpMul', 'reversePaths']
+  const EXTRA = ['heroXpMul', 'reversePaths', 'bossKey', 'bossElite', 'coop']
   // The file that consumes each one, asserted by name. A substring scan over the
   // whole bundle is satisfied by a comment, so for each field the reader is pinned
   // to the exact file and the exact expression that acts on it.
   const CONSUMER = {
     heroXpMul: { file: 'js/core/heroes.js', needles: ['rules.heroXpMul', 'Heroes.xpRate'] },
-    reversePaths: { file: 'js/main.js', needles: ['rules.reversePaths', 'Maps.reversePaths('] }
+    reversePaths: { file: 'js/main.js', needles: ['rules.reversePaths', 'Maps.reversePaths('] },
+    bossKey: { file: 'js/core/sim.js', needles: ['rules.bossKey', 'bossKey'] },
+    bossElite: { file: 'js/core/sim.js', needles: ['rules.bossElite', 'bossElite'] },
+    coop: { file: 'js/core/coop.js', needles: ['rules.coop', 'sim.coop'] }
   }
 
   /** Rule keys on `obj` that the engine would silently ignore. */
@@ -333,6 +337,7 @@ export function run (t, OP, env) {
   t.eq(pur.allowSell, false, 'no selling')
   t.eq(pur.allowIncome, false, 'no income towers')
   t.eq(pur.allowContinue, false, 'no continues')
+  t.eq(pur.allowPowers, false, 'no consumable powers')
   t.eq(pur.livesRegain, false, 'no lives regained')
   t.eq(pur.allowAbilities, undefined, 'tower and hero abilities are deliberately still allowed')
   t.eq(pur.costMul, undefined, 'and prices are the difficulty\'s, not inflated on top')
@@ -384,8 +389,8 @@ export function run (t, OP, env) {
   const modeFields = new Set()
   for (const k of MODE_KEYS) for (const f of Object.keys(M[k].rules)) modeFields.add(f)
   const overlap = [...modeFields].filter(f => diffFields.has(f)).sort()
-  t.deep(overlap, ['cashPerPopMul', 'firstRound', 'roundBonusMul', 'startCash', 'startLives'],
-    'exactly these five fields are contested between a difficulty and a mode')
+  t.deep(overlap, ['cashPerPopMul', 'costMul', 'firstRound', 'lastRound', 'roundBonusMul', 'startCash', 'startLives'],
+    'exactly these seven fields are contested between a difficulty and a mode')
   // The scale fields are the other half of the argument: no difficulty names them,
   // so Onslaught and Double HP Blimps cannot have their figures replaced from below.
   for (const f of ['hpScale', 'speedScale', 'blimpHpMul']) {
@@ -406,7 +411,7 @@ export function run (t, OP, env) {
   t.eq(S.resolveRules({ difficulty: 'nope' }).startLives, defaults.startLives, 'an unknown difficulty applies nothing')
   t.eq(S.resolveRules({ difficulty: 'medium', mode: 'nope' }).allowSell, true, 'an unknown mode applies nothing')
 
-  /* ================= the 44 combinations ================= */
+  /* ================= the 64 combinations ================= */
 
   t.section('every difficulty x mode resolves to internally consistent rules')
   const bad = { lives: [], cost: [], rounds: [], pop: [], families: [], sell: [], cash: [], keys: [] }
@@ -427,7 +432,7 @@ export function run (t, OP, env) {
       if (unknownKeys(r).length) bad.keys.push(label + ': ' + unknownKeys(r).join(','))
     }
   }
-  t.eq(combos, 44, 'there are 44 combinations')
+  t.eq(combos, 68, 'there are 68 combinations')
   t.eq(bad.lives.length, 0, 'startLives >= 1 everywhere', bad.lives.join('; '))
   t.eq(bad.cost.length, 0, 'costMul > 0 everywhere', bad.cost.join('; '))
   t.eq(bad.rounds.length, 0, 'firstRound <= lastRound everywhere', bad.rounds.join('; '))
@@ -437,7 +442,7 @@ export function run (t, OP, env) {
   t.eq(bad.cash.length, 0, 'startCash is a finite non-negative number everywhere', bad.cash.join('; '))
   t.eq(bad.keys.length, 0, 'no resolved ruleset carries a field the engine ignores', bad.keys.join('; '))
 
-  t.section('Sim.create succeeds for all 44 combinations')
+  t.section('Sim.create succeeds for all 64 combinations')
   for (const dk of DIFF_KEYS) {
     for (const mk of MODE_KEYS) {
       const r = S.resolveRules({ difficulty: dk, mode: mk })
@@ -464,6 +469,7 @@ export function run (t, OP, env) {
     t.eq(r.allowSell, false, `PURIST on ${dk} forbids selling`)
     t.eq(r.allowIncome, false, `PURIST on ${dk} forbids income`)
     t.eq(r.allowContinue, false, `PURIST on ${dk} forbids continues`)
+    t.eq(r.allowPowers, false, `PURIST on ${dk} forbids powers`)
     t.eq(r.livesRegain, false, `PURIST on ${dk} forbids regaining lives`)
   }
   const purSim = simFor('hard', 'purist')
@@ -478,6 +484,36 @@ export function run (t, OP, env) {
   E.loseLives(purSim, 1)
   t.ok(purSim.over, 'and a single leak ends the run')
   t.eq(purSim.outcome, 'leaked', 'with the reason recorded')
+
+  t.section('GRIM is the hardest mode: no safety nets, no abilities, one life')
+  for (const dk of DIFF_KEYS) {
+    const r = S.resolveRules({ difficulty: dk, mode: 'grim' })
+    t.eq(r.startLives, 1, `GRIM on ${dk} resolves to one life`)
+    t.eq(r.allowSell, false, `GRIM on ${dk} forbids selling`)
+    t.eq(r.allowIncome, false, `GRIM on ${dk} forbids income`)
+    t.eq(r.allowContinue, false, `GRIM on ${dk} forbids continues`)
+    t.eq(r.allowAbilities, false, `GRIM on ${dk} forbids abilities`)
+    t.eq(r.allowPowers, false, `GRIM on ${dk} forbids powers`)
+    t.eq(r.livesRegain, false, `GRIM on ${dk} forbids regaining lives`)
+  }
+  const grimSim = simFor('hard', 'grim')
+  t.eq(grimSim.lives, 1, 'a GRIM sim starts on one life')
+  t.eq(grimSim.rules.allowAbilities, false, 'abilities are disabled')
+  E.loseLives(grimSim, 1)
+  t.ok(grimSim.over, 'a single leak ends the run')
+
+  t.section('RAMPART: one life, expensive towers, no continues')
+  for (const dk of DIFF_KEYS) {
+    const r = S.resolveRules({ difficulty: dk, mode: 'rampart' })
+    t.eq(r.startLives, 1, `RAMPART on ${dk} resolves to one life`)
+    t.eq(r.allowContinue, false, `RAMPART on ${dk} forbids continues`)
+    t.eq(r.livesRegain, false, `RAMPART on ${dk} forbids regaining lives`)
+  }
+  const impSim = simFor('medium', 'rampart')
+  t.eq(impSim.lives, 1, 'a RAMPART sim starts on one life')
+  t.gt(impSim.rules.costMul, 1, 'towers cost more')
+  t.ok(impSim.rules.allowSell, 'selling is still allowed')
+  t.ok(impSim.rules.allowIncome, 'income is still allowed')
 
   t.section('a PURIST save cannot come back with selling switched on')
   const purSnap = JSON.parse(JSON.stringify(S.serialize(simFor('relentless', 'purist'))))
@@ -571,7 +607,7 @@ export function run (t, OP, env) {
 
   /* ================= availability gate ================= */
 
-  t.section('modeAllowedOn is a menu gate with exactly one restriction')
+  t.section('modeAllowedOn is a menu gate with explicit restrictions')
   for (const dk of DIFF_KEYS) {
     t.ok(OP.modeAllowedOn('standard', dk), `Standard is offered on ${dk}`)
   }
@@ -584,10 +620,12 @@ export function run (t, OP, env) {
   for (const mk of MODE_KEYS) {
     for (const dk of DIFF_KEYS) if (!OP.modeAllowedOn(mk, dk)) restricted.push(`${mk}/${dk}`)
   }
-  t.deep(restricted, ['purist/easy', 'purist/medium'], 'PURIST on the two lower difficulties is the only restriction')
+  t.deep(restricted, ['purist/easy', 'purist/medium', 'grim/easy', 'grim/medium', 'rampart/easy', 'rampart/medium',
+    'boss-event/easy', 'boss-event-elite/easy', 'boss-event-elite/medium'],
+    'PURIST, GRIM, RAMPART, BOSS-EVENT and BOSS-EVENT-ELITE on lower difficulties are the only restrictions')
   t.ok(MODE_KEYS.every(mk => DIFF_KEYS.some(dk => OP.modeAllowedOn(mk, dk))), 'every mode is playable somewhere')
-  t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'relentless')).length, 11, 'Relentless offers all eleven')
-  t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'easy')).length, 10, 'Easy offers ten')
+    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'relentless')).length, 17, 'Relentless offers all seventeen')
+    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'easy')).length, 12, 'Easy offers twelve')
   t.notOk(OP.modeAllowedOn('nope', 'medium'), 'an unknown mode is refused')
   t.notOk(OP.modeAllowedOn('standard', 'nope'), 'an unknown difficulty is refused')
   t.notOk(OP.modeAllowedOn(undefined, undefined), 'and so is nothing at all')
@@ -742,13 +780,33 @@ export function run (t, OP, env) {
   for (const dk of DIFF_KEYS) {
     for (const mk of MODE_KEYS) {
       const r = S.resolveRules({ difficulty: dk, mode: mk })
+      // Alternate Waves plays the alternate table; everything else plays standard.
+      // Boss events run to round 120, so the tail past the 100-round table is
+      // served by the freeplay generator — a deterministic round source, not the
+      // silent-standard fallback this test exists to catch. Verify both halves:
+      // the authored half is in the table, and the freeplay half actually yields.
       const table = mk === 'alternate-waves' ? altTable : stdTable
+      const tableEnd = Math.max(0, ...Object.keys(table).map(Number))
       for (let n = r.firstRound; n <= r.lastRound; n++) {
-        if (!table[n]) { uncovered.push(`${dk} x ${mk} round ${n}`); break }
+        if (n <= tableEnd) {
+          if (!table[n]) { uncovered.push(`${dk} x ${mk} round ${n}`); break }
+        } else {
+          // Past the authored table the game must have a deterministic generator
+          // standing behind Rounds.definition — otherwise it falls through to the
+          // repeat-last-author error path and the run silently diverges from its
+          // own design. Ask the generator for this round and confirm it answers.
+          if (!OP.Freeplay || typeof OP.Freeplay.generate !== 'function') {
+            uncovered.push(`${dk} x ${mk} round ${n} (no freeplay generator for the tail)`); break
+          }
+          try {
+            const sim = simFor(dk, mk)
+            if (!OP.Freeplay.generate(sim, n)) { uncovered.push(`${dk} x ${mk} round ${n} (freeplay yielded nothing)`); break }
+          } catch (e) { uncovered.push(`${dk} x ${mk} round ${n} (freeplay threw: ${e.message})`); break }
+        }
       }
     }
   }
-  t.eq(uncovered.length, 0, 'every difficulty x mode has round data for every round it will play',
+  t.eq(uncovered.length, 0, 'every difficulty x mode has round data (authored or freeplay) for every round it will play',
     uncovered.slice(0, 6).join('; '))
 
   // And the round runner actually spawns from the alternate table, not just holds it.

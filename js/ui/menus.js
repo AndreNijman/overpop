@@ -141,6 +141,8 @@
     for (let i = widgets.length - 1; i >= 0; i--) {
       const w = widgets[i]
       if (!w || w.noHit) continue
+      const clip = w.hitClip
+      if (clip && (x < clip.x || x > clip.x + clip.w || y < clip.y || y > clip.y + clip.h)) continue
       if (x >= w.x && x <= w.x + w.w && y >= w.y && y <= w.y + w.h) return w
     }
     return null
@@ -271,6 +273,7 @@
       pips: opts.pips || null,
       previewPaths: opts.previewPaths || null,
       swatch: opts.swatch || '',
+      hitClip: opts.hitClip || null,
       noHit: !!opts.noHit
     }
     return o
@@ -620,6 +623,8 @@
     mapKey: null,
     difficulty: 'medium',
     mode: 'standard',
+    mapScroll: 0,
+    mapMaxScroll: 0,
     notice: '',
     hoverId: null,
     confirmReset: false,
@@ -645,7 +650,7 @@
 
   Menus.screenNames = function () { return Object.keys(SCREENS).sort() }
 
-  const BACK_TO = { maps: 'title', setup: 'maps', settings: 'title', bestiary: 'title', title: 'title' }
+  const BACK_TO = { maps: 'title', setup: 'maps', settings: 'title', bestiary: 'title', daily: 'title', title: 'title' }
 
   Menus.go = function (app, screen) {
     state.screen = SCREENS[screen] ? screen : 'title'
@@ -845,6 +850,36 @@
       label: 'BESTIARY', action: 'goto', arg: 'bestiary', sub: 'balloons, immunities and towers'
     }))
     by += bh + 14
+    widgets.push(UI.button('title.knowledge', bx, by, bw, bh, {
+      label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'spend knowledge points on permanent bonuses'
+    }))
+    by += bh + 14
+    if (OP.Daily && OP.DailyCore) {
+      var daily = OP.DailyCore.summary ? OP.DailyCore.summary(profileOf(app)) : null
+      var dailyDone = daily && daily.done
+      var dailySub = dailyDone ? 'already completed today — come back tomorrow' : 'a fresh challenge every day'
+      widgets.push(UI.button('title.daily', bx, by, bw, bh, {
+        label: 'DAILY CHALLENGE', action: 'goto', arg: 'daily', sub: dailySub,
+        disabled: dailyDone
+      }))
+      by += bh + 14
+    }
+    if (OP.Expedition && OP.Expeditions) {
+      var expActive = OP.Expedition.isActive(profileOf(app))
+      var expSub = expActive ? 'resume your active expedition' : 'multi-map campaigns with resource carry-over'
+      widgets.push(UI.button('title.expedition', bx, by, bw, bh, {
+        label: 'EXPEDITION', action: 'goto', arg: 'expedition', sub: expSub
+      }))
+      by += bh + 14
+    }
+    if (OP.Trial && OP.Trials) {
+      var trialActive = OP.Trial.isActive(profileOf(app))
+      var trialSub = trialActive ? 'resume your active trial' : 'curated challenge scenarios with unique rules'
+      widgets.push(UI.button('title.trial', bx, by, bw, bh, {
+        label: 'TRIALS', action: 'goto', arg: 'trials', sub: trialSub
+      }))
+      by += bh + 14
+    }
     widgets.push(UI.button('title.settings', bx, by, bw, bh, {
       label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'volume, trails, round autostart'
     }))
@@ -855,6 +890,9 @@
     marks.push(UI.tracked(rx, 190, 'RECORD', { size: 11, colour: C.moss, track: 0.3 }))
     marks.push(UI.rule(rx, 202, FIELD_W - PAD - rx))
     const stats = (p && p.stats) || {}
+    const xp = OP.Save && OP.Save.xpProgress
+      ? OP.Save.xpProgress(p)
+      : { level: 1, current: 0, needed: 1000 }
     let best = 0
     const bestMap = (stats.bestRound && typeof stats.bestRound === 'object') ? stats.bestRound : {}
     for (const k in bestMap) if (bestMap[k] > best) best = bestMap[k]
@@ -864,7 +902,9 @@
       ['Rounds cleared', stats.roundsCleared || 0],
       ['Balloons popped', fmtBig(stats.totalPops || 0)],
       ['Cash earned', '$' + fmtBig(stats.totalCash || 0)],
-      ['Best round', best || '—']
+      ['Best round', best || '—'],
+      ['Player level', xp.level],
+      ['Next level', xp.current + ' / ' + xp.needed + ' XP']
     ]
     for (let i = 0; i < rows.length; i++) {
       const y = 232 + i * 26
@@ -1030,24 +1070,12 @@
   }
   Menus.completionOf = completionOf
 
-  function buildMaps (app) {
-    const marks = []
-    const widgets = []
-    const maps = allMaps()
+  const MAP_VIEW = { x: PAD, y: 150, w: CONTENT_W, h: 514 }
+  const MAP_CARD_H = 88
+  const MAP_ROW_GAP = 12
+  const MAP_HEADER_H = 28
 
-    chrome(marks, 'SELECT A MAP', maps.length + (maps.length === 1 ? ' map' : ' maps') + ' · grouped by tier')
-    widgets.push(UI.button('maps.back', FIELD_W - PAD - 96, 74, 96, 32, { label: 'BACK', action: 'back', align: 'center' }))
-
-    if (!maps.length) {
-      marks.push(UI.text(PAD, 300, 'No maps are registered yet.', { size: 18, colour: C.dim }))
-      marks.push(UI.text(PAD, 328, 'js/data/maps-*.js declares them; this screen lists whatever is there.', { size: 11, colour: C.faint }))
-      footer(marks, 'ESC back')
-      noticeMark(marks)
-      return { screen: 'maps', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: 'maps.back' }
-    }
-
-    // Group by declared tier, then sweep up anything with a tier nobody declared
-    // so a map can never be invisible.
+  function mapGroups (maps) {
     const tiers = mapTiers()
     const groups = []
     const seen = {}
@@ -1058,60 +1086,181 @@
     }
     const orphans = maps.filter(function (d) { return !seen[d.key] })
     if (orphans.length) groups.push({ tier: 'other', maps: orphans })
+    return groups
+  }
 
+  function mapLayout (maps) {
+    const groups = mapGroups(maps)
     const perRow = 4
     const gap = 14
-    const cardW = Math.floor((CONTENT_W - gap * (perRow - 1)) / perRow)
-    const areaTop = 160
-    const areaBottom = 664
-
-    // Rows first, so the card height can be chosen to fit whatever is registered
-    // rather than overflowing the page when a tier holds more than a row.
-    let totalRows = 0
-    for (let g = 0; g < groups.length; g++) totalRows += Math.ceil(groups[g].maps.length / perRow)
-    const labelH = 26
-    const rowGap = 12
-    const avail = areaBottom - areaTop - groups.length * (labelH + 10) - (totalRows - 1) * rowGap
-    const cardH = M.clamp(Math.floor(avail / Math.max(1, totalRows)), 68, 116)
-
-    let y = areaTop
+    const listW = MAP_VIEW.w - 12
+    const cardW = Math.floor((listW - gap * (perRow - 1)) / perRow)
+    const entries = []
+    let y = 0
     for (let g = 0; g < groups.length; g++) {
       const group = groups[g]
-      marks.push(UI.tracked(PAD, y + 12, group.tier.toUpperCase(), { size: 10, colour: C.moss, track: 0.32 }))
-      marks.push(UI.text(FIELD_W - PAD, y + 12, group.maps.length + (group.maps.length === 1 ? ' map' : ' maps'), { size: 10, colour: C.faint, align: 'right' }))
-      marks.push(UI.rule(PAD, y + 20, CONTENT_W, { alpha: 0.5 }))
-      y += labelH
-
+      group.y = y
+      y += MAP_HEADER_H
       for (let i = 0; i < group.maps.length; i++) {
-        const def = group.maps[i]
-        const col = i % perRow
-        const row = Math.floor(i / perRow)
-        const cx = PAD + col * (cardW + gap)
-        const cy = y + row * (cardH + rowGap)
-        const comp = completionOf(app, def.key)
-        widgets.push(UI.card('map.' + def.key, cx, cy, cardW, cardH, {
-          label: def.name || def.key,
-          lines: UI.wrapText(def.blurb, 10, cardW - 110, cardH >= 96 ? 3 : 2),
-          selected: def.key === state.mapKey,
-          action: 'setmap',
-          arg: def.key,
-          pips: comp.pips,
-          note: comp.cells ? comp.cells + ' cleared' : '',
-          previewPaths: pathsOf(def)
-        }))
+        entries.push({
+          def: group.maps[i],
+          x: (i % perRow) * (cardW + gap),
+          y: y + Math.floor(i / perRow) * (MAP_CARD_H + MAP_ROW_GAP),
+          w: cardW,
+          h: MAP_CARD_H
+        })
       }
-      y += Math.ceil(group.maps.length / perRow) * (cardH + rowGap) + 10
+      y += Math.ceil(group.maps.length / perRow) * (MAP_CARD_H + MAP_ROW_GAP) + 10
+    }
+    return { groups: groups, entries: entries, contentH: Math.max(0, y - MAP_ROW_GAP) }
+  }
+
+  Menus.scrollMapsBy = function (dy) {
+    const before = state.mapScroll
+    state.mapScroll = M.clamp(state.mapScroll + dy, 0, state.mapMaxScroll)
+    return state.mapScroll !== before
+  }
+
+  function mapPointInside (x, y) {
+    return x >= MAP_VIEW.x && x <= MAP_VIEW.x + MAP_VIEW.w &&
+      y >= MAP_VIEW.y && y <= MAP_VIEW.y + MAP_VIEW.h
+  }
+
+  function buildMaps (app) {
+    const marks = []
+    const cardWidgets = []
+    const chromeWidgets = []
+    const listMarks = []
+    const maps = allMaps()
+    resolveMap()
+
+    chrome(marks, 'SELECT A MAP', maps.length + (maps.length === 1 ? ' map' : ' maps') + ' · grouped by tier')
+    chromeWidgets.push(UI.button('maps.back', FIELD_W - PAD - 96, 74, 96, 32, { label: 'BACK', action: 'back', align: 'center' }))
+
+    if (!maps.length) {
+      marks.push(UI.text(PAD, 300, 'No maps are registered yet.', { size: 18, colour: C.dim }))
+      marks.push(UI.text(PAD, 328, 'js/data/maps-*.js declares them; this screen lists whatever is there.', { size: 11, colour: C.faint }))
+      footer(marks, 'ESC back')
+      noticeMark(marks)
+      return { screen: 'maps', backdrop: 'solid', marks: marks, widgets: chromeWidgets, defaultId: 'maps.back' }
     }
 
-    footer(marks, 'ESC back · ENTER opens the highlighted map')
+    const layout = mapLayout(maps)
+    state.mapMaxScroll = Math.max(0, layout.contentH - MAP_VIEW.h)
+    state.mapScroll = M.clamp(state.mapScroll, 0, state.mapMaxScroll)
+
+    for (let g = 0; g < layout.groups.length; g++) {
+      const group = layout.groups[g]
+      const gy = MAP_VIEW.y + group.y - state.mapScroll
+      if (gy + MAP_HEADER_H >= MAP_VIEW.y && gy <= MAP_VIEW.y + MAP_VIEW.h) {
+        listMarks.push(UI.tracked(PAD, gy + 12, group.tier.toUpperCase(), { size: 10, colour: C.moss, track: 0.32 }))
+        listMarks.push(UI.text(FIELD_W - PAD - 12, gy + 12, group.maps.length + (group.maps.length === 1 ? ' map' : ' maps'), { size: 10, colour: C.faint, align: 'right' }))
+        listMarks.push(UI.rule(PAD, gy + 20, CONTENT_W - 12, { alpha: 0.5 }))
+      }
+    }
+
+    const profile = profileOf(app)
+    for (let i = 0; i < layout.entries.length; i++) {
+      const entry = layout.entries[i]
+      const def = entry.def
+      const cx = MAP_VIEW.x + entry.x
+      const cy = MAP_VIEW.y + entry.y - state.mapScroll
+      // Every map is a real, addressable widget in the model regardless of where
+      // the scroll has it. paintMaps clips to MAP_VIEW, and each card carries
+      // hitClip: MAP_VIEW, so an off-screen card is neither drawn nor tappable —
+      // but it IS routable (hit-testing resolves a tap the moment the scroll
+      // brings it into view), which is what the tap handler and the roster test
+      // rely on. Culling below the fold out of the model would make later maps
+      // unreachable as widgets.
+      const comp = completionOf(app, def.key)
+      const access = OP.Save && OP.Save.mapUnlockInfo
+        ? OP.Save.mapUnlockInfo(profile, def)
+        : { unlocked: true, reason: '' }
+      cardWidgets.push(UI.card('map.' + def.key, cx, cy, entry.w, entry.h, {
+        label: def.name || def.key,
+        lines: UI.wrapText(def.blurb, 10, entry.w - 110, 2),
+        selected: def.key === state.mapKey,
+        disabled: !access.unlocked,
+        reason: access.reason,
+        action: 'setmap',
+        arg: def.key,
+        pips: comp.pips,
+        note: access.unlocked ? (comp.cells ? comp.cells + ' cleared' : '') : access.reason,
+        previewPaths: pathsOf(def),
+        hitClip: MAP_VIEW
+      }))
+    }
+
+    if (state.mapMaxScroll > 0) {
+      const barW = 5
+      const trackX = MAP_VIEW.x + MAP_VIEW.w - barW
+      const thumbH = Math.max(28, Math.round(MAP_VIEW.h * (MAP_VIEW.h / layout.contentH)))
+      const thumbY = MAP_VIEW.y + Math.round((MAP_VIEW.h - thumbH) * state.mapScroll / state.mapMaxScroll)
+      marks.push(UI.box(trackX, MAP_VIEW.y, barW, MAP_VIEW.h, { fill: C.line, alpha: 0.35 }))
+      marks.push(UI.box(trackX, thumbY, barW, thumbH, { fill: C.moss, alpha: 0.75 }))
+    }
+
+    footer(marks, 'SCROLL or drag to browse · arrows move · ENTER opens')
     noticeMark(marks)
+    const widgets = cardWidgets.concat(chromeWidgets)
+    const selected = UI.byId(cardWidgets, state.mapKey ? 'map.' + state.mapKey : '')
+    const firstOpen = cardWidgets.find(function (w) { return !w.disabled })
     return {
       screen: 'maps',
       backdrop: 'solid',
       marks: marks,
+      listMarks: listMarks,
+      cardWidgets: cardWidgets,
+      chromeWidgets: chromeWidgets,
+      clip: MAP_VIEW,
       widgets: widgets,
-      defaultId: state.mapKey ? 'map.' + state.mapKey : (widgets.length > 1 ? widgets[1].id : 'maps.back')
+      contentH: layout.contentH,
+      scroll: state.mapScroll,
+      maxScroll: state.mapMaxScroll,
+      defaultId: selected ? selected.id : (firstOpen ? firstOpen.id : 'maps.back')
     }
+  }
+
+  function paintMaps (ctx, model) {
+    let drawn = UI.paint(ctx, { backdrop: model.backdrop, marks: model.marks, widgets: [] }, {})
+    if (model.clip && ctx.save && ctx.beginPath && ctx.rect && ctx.clip) {
+      ctx.save(); ctx.beginPath(); ctx.rect(model.clip.x, model.clip.y, model.clip.w, model.clip.h); ctx.clip()
+    }
+    drawn += UI.paint(ctx, { marks: model.listMarks || [], widgets: model.cardWidgets || [] }, { hoverId: state.hoverId })
+    if (model.clip && ctx.restore) ctx.restore()
+    drawn += UI.paint(ctx, { marks: [], widgets: model.chromeWidgets || [] }, { hoverId: state.hoverId })
+    return drawn
+  }
+
+  function keepMapVisible (mapKey) {
+    const layout = mapLayout(allMaps())
+    const entry = layout.entries.find(function (e) { return e.def.key === mapKey })
+    if (!entry) return
+    state.mapMaxScroll = Math.max(0, layout.contentH - MAP_VIEW.h)
+    if (entry.y < state.mapScroll) state.mapScroll = entry.y
+    else if (entry.y + entry.h > state.mapScroll + MAP_VIEW.h) state.mapScroll = entry.y + entry.h - MAP_VIEW.h
+    state.mapScroll = M.clamp(state.mapScroll, 0, state.mapMaxScroll)
+  }
+
+  function keyMaps (app, key) {
+    const maps = allMaps()
+    if (!maps.length) return false
+    let index = maps.findIndex(function (m) { return m.key === state.mapKey })
+    if (index < 0) index = 0
+    let next = index
+    if (key === 'ArrowLeft') next--
+    else if (key === 'ArrowRight') next++
+    else if (key === 'ArrowUp') next -= 4
+    else if (key === 'ArrowDown') next += 4
+    else if (key === 'PageUp') next -= 12
+    else if (key === 'PageDown') next += 12
+    else if (key === 'Home') next = 0
+    else if (key === 'End') next = maps.length - 1
+    else return false
+    next = M.clamp(next, 0, maps.length - 1)
+    state.mapKey = maps[next].key
+    keepMapVisible(state.mapKey)
+    return true
   }
 
   /** Authored control points per path, for the preview. Never builds Tracks — a
@@ -1129,6 +1278,11 @@
 
   function activateMaps (app, w) {
     if (w.action === 'setmap') {
+      if (w.disabled) {
+        state.notice = w.reason || 'That map is still locked.'
+        click(false)
+        return true
+      }
       state.mapKey = w.arg
       click(true)
       Menus.go(app, 'setup')
@@ -1293,13 +1447,373 @@
   }
 
   /* ============================================================================
+     DAILY CHALLENGE SCREEN
+     ============================================================================ */
+
+  function buildDaily (app) {
+    const marks = []
+    const widgets = []
+    const p = profileOf(app)
+
+    marks.push(UI.tracked(PAD, 190, 'DAILY CHALLENGE', { size: 48, colour: C.ink, track: 0.14, weight: '600' }))
+    marks.push(UI.rule(PAD, 230, 360))
+
+    if (!OP.Daily || !OP.DailyCore) {
+      marks.push(UI.text(PAD, 270, 'Daily challenge is not available.', { size: 14, colour: C.dim }))
+      return { screen: 'daily', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: null }
+    }
+
+    var summary = OP.DailyCore.summary(p)
+    var challenge = summary.challenge
+
+    if (!challenge) {
+      marks.push(UI.text(PAD, 270, 'Could not generate today\'s challenge.', { size: 14, colour: C.dim }))
+      return { screen: 'daily', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: null }
+    }
+
+    marks.push(UI.text(PAD, 262, challenge.dateKey, { size: 14, colour: C.moss, weight: '600' }))
+
+    var descLines = UI.wrapText(challenge.description, 12, 400, 4)
+    for (var i = 0; i < descLines.length; i++) {
+      marks.push(UI.text(PAD, 290 + i * 18, descLines[i], { size: 12, colour: C.ink }))
+    }
+
+    var modY = 290 + descLines.length * 18 + 12
+    if (challenge.modifiers.length > 0) {
+      marks.push(UI.text(PAD, modY, 'MODIFIERS', { size: 10, colour: C.moss, track: 0.2 }))
+      modY += 16
+      for (var j = 0; j < challenge.modifiers.length; j++) {
+        var mod = challenge.modifiers[j]
+        var modText = mod.name + (mod.detail ? ': ' + mod.detail : '')
+        marks.push(UI.text(PAD + 12, modY, modText, { size: 11, colour: C.ink }))
+        modY += 16
+      }
+    }
+
+    var resultY = Math.max(modY + 10, 400)
+    if (summary.done && summary.result) {
+      marks.push(UI.text(PAD, resultY, 'TODAY\'S RESULT', { size: 10, colour: C.moss, track: 0.2 }))
+      resultY += 16
+      var r = summary.result
+      var resultText = r.won ? 'WON' : 'LOST'
+      marks.push(UI.text(PAD + 12, resultY, resultText + ' — Round ' + r.bestRound, { size: 12, colour: r.won ? '#5daa68' : '#e06a5a' }))
+      resultY += 16
+      marks.push(UI.text(PAD + 12, resultY, 'Pops: ' + fmtBig(r.pops) + '  Cash: $' + fmtBig(r.cash), { size: 11, colour: C.dim }))
+      resultY += 20
+    }
+
+    var streakY = Math.max(resultY + 10, 440)
+    var streak = summary.streak
+    marks.push(UI.text(PAD, streakY, 'STREAK', { size: 10, colour: C.moss, track: 0.2 }))
+    streakY += 16
+    marks.push(UI.text(PAD + 12, streakY, 'Current: ' + streak.current + '  Best: ' + streak.best, { size: 12, colour: C.ink }))
+    streakY += 16
+    marks.push(UI.text(PAD + 12, streakY, 'Total completed: ' + summary.totalCompleted, { size: 11, colour: C.dim }))
+
+    var bw = 330, bh = 52
+    var by = Math.max(streakY + 30, 520)
+    if (!summary.done) {
+      widgets.push(UI.button('daily.play', PAD, by, bw, bh, {
+        label: 'PLAY TODAY\'S CHALLENGE', tone: 'primary', action: 'play-daily'
+      }))
+    } else {
+      widgets.push(UI.button('daily.play', PAD, by, bw, bh, {
+        label: 'PLAY AGAIN', tone: 'primary', action: 'play-daily',
+        sub: 'score will not be recorded'
+      }))
+    }
+
+    return {
+      screen: 'daily',
+      backdrop: 'solid',
+      marks: marks,
+      widgets: widgets,
+      defaultId: 'daily.play'
+    }
+  }
+
+  function activateDaily (app, w) {
+    if (w.action === 'play-daily') {
+      if (w.disabled) { click(false); return true }
+      if (!OP.Daily || !OP.DailyCore) { state.notice = 'Daily challenge is not available.'; click(false); return true }
+
+      var challenge = OP.DailyCore.active() || (OP.Daily.today ? OP.Daily.today() : null)
+      if (!challenge) { state.notice = 'Could not generate today\'s challenge.'; click(false); return true }
+
+      OP.DailyCore.start(challenge)
+      click(true)
+
+      var extraRules = challenge.rules || {}
+      if (app && app.startGame) {
+        app.startGame(challenge.mapKey, challenge.difficulty, challenge.mode, {
+          seed: challenge.seed,
+          rules: extraRules
+        })
+      }
+      return true
+    }
+    return false
+  }
+
+  /* ============================================================================
+     EXPEDITION SCREEN
+     ============================================================================ */
+
+  var expState = {
+    selected: null, // expedition key or null
+    notice: null
+  }
+
+  function expeditionSummary (app) {
+    var p = profileOf(app)
+    if (!OP.Expedition || !OP.Expeditions) return null
+    var active = OP.Expedition.isActive(p)
+    var activeKey = active ? p.expedition.expeditionKey : null
+    var list = OP.Expeditions.all().map(function (def) {
+      var summary = OP.Expedition.summary(p, def.key)
+      return {
+        key: def.key,
+        name: def.name,
+        desc: def.desc,
+        difficulty: def.difficulty,
+        mode: def.mode,
+        maps: def.maps.length,
+        completed: summary ? summary.completed : false,
+        completions: summary ? summary.completions : 0,
+        active: activeKey === def.key,
+        stageIndex: summary ? summary.stageIndex : 0
+      }
+    })
+    return { list: list, activeKey: activeKey, active: active }
+  }
+
+  function buildExpedition (app) {
+    var PAD = 40
+    var P = { x: PAD, y: 90, w: FIELD_W - PAD * 2, h: FIELD_H - 90 - PAD }
+    var marks = []
+    var widgets = []
+    var exp = expeditionSummary(app)
+    var profile = profileOf(app)
+    var active = exp && exp.active
+
+    marks.push(UI.tracked(PAD, 190, 'EXPEDITION', { size: 48, colour: C.ink, track: 0.14, weight: '600' }))
+    if (active) {
+      marks.push(UI.text(PAD, 244, 'ACTIVE EXPEDITION', { size: 11, colour: C.moss }))
+    } else {
+      marks.push(UI.text(PAD, 244, 'Choose a route to begin.', { size: 11, colour: C.moss }))
+    }
+    marks.push(UI.rule(PAD, 258, P.w))
+
+    if (expState.notice) {
+      marks.push(UI.text(PAD, 270, expState.notice, { size: 11, colour: '#d4a843' }))
+    }
+
+    if (!exp || !exp.list) {
+      marks.push(UI.text(PAD, 300, 'Expedition system is not available.', { size: 13, colour: C.dim }))
+    } else {
+      var y = 290
+      for (var i = 0; i < exp.list.length; i++) {
+        var e = exp.list[i]
+        var isActive = e.active
+        var isCompleted = e.completed
+        var diffDef = OP.DIFFICULTIES && OP.DIFFICULTIES[e.difficulty]
+        var diffName = diffDef ? diffDef.name : e.difficulty
+        var modeDef = OP.MODES && OP.MODES[e.mode]
+        var modeName = modeDef ? modeDef.name : e.mode
+
+        var label = e.name
+        if (isActive) label += '  [STAGE ' + (e.stageIndex + 1) + '/' + e.maps + ']'
+        else if (isCompleted) label += '  [DONE x' + e.completions + ']'
+
+        var sub = diffName + ' ' + modeName + ' — ' + e.maps + ' maps — ' + e.desc
+        var btnId = 'expedition.' + e.key
+        widgets.push(UI.button(btnId, PAD, y, P.w, 58, {
+          label: label, action: 'start-expedition', arg: e.key, sub: sub,
+          disabled: isActive
+        }))
+        y += 72
+      }
+    }
+
+    // Back button
+    widgets.push(UI.button('expedition.back', PAD, P.y + P.h - 50, 120, 38, {
+      label: '< BACK', action: 'back'
+    }))
+
+    return { screen: 'expedition', backdrop: 'solid', marks: marks, widgets: widgets }
+  }
+
+  function activateExpedition (app, w) {
+    if (w.action === 'start-expedition' && w.arg) {
+      if (w.disabled) { click(false); return true }
+      if (!app || !app.startExpedition) { click(false); return true }
+      var key = w.arg
+      var def = OP.Expeditions && OP.Expeditions.get(key)
+      if (!def) { expState.notice = 'Unknown expedition.'; click(false); return true }
+
+      // If there's an active expedition on a different key, ask to abandon
+      var profile = profileOf(app)
+      if (OP.Expedition && OP.Expedition.isActive(profile) && profile.expedition.expeditionKey !== key) {
+        expState.notice = 'Finish or abandon your current expedition first.'
+        click(false)
+        return true
+      }
+
+      // If active on same key, resume it
+      if (OP.Expedition && OP.Expedition.isActive(profile) && profile.expedition.expeditionKey === key) {
+        var mapKey = OP.Expedition.currentMapKey(profile)
+        if (mapKey && app.startGame) {
+          click(true)
+          app.startGame(mapKey, def.difficulty, def.mode, {
+            expeditionCash: profile.expedition.cash,
+            expeditionLives: profile.expedition.lives
+          })
+        } else {
+          expState.notice = 'Could not resume expedition.'
+          click(false)
+        }
+        return true
+      }
+
+      // Start fresh
+      expState.notice = null
+      click(true)
+      app.startExpedition(key)
+      return true
+    }
+    return false
+  }
+
+  /* ============================================================================
+     TRIALS SCREEN
+     ============================================================================ */
+
+  var trialState = {
+    selected: null,
+    notice: null
+  }
+
+  function trialSummary (app) {
+    var p = profileOf(app)
+    if (!OP.Trial || !OP.Trials) return null
+    var active = OP.Trial.isActive(p)
+    var activeKey = active ? p.activeTrial.trialKey : null
+    var list = OP.Trials.all().map(function (def) {
+      var summary = OP.Trial.summary(p, def.key)
+      return {
+        key: def.key,
+        name: def.name,
+        desc: def.desc,
+        difficulty: def.difficulty,
+        mode: def.mode,
+        mapKey: def.mapKey,
+        goal: def.goal,
+        towerFilter: def.towerFilter || null,
+        completed: summary ? summary.completed : false,
+        bestTime: summary ? summary.bestTime : null,
+        active: activeKey === def.key
+      }
+    })
+    return { list: list, activeKey: activeKey, active: active }
+  }
+
+  function buildTrials (app) {
+    var PAD = 40
+    var P = { x: PAD, y: 90, w: FIELD_W - PAD * 2, h: FIELD_H - 90 - PAD }
+    var marks = []
+    var widgets = []
+    var trl = trialSummary(app)
+    var profile = profileOf(app)
+    var active = trl && trl.active
+
+    marks.push(UI.tracked(PAD, 190, 'TRIALS', { size: 48, colour: C.ink, track: 0.14, weight: '600' }))
+    if (active) {
+      marks.push(UI.text(PAD, 244, 'ACTIVE TRIAL', { size: 11, colour: C.moss }))
+    } else {
+      marks.push(UI.text(PAD, 244, 'Choose a curated challenge.', { size: 11, colour: C.moss }))
+    }
+    marks.push(UI.rule(PAD, 258, P.w))
+
+    if (trialState.notice) {
+      marks.push(UI.text(PAD, 270, trialState.notice, { size: 11, colour: '#d4a843' }))
+    }
+
+    if (!trl || !trl.list) {
+      marks.push(UI.text(PAD, 300, 'Trial system is not available.', { size: 13, colour: C.dim }))
+    } else {
+      var y = 290
+      for (var i = 0; i < trl.list.length; i++) {
+        var t = trl.list[i]
+        var isActive = t.active
+        var isCompleted = t.completed
+        var diffDef = OP.DIFFICULTIES && OP.DIFFICULTIES[t.difficulty]
+        var diffName = diffDef ? diffDef.name : t.difficulty
+
+        var label = t.name
+        if (isActive) label += '  [ACTIVE]'
+        else if (isCompleted) label += '  [DONE]'
+
+        var filterText = t.towerFilter ? t.towerFilter.join('/') + ' only' : 'all towers'
+        var sub = diffName + ' — ' + filterText + ' — ' + t.goal
+
+        var btnId = 'trial.' + t.key
+        widgets.push(UI.button(btnId, PAD, y, P.w, 58, {
+          label: label, action: 'start-trial', arg: t.key, sub: sub,
+          disabled: isActive
+        }))
+        y += 72
+      }
+    }
+
+    // Back button
+    widgets.push(UI.button('trial.back', PAD, P.y + P.h - 50, 120, 38, {
+      label: '< BACK', action: 'back'
+    }))
+
+    return { screen: 'trials', backdrop: 'solid', marks: marks, widgets: widgets }
+  }
+
+  function activateTrials (app, w) {
+    if (w.action === 'start-trial' && w.arg) {
+      if (w.disabled) { click(false); return true }
+      if (!app || !app.startTrial) { click(false); return true }
+      var key = w.arg
+      var def = OP.Trials && OP.Trials.get(key)
+      if (!def) { trialState.notice = 'Unknown trial.'; click(false); return true }
+
+      var profile = profileOf(app)
+      if (OP.Trial && OP.Trial.isActive(profile) && profile.activeTrial.trialKey !== key) {
+        trialState.notice = 'Finish or abandon your current trial first.'
+        click(false)
+        return true
+      }
+
+      if (OP.Trial && OP.Trial.isActive(profile) && profile.activeTrial.trialKey === key) {
+        // Resume
+        click(true)
+        app.startGame(def.mapKey, def.difficulty, def.mode, { rules: def.rules || {} })
+        return true
+      }
+
+      trialState.notice = null
+      click(true)
+      app.startTrial(key)
+      return true
+    }
+    return false
+  }
+
+  /* ============================================================================
      THE ROUTER
      ============================================================================ */
 
   Menus.registerScreen('title', { build: buildTitle, activate: activateTitle })
   Menus.registerScreen('settings', { build: buildSettings, activate: activateSettings })
-  Menus.registerScreen('maps', { build: buildMaps, activate: activateMaps })
+  Menus.registerScreen('maps', { build: buildMaps, paint: paintMaps, activate: activateMaps, key: keyMaps })
   Menus.registerScreen('setup', { build: buildSetup, activate: activateSetup })
+  Menus.registerScreen('daily', { build: buildDaily, activate: activateDaily })
+  Menus.registerScreen('expedition', { build: buildExpedition, activate: activateExpedition })
+  Menus.registerScreen('trials', { build: buildTrials, activate: activateTrials })
 
   function currentSpec () {
     return SCREENS[state.screen] || SCREENS.title
@@ -1398,6 +1912,18 @@
     return false
   }
 
+  Menus.wheel = function (app, dy, x, y) {
+    if (!Menus.active(app) || state.screen !== 'maps' || !mapPointInside(x, y)) return false
+    buildMaps(app)
+    return Menus.scrollMapsBy(dy)
+  }
+
+  Menus.drag = function (app, dy, x, y, startX, startY) {
+    if (!Menus.active(app) || state.screen !== 'maps' || !mapPointInside(startX, startY)) return false
+    buildMaps(app)
+    return Menus.scrollMapsBy(-dy)
+  }
+
   /* ============================================================================
      INSTALL
 
@@ -1432,24 +1958,22 @@
           if (typeof prev.select === 'function') prev.select(id)
         }
         next.key = function (key, ev) {
-          if (Menus.key(app, key)) return
-          if (typeof prev.key === 'function') prev.key(key, ev)
+          if (Menus.key(app, key)) return true
+          if (typeof prev.key === 'function') return !!prev.key(key, ev)
+          return false
+        }
+        next.wheel = function (dy, x, y) {
+          if (Menus.wheel(app, dy, x, y)) return true
+          if (typeof prev.wheel === 'function') return !!prev.wheel(dy, x, y)
+          return false
+        }
+        next.drag = function (dy, x, y, startX, startY) {
+          if (Menus.drag(app, dy, x, y, startX, startY)) return true
+          if (typeof prev.drag === 'function') return !!prev.drag(dy, x, y, startX, startY)
+          return false
         }
         OP.Input.setHandlers(io, next)
       }
-    }
-
-    /* Escape is the one key Input never forwards: its keydown listener calls
-       Input.cancel and returns before firing the `key` intent, and cancel only
-       emits `cancel` when a placement was in progress — which is never true on a
-       menu. So the menus keep one narrowly-scoped listener that ignores every
-       other key. Installed at most once. */
-    if (!Menus._escBound && typeof window !== 'undefined' && window.addEventListener) {
-      Menus._escBound = function (ev) {
-        if (!ev || ev.key !== 'Escape') return
-        Menus.key(app, 'Escape')
-      }
-      window.addEventListener('keydown', Menus._escBound)
     }
 
     return Menus

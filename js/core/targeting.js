@@ -29,6 +29,10 @@
     return sim.map.paths[b.path].length - b.t
   }
 
+  function strengthOf (b) {
+    return b.isBoss ? b.hp : OP.remainingRBE(b)
+  }
+
   const COMPARATORS = {
     first: {
       label: 'First',
@@ -58,7 +62,7 @@
       label: 'Strong',
       hint: 'Whatever has the most layers left. Ties go to First.',
       compare: function (sim, a, b) {
-        const d = OP.remainingRBE(b) - OP.remainingRBE(a)
+        const d = strengthOf(b) - strengthOf(a)
         if (d !== 0) return d
         const r = remainingOf(sim, a) - remainingOf(sim, b)
         return r !== 0 ? r : a.id - b.id
@@ -108,6 +112,12 @@
     if (!b.alive) return false
     const s = tower.s
 
+    if (b.isBoss) {
+      if (s.noBlimps) return false
+      if (!s.ignoresLOS && !Targeting.hasLineOfSight(sim, tower.x, tower.y, b.x, b.y)) return false
+      return true
+    }
+
     // The camo gate. Enforced here and in OP.Damage.blast — both, or camo leaks.
     if ((b.props & OP.PROP.VEILED) && !s.camoDetect) return false
 
@@ -136,6 +146,12 @@
       out[w++] = b
     }
     out.length = w
+    const boss = sim.boss
+    if (boss && boss.alive && M.dist2(tower.x, tower.y, boss.x, boss.y) <= s.range * s.range &&
+        Targeting.isValid(sim, tower, boss)) {
+      boss._tdist = M.dist2(tower.x, tower.y, boss.x, boss.y)
+      out.push(boss)
+    }
     return out
   }
 
@@ -206,8 +222,10 @@
     if (!projSpeed || projSpeed <= 0) { out.x = b.x; out.y = b.y; return out }
 
     const track = sim.map.paths[b.path]
-    const tier = OP.BALLOON_TIERS[b.tier]
-    const bSpeed = tier.speed * OP.BASE_SPEED * b.speedMul * b.speedScale
+    const tier = b.isBoss ? null : OP.BALLOON_TIERS[b.tier]
+    const bSpeed = b.isBoss
+      ? b.speed * OP.BASE_SPEED * b.speedMul
+      : tier.speed * OP.BASE_SPEED * b.speedMul * b.speedScale
 
     // Iterate twice: guess flight time from current distance, refine once.
     let flight = Math.sqrt(M.dist2(tower.x, tower.y, b.x, b.y)) / projSpeed

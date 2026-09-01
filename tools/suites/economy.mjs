@@ -10,7 +10,7 @@ export function run (t, OP) {
   const rules = E.defaultRules()
   for (const key of ['costMul', 'cashPerPopMul', 'roundBonusMul', 'startCash', 'startLives',
     'hpScale', 'speedScale', 'blimpHpMul', 'allowSell', 'allowIncome', 'allowContinue',
-    'livesRegain', 'families', 'firstRound', 'lastRound', 'sellRate']) {
+    'allowAbilities', 'allowPowers', 'livesRegain', 'families', 'firstRound', 'lastRound', 'sellRate']) {
     t.ok(rules[key] !== undefined, `rules.${key} has a default`)
   }
 

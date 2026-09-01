@@ -349,6 +349,416 @@
         accent: '#dbb43f',
         fog: '#0e1110'
       }
+    },
+
+    {
+      key: 'shattered-spire',
+      name: 'Shattered Spire',
+      tier: 'expert',
+      blurb: 'A single narrow lane spirals up a broken spire — almost no ground to build on, and the track doubles back on itself constantly.',
+      trackWidth: 30,
+
+      paths: [
+        { name: 'The Spire',
+          smooth: 3,
+          points: [
+            { x: 640, y: 720 }, { x: 640, y: 600 }, { x: 500, y: 550 }, { x: 780, y: 550 },
+            { x: 780, y: 450 }, { x: 500, y: 450 }, { x: 500, y: 350 }, { x: 780, y: 350 },
+            { x: 780, y: 250 }, { x: 500, y: 250 }, { x: 500, y: 150 }, { x: 780, y: 150 },
+            { x: 780, y: 50 }, { x: 640, y: 0 }
+          ] }
+      ],
+
+      water: [
+        { cx: 200, cy: 360, r: 120 },
+        { cx: 1080, cy: 360, r: 120 }
+      ],
+
+      blocked: [
+        { x: 0, y: 0, w: 280, h: 720 },
+        { x: 1000, y: 0, w: 280, h: 720 },
+        { cx: 640, cy: 360, r: 80 }
+      ].concat(VERGE_WALLS),
+
+      blockers: VERGE_WALLS,
+
+      removable: [
+        { x: 640, y: 360, r: 28, cost: 360, name: 'Spire Core', blocksLOS: true },
+        { x: 640, y: 500, r: 26, cost: 320, name: 'Fractured Pillar', blocksLOS: true },
+        { x: 640, y: 220, r: 24, cost: 280, name: 'Hanging Rock' },
+        { x: 640, y: 680, r: 22, cost: 240, name: 'Loose Debris' }
+      ],
+
+      palette: {
+        base: '#0c1012',
+        grass: '#3a4a34',
+        grassAlt: '#465c3e',
+        path: '#705e3d',
+        pathEdge: '#4a3c24',
+        water: '#1a2f3a',
+        rock: '#5d5850',
+        accent: '#d4b840',
+        fog: '#0c1012'
+      }
+    },
+
+    {
+      key: 'void-maw',
+      name: 'Void Maw',
+      tier: 'expert',
+      blurb: 'A single path spirals down into a chasm and back out — the void watches and waits.',
+      trackWidth: 28,
+
+      paths: [{
+        smooth: 5,
+        points: [
+          { x: 0, y: 360 }, { x: 120, y: 360 }, { x: 200, y: 280 }, { x: 320, y: 220 },
+          { x: 480, y: 200 }, { x: 640, y: 240 }, { x: 760, y: 360 }, { x: 800, y: 500 },
+          { x: 760, y: 620 }, { x: 640, y: 680 }, { x: 480, y: 660 }, { x: 360, y: 560 },
+          { x: 320, y: 440 }, { x: 400, y: 360 }, { x: 560, y: 360 }, { x: 720, y: 360 },
+          { x: 880, y: 360 }, { x: 1040, y: 360 }, { x: 1200, y: 360 }, { x: 1280, y: 360 }
+        ]
+      }],
+
+      blockers: [
+        { x: 520, y: 320, w: 60, h: 60 },
+        { x: 680, y: 320, w: 60, h: 60 },
+        { x: 600, y: 440, w: 60, h: 60 }
+      ],
+
+      removable: [
+        { x: 440, y: 280, r: 24, cost: 400, name: 'Jagged Spire', blocksLOS: true },
+        { x: 720, y: 440, r: 22, cost: 360, name: 'Fallen Pillar', blocksLOS: true }
+      ],
+
+      palette: {
+        base: '#080a0c',
+        grass: '#2a3a28',
+        grassAlt: '#354830',
+        path: '#68583c',
+        pathEdge: '#443420',
+        water: '#141e28',
+        rock: '#4a4640',
+        accent: '#c8b040'
+      }
+    },
+
+    {
+      key: 'abyssal-maw',
+      name: 'Abyssal Maw',
+      tier: 'expert',
+      blurb: 'Three lanes spiral into a central chasm and out again — the abyss watches and waits.',
+      trackWidth: 26,
+
+      paths: [
+        { name: 'Outer Ring',
+          smooth: 5,
+          points: [
+            { x: 0, y: 360 }, { x: 120, y: 240 }, { x: 320, y: 160 }, { x: 560, y: 160 },
+            { x: 760, y: 240 }, { x: 880, y: 360 }, { x: 760, y: 480 }, { x: 560, y: 560 },
+            { x: 320, y: 560 }, { x: 120, y: 480 }, { x: 0, y: 360 }
+          ] },
+        { name: 'Inner Ring',
+          smooth: 5,
+          points: [
+            { x: 200, y: 360 }, { x: 280, y: 280 }, { x: 420, y: 240 }, { x: 560, y: 280 },
+            { x: 640, y: 360 }, { x: 560, y: 440 }, { x: 420, y: 480 }, { x: 280, y: 440 },
+            { x: 200, y: 360 }
+          ] },
+        { name: 'Center',
+          smooth: 4,
+          points: [
+            { x: 360, y: 360 }, { x: 440, y: 320 }, { x: 520, y: 360 }, { x: 520, y: 400 },
+            { x: 440, y: 440 }, { x: 360, y: 400 }, { x: 360, y: 360 }
+          ] }
+      ],
+
+      blockers: [
+        { x: 480, y: 320, w: 40, h: 40 },
+        { x: 480, y: 400, w: 40, h: 40 }
+      ],
+
+      removable: [
+        { x: 440, y: 360, r: 20, cost: 500, name: 'Abyss Core', blocksLOS: true }
+      ],
+
+      palette: {
+        base: '#060808',
+        grass: '#1e2e1c',
+        grassAlt: '#283822',
+        path: '#584830',
+        pathEdge: '#3a2e1a',
+        water: '#0e1618',
+        rock: '#3a3830',
+        accent: '#b8a040'
+      }
+    },
+
+    {
+      key: 'void-heart',
+      name: 'Void Heart',
+      tier: 'expert',
+      blurb: 'Three lanes spiral inward to a central void and back out — the heart of darkness beats at the centre.',
+      trackWidth: 24,
+
+      paths: [
+        { name: 'North',
+          smooth: 5,
+          points: [
+            { x: 640, y: 0 }, { x: 640, y: 120 }, { x: 600, y: 240 }, { x: 640, y: 320 },
+            { x: 640, y: 400 }, { x: 640, y: 520 }, { x: 640, y: 600 }, { x: 640, y: 720 }
+          ] },
+        { name: 'South',
+          smooth: 5,
+          points: [
+            { x: 640, y: 720 }, { x: 640, y: 600 }, { x: 680, y: 480 }, { x: 640, y: 400 },
+            { x: 640, y: 320 }, { x: 640, y: 240 }, { x: 640, y: 120 }, { x: 640, y: 0 }
+          ] },
+        { name: 'East',
+          smooth: 5,
+          points: [
+            { x: 1280, y: 360 }, { x: 1160, y: 360 }, { x: 1040, y: 400 }, { x: 960, y: 360 },
+            { x: 880, y: 360 }, { x: 760, y: 360 }, { x: 640, y: 360 }
+          ] }
+      ],
+
+      blockers: [
+        { x: 560, y: 320, w: 40, h: 40 },
+        { x: 720, y: 320, w: 40, h: 40 },
+        { x: 560, y: 400, w: 40, h: 40 },
+        { x: 720, y: 400, w: 40, h: 40 }
+      ],
+
+      removable: [
+        { x: 640, y: 360, r: 22, cost: 600, name: 'Void Core', blocksLOS: true }
+      ],
+
+      palette: {
+        base: '#040606',
+        grass: '#161e14',
+        grassAlt: '#1e2818',
+        path: '#4a3c28',
+        pathEdge: '#32261a',
+        water: '#0a1010',
+        rock: '#32302a',
+        accent: '#a89038'
+      }
+    },
+
+    {
+      key: 'witchlight-bog',
+      name: 'Witchlight Bog',
+      tier: 'expert',
+      blurb: 'Three paths through a phosphorescent bog — each one barely visible, none within reach of another.',
+      trackWidth: 28,
+
+      paths: [
+        {
+          name: 'North Thread',
+          smooth: 3,
+          points: [
+            { x: 0, y: 120 }, { x: 200, y: 160 }, { x: 400, y: 120 }, { x: 600, y: 160 },
+            { x: 800, y: 120 }, { x: 1000, y: 160 }, { x: 1280, y: 120 }
+          ]
+        },
+        {
+          name: 'Middle Thread',
+          smooth: 3,
+          points: [
+            { x: 1280, y: 360 }, { x: 1000, y: 340 }, { x: 800, y: 360 }, { x: 600, y: 340 },
+            { x: 400, y: 360 }, { x: 200, y: 340 }, { x: 0, y: 360 }
+          ]
+        },
+        {
+          name: 'South Thread',
+          smooth: 3,
+          points: [
+            { x: 0, y: 600 }, { x: 200, y: 580 }, { x: 400, y: 600 }, { x: 600, y: 580 },
+            { x: 800, y: 600 }, { x: 1000, y: 580 }, { x: 1280, y: 600 }
+          ]
+        }
+      ],
+
+      water: [
+        { cx: 300, cy: 260, r: 35 },
+        { cx: 980, cy: 460, r: 35 }
+      ],
+
+      blockers: [
+        { x: 500, y: 220, w: 40, h: 30 },
+        { x: 780, y: 460, w: 40, h: 30 }
+      ],
+
+      removable: [
+        { x: 640, y: 260, r: 18, cost: 400, name: 'Witchlight Stone', blocksLOS: true },
+        { x: 400, y: 460, r: 18, cost: 400, name: 'Glowing Mushroom', blocksLOS: true }
+      ],
+
+      palette: {
+        base: '#040606',
+        grass: '#161e14',
+        grassAlt: '#1e2818',
+        path: '#4a3c28',
+        pathEdge: '#32261a',
+        water: '#0a1010',
+        rock: '#32302a',
+        accent: '#60c080'
+      }
+    },
+
+    {
+      key: 'frostfang-peaks',
+      name: 'Frostfang Peaks',
+      tier: 'expert',
+      blurb: 'Three icy ledges stacked high — a massive central pillar blocks most sightlines.',
+      trackWidth: 28,
+
+      paths: [
+        {
+          name: 'Upper Ridge',
+          smooth: 3,
+          points: [
+            { x: 0, y: 100 }, { x: 200, y: 120 }, { x: 400, y: 100 }, { x: 600, y: 120 },
+            { x: 800, y: 100 }, { x: 1000, y: 120 }, { x: 1280, y: 100 }
+          ]
+        },
+        {
+          name: 'Middle Ridge',
+          smooth: 3,
+          points: [
+            { x: 1280, y: 360 }, { x: 1000, y: 340 }, { x: 800, y: 360 }, { x: 600, y: 340 },
+            { x: 400, y: 360 }, { x: 200, y: 340 }, { x: 0, y: 360 }
+          ]
+        },
+        {
+          name: 'Lower Ridge',
+          smooth: 3,
+          points: [
+            { x: 0, y: 600 }, { x: 200, y: 620 }, { x: 400, y: 600 }, { x: 600, y: 620 },
+            { x: 800, y: 600 }, { x: 1000, y: 620 }, { x: 1280, y: 600 }
+          ]
+        }
+      ],
+
+      water: [{ cx: 640, cy: 240, r: 35 }, { cx: 640, cy: 480, r: 35 }],
+
+      blockers: [
+        { x: 580, y: 220, w: 120, h: 40 },
+        { x: 580, y: 460, w: 120, h: 40 }
+      ],
+
+      removable: [
+        { x: 300, y: 240, r: 18, cost: 350, name: 'Ice Pillar', blocksLOS: true },
+        { x: 980, y: 480, r: 18, cost: 350, name: 'Frozen Spire', blocksLOS: true },
+        { x: 640, y: 240, r: 15, cost: 250, name: 'Frost Shard' }
+      ],
+
+      palette: {
+        base: '#040606',
+        grass: '#161e14',
+        grassAlt: '#1e2818',
+        path: '#4a3c28',
+        pathEdge: '#32261a',
+        water: '#0a1010',
+        rock: '#32302a',
+        accent: '#a0c8e0'
+      }
+    },
+
+    {
+      key: 'ashfall-ridge',
+      name: 'Ashfall Ridge',
+      tier: 'expert',
+      blurb: 'Two paths through an active volcanic ridge — ash clouds block vision and the ground is scarce.',
+      trackWidth: 28,
+
+      paths: [
+        {
+          name: 'West Crater',
+          smooth: 3,
+          points: [
+            { x: 0, y: 200 }, { x: 150, y: 280 }, { x: 300, y: 360 }, { x: 450, y: 280 },
+            { x: 600, y: 200 }, { x: 750, y: 280 }, { x: 900, y: 360 },
+            { x: 1050, y: 280 }, { x: 1200, y: 200 }, { x: 1280, y: 200 }
+          ]
+        },
+        {
+          name: 'East Crater',
+          smooth: 3,
+          points: [
+            { x: 0, y: 520 }, { x: 150, y: 440 }, { x: 300, y: 360 }, { x: 450, y: 440 },
+            { x: 600, y: 520 }, { x: 750, y: 440 }, { x: 900, y: 360 },
+            { x: 1050, y: 440 }, { x: 1200, y: 520 }, { x: 1280, y: 520 }
+          ]
+        }
+      ],
+
+      water: [{ cx: 640, cy: 130, r: 35 }, { cx: 640, cy: 590, r: 35 }],
+
+      blockers: [
+        { x: 520, y: 320, w: 60, h: 30 },
+        { x: 700, y: 320, w: 60, h: 30 }
+      ],
+
+      removable: [
+        { x: 380, y: 360, r: 20, cost: 400, name: 'Cooled Lava', blocksLOS: true },
+        { x: 900, y: 360, r: 20, cost: 400, name: 'Volcanic Plug', blocksLOS: true },
+        { x: 640, y: 360, r: 16, cost: 300, name: 'Ash Mound' }
+      ],
+
+      palette: {
+        base: '#060404',
+        grass: '#1e1414',
+        grassAlt: '#281c18',
+        path: '#5a3c28',
+        pathEdge: '#3a2618',
+        water: '#100808',
+        rock: '#4a3828',
+        accent: '#d06030'
+      }
+    },
+
+    {
+      key: 'serpent-coil',
+      name: 'Serpent Coil',
+      tier: 'expert',
+      blurb: 'A single path that coils three times around a central tower — every loop is a kill zone.',
+      trackWidth: 26,
+
+      water: [{ cx: 640, cy: 360, r: 30 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 360 }, { x: 100, y: 200 }, { x: 300, y: 120 }, { x: 500, y: 120 },
+          { x: 640, y: 200 }, { x: 640, y: 320 }, { x: 500, y: 400 }, { x: 300, y: 480 },
+          { x: 100, y: 560 }, { x: 200, y: 640 }, { x: 400, y: 640 }, { x: 600, y: 560 },
+          { x: 700, y: 440 }, { x: 800, y: 360 }, { x: 900, y: 440 }, { x: 1000, y: 560 },
+          { x: 1100, y: 640 }, { x: 1200, y: 560 }, { x: 1200, y: 400 }, { x: 1100, y: 320 },
+          { x: 900, y: 280 }, { x: 1100, y: 200 }, { x: 1200, y: 120 }, { x: 1280, y: 120 }
+        ]
+      }],
+
+      blockers: [
+        { x: 560, y: 320, w: 40, h: 40 },
+        { x: 720, y: 320, w: 40, h: 40 }
+      ],
+
+      removable: [
+        { x: 640, y: 360, r: 20, cost: 500, name: 'Serpent Statue', blocksLOS: true },
+        { x: 400, y: 300, r: 16, cost: 350, name: 'Coiled Root' }
+      ],
+
+      palette: {
+        base: '#040606',
+        grass: '#161e14',
+        grassAlt: '#1e2818',
+        path: '#4a3c28',
+        pathEdge: '#32261a',
+        water: '#0a1010',
+        rock: '#32302a',
+        accent: '#a0d060'
+      }
     }
   ]
 

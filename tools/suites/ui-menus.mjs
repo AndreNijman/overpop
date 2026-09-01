@@ -1,5 +1,5 @@
 export const name = 'ui-menus'
-export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js']
+export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js']
 
 import { makeSim } from './_fixture.mjs'
 import { arena } from './_towerfamily.mjs'
@@ -17,6 +17,7 @@ import { arena } from './_towerfamily.mjs'
 export function run (t, OP, env) {
   const Menus = OP.Menus
   const Bestiary = OP.Bestiary
+  const KnowledgeScreen = OP.KnowledgeScreen
 
   function recorder () {
     const calls = []
@@ -96,12 +97,14 @@ export function run (t, OP, env) {
   t.section('the modules exist and install')
   t.ok(Menus, 'OP.Menus is present')
   t.ok(Bestiary, 'OP.Bestiary is present')
+  t.ok(KnowledgeScreen, 'OP.KnowledgeScreen is present')
   t.eq(typeof Menus.install, 'function', 'Menus.install is a function — main.js calls it')
   t.eq(typeof Menus.draw, 'function', 'Menus.draw is a function — main.js calls it')
 
   const app = stubApp()
   t.noThrow(() => Menus.install(app), 'Menus installs against a stub App')
   if (Bestiary.install) t.noThrow(() => Bestiary.install(app), 'Bestiary installs against a stub App')
+  if (KnowledgeScreen.install) t.noThrow(() => KnowledgeScreen.install(app), 'Knowledge screen installs against a stub App')
 
   t.section('a widget helper is exported for the other screens to reuse')
   // js/ui/hud.js, shop.js and tower-panel.js are expected to reuse this rather than

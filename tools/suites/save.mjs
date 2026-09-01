@@ -54,9 +54,20 @@ function completeProfile (OP, p) {
   if (!isObj(st)) return false
   for (const k of COUNTERS) if (!Number.isInteger(st[k]) || st[k] < 0) return false
   if (!isObj(st.bestRound)) return false
+  if (!Number.isInteger(p.playerXp) || p.playerXp < 0) return false
 
   if (!isObj(p.completions)) return false
   if (!Array.isArray(p.unlockedTowers) || !Array.isArray(p.seenBalloons)) return false
+  if (!Array.isArray(p.knowledge) || !Number.isInteger(p.knowledgePoints) || p.knowledgePoints < 0) return false
+  if (!Array.isArray(p.achievements)) return false
+  if (!isObj(p.powers)) return false
+  if (!isObj(p.daily)) return false
+  if (!Number.isInteger(p.dailyStreak) || p.dailyStreak < 0) return false
+  if (!isObj(p.raceBests)) return false
+  if (p.expedition !== null && !isObj(p.expedition)) return false
+  if (!isObj(p.completedExpeditions)) return false
+  if (p.activeTrial !== null && !isObj(p.activeTrial)) return false
+  if (!isObj(p.completedTrials)) return false
   return true
 }
 
@@ -102,7 +113,7 @@ export function run (t, OP, env) {
 
   t.section('a fresh profile is complete and storable')
   const d = S.defaults()
-  t.eq(S.SCHEMA_VERSION, 1, 'the schema starts at version 1')
+  t.eq(S.SCHEMA_VERSION, 7, 'the schema starts at version 7')
   t.ok(Number.isInteger(S.SCHEMA_VERSION) && S.SCHEMA_VERSION >= 1, 'and is a positive integer')
   t.ok(completeProfile(OP, d), 'defaults() has every field the game reads')
   t.eq(d.settings.gameSpeed, 1, 'the game starts at normal speed')
@@ -114,9 +125,14 @@ export function run (t, OP, env) {
   t.eq(Object.keys(d.settings).length, SETTING_KEYS.length, 'and there are no surprise settings')
   for (const k of COUNTERS) t.eq(d.stats[k], 0, `stats.${k} starts at zero`)
   t.deep(d.stats.bestRound, {}, 'no best rounds yet')
+  t.eq(d.playerXp, 0, 'player XP starts at zero')
   t.deep(d.completions, {}, 'nothing completed')
   t.deep(d.unlockedTowers, [], 'nothing unlocked')
   t.deep(d.seenBalloons, [], 'the bestiary is empty')
+  t.deep(d.knowledge, [], 'no knowledge is unlocked')
+  t.eq(d.knowledgePoints, 0, 'there are no unspent knowledge points')
+  t.deep(d.achievements, [], 'no achievements are unlocked')
+  t.deep(d.powers, {}, 'the consumable inventory starts empty')
   t.eq(jsonUnsafe(d), '', 'a default profile contains nothing but JSON — no functions, Maps or Sets')
   t.deep(canon(JSON.parse(JSON.stringify(d))), canon(d), 'and survives a JSON round-trip unchanged')
 
@@ -224,50 +240,49 @@ export function run (t, OP, env) {
   t.eq(fractional.stats.gamesPlayed, 6, 'its data is kept')
   t.eq(fractional.schemaVersion, S.SCHEMA_VERSION, 'and the version is normalised')
 
-  t.section('the migration engine really steps — proved by pretending to be version 2')
-  // With one live version there is no hop to observe, and an unexercised
-  // migration loop is one that breaks the day it is first needed. So stand up a
-  // version 2 the way a future build would: one MIGRATIONS entry plus the bump.
+  t.section('the migration engine really steps — proved by pretending to be version 8')
+  // With two live versions there is a real hop to observe. So stand up a
+  // version 8 the way a future build would: one MIGRATIONS entry plus the bump.
   const realVersion = S.SCHEMA_VERSION
   try {
     let ran = 0
-    S.SCHEMA_VERSION = 2
-    S.MIGRATIONS[1] = function (old) {
+    S.SCHEMA_VERSION = 8
+    S.MIGRATIONS[7] = function (old) {
       ran++
       old.stats = old.stats || {}
       old.stats.totalCash = (old.stats.totalCash || 0) + 500
       return old
     }
     const stepped = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 2, totalCash: 100 } })
-    t.eq(ran, 1, 'the from-version-1 step ran exactly once')
-    t.eq(stepped.schemaVersion, 2, 'the result is stamped with the new version')
+    t.eq(ran, 1, 'the from-version-7 step ran exactly once')
+    t.eq(stepped.schemaVersion, 8, 'the result is stamped with the new version')
     t.eq(stepped.stats.totalCash, 600, "and carries the step's change")
     t.eq(stepped.stats.gamesPlayed, 2, 'while fields the step ignored came across untouched')
 
-    const already = S.migrate({ schemaVersion: 2, stats: { gamesPlayed: 9 } })
+    const already = S.migrate({ schemaVersion: 8, stats: { gamesPlayed: 9 } })
     t.eq(already.stats.gamesPlayed, 9, 'a profile already at the current version is kept')
     t.eq(ran, 1, 'and no step re-runs on it')
 
     const chained = S.migrate({ stats: { gamesPlayed: 1 } })
-    t.eq(chained.schemaVersion, 2, 'an unversioned profile walks the whole chain')
+    t.eq(chained.schemaVersion, 8, 'an unversioned profile walks the whole chain')
     t.eq(ran, 2, 'running every step on the way')
 
-    S.MIGRATIONS[1] = function () { throw new Error('a future migration step with a bug in it') }
+    S.MIGRATIONS[7] = function () { throw new Error('a future migration step with a bug in it') }
     let thrown = null
     t.noThrow(() => { thrown = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }) },
       'a migration step that throws does not take the boot down with it')
     t.deep(canon(thrown), canon(S.defaults()), 'it loses the profile instead')
 
-    S.MIGRATIONS[1] = function () { return 'not a profile' }
+    S.MIGRATIONS[7] = function () { return 'not a profile' }
     t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
       'and a step that returns junk is caught too')
 
-    delete S.MIGRATIONS[1]
+    delete S.MIGRATIONS[7]
     t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
       'a version with no registered step gives defaults rather than a guess')
   } finally {
     S.SCHEMA_VERSION = realVersion
-    delete S.MIGRATIONS[1]
+    delete S.MIGRATIONS[7]
   }
   t.eq(S.SCHEMA_VERSION, realVersion, 'the real schema version is restored')
   t.eq(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }).stats.gamesPlayed, 5,

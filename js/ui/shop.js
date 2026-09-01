@@ -295,7 +295,7 @@
 
     /* ONE COLUMN of tall cards, scrolled — not a grid of shrinking cells.
        The old grid divided the remaining height by the row count, so every tower
-       added made every card shorter; at 25 towers and 8 heroes a cell was 16px,
+       added made every card shorter; at 31 towers and 20 heroes a cell was 16px,
        which fits a clipped name and nothing else. A card has to carry the
        critter's portrait to be worth looking at, and a portrait needs real
        height. So the card size is FIXED and the list scrolls instead. */

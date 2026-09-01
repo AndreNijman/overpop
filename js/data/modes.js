@@ -8,9 +8,9 @@
      one. A mode says what it changes by naming fields on sim.rules, and the engine
      that already honours those fields does the rest (ARCHITECTURE.md §8).
 
-     That constraint is the whole reason eleven modes are affordable. The moment one
+     That constraint is the whole reason the full mode roster is affordable. The moment one
      mode earns a code path, every later feature has to be tested against it
-     separately, and the eleven become eleven engines. Concretely: while writing
+     separately, and the thirteen become thirteen engines. Concretely: while writing
      these I wanted "denser waves" for Onslaught and "no consumable powers" for
      PURIST. Neither has a rule field, so neither is here — see the notes on those
      two entries. The fix for a missing mode behaviour is a new rule field in
@@ -142,11 +142,96 @@
         allowSell: false,
         allowIncome: false,
         allowContinue: false,
+        allowPowers: false,
         livesRegain: false
-        // §8 also lists "no powers". There are no consumable powers in this build
-        // and no allowPowers rule field to express it; allowAbilities means tower
-        // and hero abilities, which PURIST deliberately keeps — a build without
-        // abilities is not a purer build, just a smaller one.
+      }
+    },
+
+    grim: {
+      key: 'grim',
+      name: 'GRIM',
+      blurb: 'No continues, no selling, no income, no abilities, no lives regained. One life, the full hundred rounds. The definitive challenge.',
+      rules: {
+        startLives: 1,
+        allowSell: false,
+        allowIncome: false,
+        allowContinue: false,
+        allowAbilities: false,
+        allowPowers: false,
+        livesRegain: false
+      }
+    },
+
+    rampart: {
+      key: 'rampart',
+      name: 'RAMPART',
+      blurb: 'One life, towers cost more, and the track itself wants you dead. Every round is a cliff edge.',
+      rules: {
+        startLives: 1,
+        costMul: 1.2,
+        allowContinue: false,
+        livesRegain: false
+      }
+    },
+
+    'boss-event': {
+      key: 'boss-event',
+      name: 'Boss Event',
+      blurb: 'A massive boss advances every twenty rounds. Kill it before it reaches the exit — or the run is over.',
+      rules: {
+        lastRound: 120,
+        startLives: 200,
+        startCash: 650,
+        allowSell: true,
+        allowIncome: true,
+        allowAbilities: true,
+        bossKey: 'elder-worm',
+        bossElite: false
+      }
+    },
+
+    'boss-event-elite': {
+      key: 'boss-event-elite',
+      name: 'Boss Event (Elite)',
+      blurb: 'The boss returns with vastly more health and speed. Only the strongest defenses survive.',
+      rules: {
+        lastRound: 120,
+        startLives: 100,
+        startCash: 650,
+        allowSell: true,
+        allowIncome: true,
+        allowAbilities: true,
+        bossKey: 'elder-worm',
+        bossElite: true
+      }
+    },
+
+    'tag-team': {
+      key: 'tag-team',
+      name: 'Tag Team',
+      blurb: 'Two players share the map, alternating turns to place towers between rounds. Coordinate your builds to cover every path.',
+      rules: {
+        lastRound: 80,
+        startLives: 200,
+        startCash: 1000,
+        allowSell: true,
+        allowIncome: true,
+        allowAbilities: true,
+        coop: true
+      }
+    },
+
+    'rush-trial': {
+      key: 'rush-trial',
+      name: 'Rush Trial',
+      blurb: 'Every round starts the moment the previous one ends. Your clear time is the score — beat your best on each map and difficulty.',
+      rules: {
+        lastRound: 60,
+        startCash: 1000,
+        startLives: 150,
+        allowSell: true,
+        allowIncome: true,
+        allowAbilities: true
       }
     }
   }
@@ -165,7 +250,13 @@
     'double-hp-blimps',
     'alternate-waves',
     'reverse',
-    'purist'
+    'purist',
+    'grim',
+    'rampart',
+    'boss-event',
+    'boss-event-elite',
+    'tag-team',
+    'rush-trial'
   ]
 
   /* ---------- availability ---------- */
@@ -188,7 +279,7 @@
      This is a MENU gate. The sim never consults it: OP.Sim.create honours whatever
      difficulty and mode it is handed, because a save from a future ruleset must
      still load. */
-  const MODE_MIN_DIFFICULTY = { purist: 'hard' }
+  const MODE_MIN_DIFFICULTY = { purist: 'hard', grim: 'hard', rampart: 'hard', 'boss-event': 'medium', 'boss-event-elite': 'hard' }
 
   /**
    * May this mode be started on this difficulty?

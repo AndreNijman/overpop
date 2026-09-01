@@ -254,9 +254,9 @@ async function makeOg () {
     ctx.font = '400 24px ui-monospace, monospace'
     ctx.letterSpacing = '0px'
     const lines = [
-      '25 critter towers · 3-branch upgrade trees',
-      '100 rounds · 16 maps · heroes · paragons',
-      'eleven modes, including PURIST'
+      '31 critter towers · 3-branch upgrade trees',
+      '100 rounds · 48 maps · heroes · paragons',
+      'seventeen modes, including PURIST'
     ]
     lines.forEach(function (t, i) { ctx.fillText(t, 500, 366 + i * 38) })
 

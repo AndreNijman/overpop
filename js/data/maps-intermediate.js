@@ -246,6 +246,307 @@
         accent: '#d8bf5e',
         fog: '#0e1310'
       }
+    },
+
+    {
+      key: 'split-oak-pass',
+      name: 'Split Oak Pass',
+      tier: 'intermediate',
+      blurb: 'The road splits around an ancient oak, rejoins, then splits again — three crossings in one map.',
+      trackWidth: 33,
+
+      water: [{ cx: 320, cy: 200, r: 55 }, { cx: 960, cy: 520, r: 50 }],
+
+      blocked: [
+        { x: 540, y: 140, w: 200, h: 60 },
+        { x: 740, y: 520, w: 180, h: 70 }
+      ],
+      blockers: [
+        { x: 540, y: 140, w: 200, h: 60 },
+        { x: 740, y: 520, w: 180, h: 70 }
+      ],
+
+      removable: [
+        { x: 640, y: 360, r: 28, cost: 230, name: 'Fallen Oak Limb', blocksLOS: true },
+        { x: 320, y: 600, r: 26, cost: 180, name: 'Root Wall' }
+      ],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 180 }, { x: 140, y: 180 }, { x: 300, y: 160 }, { x: 420, y: 200 },
+          { x: 540, y: 300 }, { x: 640, y: 360 }, { x: 740, y: 300 }, { x: 860, y: 200 },
+          { x: 960, y: 180 }, { x: 1100, y: 180 }, { x: 1280, y: 200 }
+        ]
+      }, {
+        smooth: 4,
+        points: [
+          { x: 0, y: 540 }, { x: 140, y: 540 }, { x: 300, y: 560 }, { x: 420, y: 520 },
+          { x: 540, y: 420 }, { x: 640, y: 360 }, { x: 740, y: 420 }, { x: 860, y: 520 },
+          { x: 960, y: 540 }, { x: 1100, y: 540 }, { x: 1280, y: 520 }
+        ]
+      }],
+
+      palette: {
+        base: '#0b110e',
+        grass: '#334a30',
+        grassAlt: '#415b3a',
+        path: '#6a583e',
+        pathEdge: '#453723',
+        water: '#2a4a5e',
+        rock: '#525148',
+        accent: '#c9b03d',
+        fog: '#0b110e'
+      }
+    },
+
+    {
+      key: 'stump-circle',
+      name: 'Stump Circle',
+      tier: 'intermediate',
+      blurb: 'Ancient stumps arranged in a ring — the paths weave between them like a labyrinth.',
+      trackWidth: 32,
+
+      blocked: [
+        { x: 400, y: 280, w: 70, h: 70 },
+        { x: 640, y: 280, w: 70, h: 70 },
+        { x: 880, y: 280, w: 70, h: 70 },
+        { x: 520, y: 420, w: 70, h: 70 },
+        { x: 760, y: 420, w: 70, h: 70 }
+      ],
+      blockers: [
+        { x: 400, y: 280, w: 70, h: 70 },
+        { x: 640, y: 280, w: 70, h: 70 },
+        { x: 880, y: 280, w: 70, h: 70 },
+        { x: 520, y: 420, w: 70, h: 70 },
+        { x: 760, y: 420, w: 70, h: 70 }
+      ],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 350 }, { x: 200, y: 350 }, { x: 350, y: 280 }, { x: 480, y: 350 },
+          { x: 580, y: 420 }, { x: 680, y: 420 }, { x: 780, y: 350 }, { x: 900, y: 280 },
+          { x: 1050, y: 350 }, { x: 1280, y: 350 }
+        ]
+      }],
+
+      palette: {
+        base: '#0b110e',
+        grass: '#334a30',
+        grassAlt: '#415b3a',
+        path: '#6a583e',
+        pathEdge: '#453723',
+        water: '#2a4a5e',
+        rock: '#525148',
+        accent: '#c9b03d'
+      }
+    },
+
+    {
+      key: 'bogwood-crossing',
+      name: 'Bogwood Crossing',
+      tier: 'intermediate',
+      blurb: 'Two paths cross over a swampy lowland — the old bogwood logs serve as bridges.',
+      trackWidth: 32,
+
+      paths: [
+        { name: 'North-South',
+          smooth: 4,
+          points: [
+            { x: 640, y: 0 }, { x: 640, y: 120 }, { x: 600, y: 260 }, { x: 640, y: 360 },
+            { x: 680, y: 460 }, { x: 640, y: 600 }, { x: 640, y: 720 }
+          ] },
+        { name: 'East-West',
+          smooth: 4,
+          points: [
+            { x: 0, y: 360 }, { x: 160, y: 360 }, { x: 360, y: 400 }, { x: 640, y: 360 },
+            { x: 920, y: 320 }, { x: 1120, y: 360 }, { x: 1280, y: 360 }
+          ] }
+      ],
+
+      water: [
+        { cx: 300, cy: 500, r: 50 },
+        { cx: 980, cy: 220, r: 50 }
+      ],
+
+      palette: {
+        base: '#0b110e',
+        grass: '#334a30',
+        grassAlt: '#415b3a',
+        path: '#6a583e',
+        pathEdge: '#453723',
+        water: '#2a4a5e',
+        rock: '#525148',
+        accent: '#c9b03d'
+      }
+    },
+
+    {
+      key: 'fernfalls-gorge',
+      name: 'Fernfalls Gorge',
+      tier: 'intermediate',
+      blurb: 'A deep gorge with waterfalls cascading down both sides — the paths cross at the bottom.',
+      trackWidth: 32,
+
+      paths: [
+        { name: 'Left Falls',
+          smooth: 4,
+          points: [
+            { x: 0, y: 200 }, { x: 200, y: 280 }, { x: 400, y: 360 }, { x: 640, y: 400 },
+            { x: 880, y: 360 }, { x: 1080, y: 280 }, { x: 1280, y: 200 }
+          ] },
+        { name: 'Right Falls',
+          smooth: 4,
+          points: [
+            { x: 0, y: 520 }, { x: 200, y: 440 }, { x: 400, y: 360 }, { x: 640, y: 320 },
+            { x: 880, y: 360 }, { x: 1080, y: 440 }, { x: 1280, y: 520 }
+          ] }
+      ],
+
+      water: [
+        { cx: 640, cy: 600, r: 55 },
+        { cx: 200, cy: 150, r: 40 },
+        { cx: 1080, cy: 150, r: 40 }
+      ],
+
+      palette: {
+        base: '#0b110e',
+        grass: '#334a30',
+        grassAlt: '#415b3a',
+        path: '#6a583e',
+        pathEdge: '#453723',
+        water: '#2a4a5e',
+        rock: '#525148',
+        accent: '#c9b03d'
+      }
+    },
+
+    {
+      key: 'reed-bend',
+      name: 'Reed Bend',
+      tier: 'intermediate',
+      blurb: 'A tight S-curve through a reed bed — two close bends that reward split coverage.',
+      trackWidth: 32,
+
+      water: [{ cx: 350, cy: 350, r: 45 }, { cx: 930, cy: 370, r: 40 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 200 }, { x: 200, y: 240 }, { x: 350, y: 400 }, { x: 500, y: 520 },
+          { x: 640, y: 400 }, { x: 780, y: 240 }, { x: 930, y: 380 },
+          { x: 1080, y: 500 }, { x: 1280, y: 460 }
+        ]
+      }],
+
+      palette: {
+        base: '#0b110e',
+        grass: '#3a5530',
+        grassAlt: '#48683a',
+        path: '#6f5b3f',
+        pathEdge: '#4a3b24',
+        water: '#2d4a5a',
+        accent: '#a0c860'
+      }
+    },
+
+    {
+      key: 'barrow-cross',
+      name: 'Barrow Cross',
+      tier: 'intermediate',
+      blurb: 'Two paths cross over an ancient barrow — control the intersection or split your forces.',
+      trackWidth: 32,
+
+      water: [{ cx: 640, cy: 150, r: 40 }],
+
+      paths: [
+        {
+          name: 'North-South',
+          smooth: 3,
+          points: [
+            { x: 640, y: 0 }, { x: 640, y: 180 }, { x: 640, y: 540 }, { x: 640, y: 720 }
+          ]
+        },
+        {
+          name: 'East-West',
+          smooth: 3,
+          points: [
+            { x: 0, y: 360 }, { x: 180, y: 360 }, { x: 540, y: 360 },
+            { x: 740, y: 360 }, { x: 1100, y: 360 }, { x: 1280, y: 360 }
+          ]
+        }
+      ],
+
+      palette: {
+        base: '#0e120f',
+        grass: '#3a5530',
+        grassAlt: '#48683a',
+        path: '#6f5b3f',
+        pathEdge: '#4a3b24',
+        water: '#2d4a5a',
+        accent: '#c8b848'
+      }
+    },
+
+    {
+      key: 'loch-stir',
+      name: 'Loch Stir',
+      tier: 'intermediate',
+      blurb: 'A looping path around a still loch — the long way round gives you time to prepare.',
+      trackWidth: 33,
+
+      water: [{ cx: 640, cy: 360, r: 70 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 360 }, { x: 120, y: 200 }, { x: 320, y: 100 }, { x: 560, y: 100 },
+          { x: 800, y: 100 }, { x: 1000, y: 200 }, { x: 1160, y: 360 },
+          { x: 1000, y: 520 }, { x: 800, y: 620 }, { x: 560, y: 620 },
+          { x: 320, y: 520 }, { x: 120, y: 360 }, { x: 0, y: 360 }
+        ]
+      }],
+
+      palette: {
+        base: '#0b110e',
+        grass: '#334a30',
+        grassAlt: '#415b3a',
+        path: '#6a583e',
+        pathEdge: '#453723',
+        water: '#2a4a5e',
+        accent: '#90b0d0'
+      }
+    },
+
+    {
+      key: 'foxglove-twist',
+      name: 'Foxglove Twist',
+      tier: 'intermediate',
+      blurb: 'A winding trail through foxglove thickets — the twists limit long-range shots.',
+      trackWidth: 32,
+
+      water: [{ cx: 180, cy: 580, r: 40 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 100 }, { x: 200, y: 180 }, { x: 350, y: 360 }, { x: 200, y: 520 },
+          { x: 350, y: 620 }, { x: 600, y: 520 }, { x: 750, y: 360 },
+          { x: 900, y: 200 }, { x: 1100, y: 300 }, { x: 1200, y: 500 },
+          { x: 1280, y: 600 }
+        ]
+      }],
+
+      palette: {
+        base: '#0e120f',
+        grass: '#3a5530',
+        grassAlt: '#48683a',
+        path: '#6f5b3f',
+        pathEdge: '#4a3b24',
+        water: '#2d4a5a',
+        accent: '#d070a0'
+      }
     }
   ]
 

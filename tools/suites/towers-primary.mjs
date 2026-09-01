@@ -18,14 +18,14 @@ export const needs = ['js/towers/primary.js']
 
 const ROSTER = [
   'acorn-fox', 'boomer-badger', 'cannon-boar', 'thistle-hedgehog',
-  'frost-hare', 'sap-snail', 'sixgun-stoat'
+  'frost-hare', 'sap-snail', 'sixgun-stoat', 'shape-shifter'
 ]
 
 export function run (t, OP, env) {
   // Explicit keys: several other suites evaluate js/towers/_TEMPLATE.js into the
   // shared bundle context, and that file reassigns OP.FAMILY_ROSTERS.primary. The
   // floor's own docs say `keys` is the escape hatch for exactly that.
-  assertFamily(t, OP, 'primary', { expect: 7, keys: ROSTER })
+  assertFamily(t, OP, 'primary', { expect: 8, keys: ROSTER })
 
   t.section('primary: the file declares its own roster')
   // Read the source rather than OP.FAMILY_ROSTERS. Several suites (towerfloor,
@@ -211,7 +211,7 @@ export function run (t, OP, env) {
   t.ok(answers['boomer-badger'].camo, 'Boomer Badger can be given camo detection')
   t.notOk(answers['cannon-boar'].camo, 'Cannon Boar never sees Veiled balloons on its own')
   t.notOk(answers['sixgun-stoat'].camo, 'Sixgun Stoat never sees Veiled balloons on its own')
-  t.eq(ROSTER.filter(k => answers[k].camo).length, 2, 'exactly two of the seven can answer camo')
+  t.eq(ROSTER.filter(k => answers[k].camo).length, 3, 'exactly three of the eight can answer camo')
   t.ok(answers['cannon-boar'].bigSingle && answers['sixgun-stoat'].bigSingle,
     'Cannon Boar and Sixgun Stoat both reach 100+ damage a shot — the blimp answers')
   t.notOk(answers['frost-hare'].bigSingle, 'Frost Hare is deliberately not a blimp answer: blimps resist slows')

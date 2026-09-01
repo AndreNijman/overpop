@@ -258,7 +258,51 @@
       }
 
       if (p.pierce <= 0) p.alive = false
+
+      // Boss collision check — after balloon collisions
+      if (p.alive) bossHitCheck(sim, p)
     }
+  }
+
+  /* ---------- boss collision ---------- */
+
+  /**
+   * After balloon collision, check if the projectile also hits the boss.
+   * The boss is a single entity not in the spatial grid, so this is a direct
+   * distance check — O(1) per projectile. Boss collision uses a unique hit id
+   * (bossHit marker) so a projectile can hit the boss once per flight.
+   */
+  function bossHitCheck (sim, p) {
+    if (!p.alive || !OP.Boss) return
+    const boss = sim.boss
+    if (!boss || !boss.alive) return
+
+    // Boss hit marker: use negative boss tier as unique id in the hits set
+    const bossMarker = -(boss.tier * 1000 + 999)
+    if (p.hits.has(bossMarker)) return
+
+    // Distance check
+    const dx = p.x - boss.x
+    const dy = p.y - boss.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const hitDist = p.radius + boss.radius
+
+    if (dist >= hitDist) return
+
+    p.hits.add(bossMarker)
+    p.pierce--
+    sim.stats.projHits = (sim.stats.projHits || 0) + 1
+
+    OP.Boss.damage(sim, {
+      damage: p.damage,
+      dmgType: p.dmgType,
+      sourceId: p.ownerId,
+      effects: p.effects,
+      ignoreImmunity: p.ignoreImmunity,
+      instaKill: p.instaKill
+    })
+
+    if (p.pierce <= 0) p.alive = false
   }
 
   function byT (a, b) {

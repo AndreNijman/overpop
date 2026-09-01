@@ -20,6 +20,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createHash } from 'node:crypto'
 import { ROOT, scriptManifest } from './loadgame.mjs'
 
@@ -65,7 +66,8 @@ export function writeStamp (stamp) {
   writeFileSync(SW, src.replace(RE, `const VERSION = '${stamp}'`))
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const _main = fileURLToPath(import.meta.url)
+if (_main && process.argv[1] && _main === resolve(process.argv[1])) {
   const { stamp, missing } = computeStamp()
   const current = readStamp()
 

@@ -64,7 +64,7 @@ export function run (t, OP, env) {
 
   t.section('every content registry is populated')
   const REGISTRIES = [
-    ['TOWER_ORDER', 25], ['HERO_ORDER', 8], ['MAP_ORDER', 1],
+    ['TOWER_ORDER', 31], ['HERO_ORDER', 8], ['MAP_ORDER', 1],
     ['DMG_ORDER', 10], ['BALLOON_TIERS', 17], ['FAMILIES', 4]
   ]
   for (const [key, atLeast] of REGISTRIES) {

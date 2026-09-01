@@ -107,8 +107,8 @@ export function run (t, OP) {
     }
     return null
   })
-  const PROP_MASK = P.VEILED | P.REGEN | P.PLATED
-  scan('props use only VEILED, REGEN and PLATED bits', n => {
+  const PROP_MASK = P.VEILED | P.REGEN | P.PLATED | P.FORTIFIED
+  scan('props use only VEILED, REGEN, PLATED and FORTIFIED bits', n => {
     for (const g of groupsOf(n)) {
       if (!Number.isInteger(g.props) || (g.props & ~PROP_MASK)) return 'stray prop bits ' + g.props
     }
@@ -262,10 +262,10 @@ export function run (t, OP) {
 
   t.section('properties start where the player can answer them')
   const propFirst = {}
-  const propRounds = { VEILED: [], REGEN: [], PLATED: [] }
+  const propRounds = { VEILED: [], REGEN: [], PLATED: [], FORTIFIED: [] }
   for (const n of nums) {
     for (const g of groupsOf(n)) {
-      for (const key of ['VEILED', 'REGEN', 'PLATED']) {
+      for (const key of ['VEILED', 'REGEN', 'PLATED', 'FORTIFIED']) {
         if (g.props & P[key]) {
           if (propFirst[key] === undefined) propFirst[key] = n
           if (propRounds[key][propRounds[key].length - 1] !== n) propRounds[key].push(n)
@@ -276,6 +276,7 @@ export function run (t, OP) {
   t.between(propFirst.VEILED, 22, 27, `VEILED first appears at round ${propFirst.VEILED}`)
   t.between(propFirst.REGEN, 23, 28, `REGEN first appears at round ${propFirst.REGEN}`)
   t.between(propFirst.PLATED, 67, 73, `PLATED first appears at round ${propFirst.PLATED}`)
+  t.between(propFirst.FORTIFIED, 47, 65, `FORTIFIED first appears at round ${propFirst.FORTIFIED}`)
   let earlyProp = null
   for (const n of nums) {
     if (n >= Math.min(propFirst.VEILED, propFirst.REGEN)) break

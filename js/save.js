@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 1
+  Save.SCHEMA_VERSION = 7
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -165,6 +165,20 @@
     return out
   }
 
+  /** Canonical plain-object inventory: safe keys and positive integer counts. */
+  function powerInventory (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    const keys = Object.keys(raw).sort()
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]
+      if (!safeKey(key)) continue
+      const n = counter(raw[key])
+      if (n > 0) out[key] = n
+    }
+    return out
+  }
+
   /* ---------- storage access ----------
      Resolved lazily, never at load time: some browsers throw merely on touching
      window.localStorage (private mode, third-party-cookie blocking), and a throw
@@ -204,10 +218,6 @@
 
   /**
    * A fresh profile. Pure — a new object every call, sharing nothing.
-   *
-   * A tower is available if `def.unlockRound === 0` OR its key is in
-   * `unlockedTowers`; nothing is pre-listed here, so this stays a pure function
-   * of nothing rather than of whatever the tower registry happens to hold.
    */
   Save.defaults = function () {
     const settings = {}
@@ -220,9 +230,21 @@
       schemaVersion: Save.SCHEMA_VERSION,
       settings: settings,
       stats: stats,
+      playerXp: 0,
       completions: {},   // mapKey -> difficulty -> mode -> true
       unlockedTowers: [],
-      seenBalloons: []
+      seenBalloons: [],
+      knowledge: [],     // unlocked knowledge node keys
+      knowledgePoints: 0, // unspent KP
+      achievements: [],   // unlocked achievement keys
+      powers: {},         // power key -> remaining uses
+      daily: {},          // dateKey -> { won, bestRound, pops, cash }
+      dailyStreak: 0,     // best daily challenge streak
+      raceBests: {},       // mapKey -> difficulty -> { won, time, pops, cash }
+      expedition: null,     // active expedition state or null
+      completedExpeditions: {}, // expeditionKey -> completion count
+      activeTrial: null,    // active trial state or null
+      completedTrials: {}   // trialKey -> { completed, bestTime, completedAt }
     }
   }
 
@@ -255,11 +277,132 @@
       const round = counter(best[mapKey])
       if (round > 0) out.stats.bestRound[mapKey] = round
     }
+    out.playerXp = counter(raw.playerXp)
 
     out.completions = normaliseCompletions(raw.completions)
     out.unlockedTowers = keyList(raw.unlockedTowers)
     out.seenBalloons = keyList(raw.seenBalloons)
+    out.knowledge = keyList(raw.knowledge)
+    out.knowledgePoints = typeof raw.knowledgePoints === 'number' && raw.knowledgePoints >= 0
+      ? Math.floor(raw.knowledgePoints) : 0
+    out.achievements = keyList(raw.achievements)
+    out.powers = powerInventory(raw.powers)
+    out.daily = normaliseDaily(raw.daily)
+    out.dailyStreak = counter(raw.dailyStreak)
+    out.raceBests = normaliseRaceBests(raw.raceBests)
+    out.expedition = normaliseExpedition(raw.expedition)
+    out.completedExpeditions = normaliseCompletedExpeditions(raw.completedExpeditions)
+    out.activeTrial = normaliseActiveTrial(raw.activeTrial)
+    out.completedTrials = normaliseCompletedTrials(raw.completedTrials)
     out.schemaVersion = Save.SCHEMA_VERSION
+    return out
+  }
+
+  /**
+   * Normalise the daily challenge history. Keys are date strings like
+   * '2026-08-31'; values are { won: bool, bestRound: int, pops: int, cash: int }.
+   */
+  function normaliseDaily (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    for (const key in raw) {
+      if (!own(raw, key) || typeof key !== 'string' || key === '' || key === '__proto__') continue
+      const entry = raw[key]
+      if (!isPlainObject(entry)) continue
+      out[key] = {
+        won: !!entry.won,
+        bestRound: counter(entry.bestRound),
+        pops: counter(entry.pops),
+        cash: counter(entry.cash)
+      }
+    }
+    return out
+  }
+
+  /**
+   * Normalise race best times. mapKey -> difficulty -> { won, time, pops, cash }.
+   */
+  function normaliseRaceBests (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    for (const mapKey in raw) {
+      if (!own(raw, mapKey) || !safeKey(mapKey)) continue
+      const diffs = raw[mapKey]
+      if (!isPlainObject(diffs)) continue
+      for (const diff in diffs) {
+        if (!own(diffs, diff) || !safeKey(diff)) continue
+        const entry = diffs[diff]
+        if (!isPlainObject(entry)) continue
+        out[mapKey] = out[mapKey] || {}
+        out[mapKey][diff] = {
+          won: !!entry.won,
+          time: finite(entry.time) ? entry.time : 0,
+          pops: counter(entry.pops),
+          cash: counter(entry.cash)
+        }
+      }
+    }
+    return out
+  }
+
+  /**
+   * Normalise active expedition state. null or { expeditionKey, stageIndex, cash, lives, time, maps }.
+   */
+  function normaliseExpedition (raw) {
+    if (!isPlainObject(raw)) return null
+    if (!safeKey(raw.expeditionKey)) return null
+    return {
+      expeditionKey: raw.expeditionKey,
+      stageIndex: counter(raw.stageIndex),
+      cash: counter(raw.cash),
+      lives: counter(raw.lives),
+      time: finite(raw.time) ? raw.time : 0,
+      maps: counter(raw.maps)
+    }
+  }
+
+  /**
+   * Normalise completed expeditions. expeditionKey -> count.
+   */
+  function normaliseCompletedExpeditions (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    for (const key in raw) {
+      if (!own(raw, key) || !safeKey(key)) continue
+      const n = counter(raw[key])
+      if (n > 0) out[key] = n
+    }
+    return out
+  }
+
+  /**
+   * Normalise active trial state. null or { trialKey, startTime }.
+   */
+  function normaliseActiveTrial (raw) {
+    if (!isPlainObject(raw)) return null
+    if (!safeKey(raw.trialKey)) return null
+    return {
+      trialKey: raw.trialKey,
+      startTime: finite(raw.startTime) ? raw.startTime : Date.now()
+    }
+  }
+
+  /**
+   * Normalise completed trials. trialKey -> { completed, bestTime, completedAt }.
+   */
+  function normaliseCompletedTrials (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    for (const key in raw) {
+      if (!own(raw, key) || !safeKey(key)) continue
+      const entry = raw[key]
+      if (!isPlainObject(entry)) continue
+      out[key] = {
+        completed: !!entry.completed,
+        bestTime: finite(entry.bestTime) ? entry.bestTime : 0,
+        completedAt: finite(entry.completedAt) ? entry.completedAt : 0
+      }
+    }
     return out
   }
 
@@ -307,7 +450,46 @@
   const MIGRATIONS = {
     // An unversioned profile — written before the schema existed, or hand-made.
     // Nothing to move; normalise() repairs it.
-    0: function (p) { return p }
+    0: function (p) { return p },
+    // Version 1 → 2: add knowledge fields
+    1: function (p) {
+      if (!Array.isArray(p.knowledge)) p.knowledge = []
+      if (typeof p.knowledgePoints !== 'number') p.knowledgePoints = 0
+      return p
+    },
+    // Version 2 → 3: add daily challenge fields
+    2: function (p) {
+      if (typeof p.daily !== 'object' || p.daily === null) p.daily = {}
+      if (typeof p.dailyStreak !== 'number') p.dailyStreak = 0
+      return p
+    },
+    // Version 3 → 4: add race best times
+    3: function (p) {
+      if (typeof p.raceBests !== 'object' || p.raceBests === null) p.raceBests = {}
+      return p
+    },
+    // Version 4 → 5: add expedition fields
+    4: function (p) {
+      if (typeof p.expedition !== 'object') p.expedition = null
+      if (typeof p.completedExpeditions !== 'object' || p.completedExpeditions === null) p.completedExpeditions = {}
+      return p
+    },
+    // Version 5 → 6: add trial fields
+    5: function (p) {
+      if (typeof p.activeTrial !== 'object') p.activeTrial = null
+      if (typeof p.completedTrials !== 'object' || p.completedTrials === null) p.completedTrials = {}
+      return p
+    },
+    // Version 6 → 7: add player XP, reconstructed from lifetime play.
+    6: function (p) {
+      const stats = isPlainObject(p.stats) ? p.stats : {}
+      if (!finite(p.playerXp) || p.playerXp < 0) {
+        const roundXp = counter(counter(stats.roundsCleared) * 10)
+        const winXp = counter(counter(stats.gamesWon) * 500)
+        p.playerXp = addCounter(roundXp, winXp)
+      }
+      return p
+    }
   }
 
   Save.MIGRATIONS = MIGRATIONS
@@ -417,9 +599,21 @@
       p.stats[STAT_COUNTERS[i]] = counter(p.stats[STAT_COUNTERS[i]])
     }
     if (!isPlainObject(p.stats.bestRound)) p.stats.bestRound = {}
+    p.playerXp = counter(p.playerXp)
     if (!isPlainObject(p.completions)) p.completions = {}
     if (!Array.isArray(p.unlockedTowers)) p.unlockedTowers = []
     if (!Array.isArray(p.seenBalloons)) p.seenBalloons = []
+    if (!Array.isArray(p.knowledge)) p.knowledge = []
+    if (typeof p.knowledgePoints !== 'number' || p.knowledgePoints < 0) p.knowledgePoints = 0
+    if (!Array.isArray(p.achievements)) p.achievements = []
+    p.powers = powerInventory(p.powers)
+    if (!isPlainObject(p.daily)) p.daily = {}
+    if (typeof p.dailyStreak !== 'number' || p.dailyStreak < 0) p.dailyStreak = 0
+    if (!isPlainObject(p.raceBests)) p.raceBests = {}
+    if (p.expedition !== null && !isPlainObject(p.expedition)) p.expedition = null
+    if (!isPlainObject(p.completedExpeditions)) p.completedExpeditions = {}
+    if (p.activeTrial !== null && !isPlainObject(p.activeTrial)) p.activeTrial = null
+    if (!isPlainObject(p.completedTrials)) p.completedTrials = {}
     return p
   }
 
@@ -449,6 +643,7 @@
     p.stats.roundsCleared = addCounter(p.stats.roundsCleared, result.roundsCleared)
     p.stats.totalPops = addCounter(p.stats.totalPops, result.pops)
     p.stats.totalCash = addCounter(p.stats.totalCash, result.cash)
+    p.playerXp = addCounter(p.playerXp, Save.xpForResult(result))
 
     // safeKey, not just a string test: a result naming its map `__proto__` would
     // otherwise reach the prototype setter below.
@@ -470,7 +665,137 @@
 
     p.unlockedTowers = mergeKeys(p.unlockedTowers, result.unlockedTowers)
     p.seenBalloons = mergeKeys(p.seenBalloons, result.seenBalloons)
+    if (own(result, 'powers')) p.powers = powerInventory(result.powers)
+
+    // Knowledge points: earned on win, scaled by difficulty and mode
+    if (result.won === true && OP.knowledgeEarn) {
+      const kp = OP.knowledgeEarn(result)
+      if (kp > 0) p.knowledgePoints = (p.knowledgePoints || 0) + kp
+    }
+
+    // Check achievements
+    if (OP.achievementsCheck && OP.achievementsAward) {
+      const earned = OP.achievementsCheck(p, OP)
+      if (earned.length) OP.achievementsAward(p, earned)
+    }
+
+    // Each win awards one consumable, cycling through the roster deterministically.
+    if (result.won === true && OP.Powers && OP.Powers.rewardKey) {
+      const powerKey = OP.Powers.rewardKey(p)
+      if (safeKey(powerKey)) p.powers[powerKey] = addCounter(p.powers[powerKey], 1)
+    }
+
     return p
+  }
+
+  /* ---------- player progression ---------- */
+
+  Save.XP_PER_LEVEL = 1000
+
+  Save.xpForResult = function (result) {
+    if (!isPlainObject(result)) return 0
+    const roundXp = counter(counter(result.roundsCleared) * 10)
+    return addCounter(roundXp, result.won === true ? 500 : 0)
+  }
+
+  Save.playerLevel = function (profile) {
+    return 1 + Math.floor(counter(profile && profile.playerXp) / Save.XP_PER_LEVEL)
+  }
+
+  Save.xpProgress = function (profile) {
+    const total = counter(profile && profile.playerXp)
+    return {
+      level: Save.playerLevel(profile),
+      total: total,
+      current: total % Save.XP_PER_LEVEL,
+      needed: Save.XP_PER_LEVEL
+    }
+  }
+
+  Save.towerUnlocked = function (profile, def) {
+    if (!def || !safeKey(def.key)) return false
+    const legacy = profile && Array.isArray(profile.unlockedTowers) ? profile.unlockedTowers : []
+    if (legacy.indexOf(def.key) >= 0) return true
+    const level = Number.isInteger(def.unlockLevel) && def.unlockLevel > 0 ? def.unlockLevel : 1
+    return Save.playerLevel(profile) >= level
+  }
+
+  Save.availableTowerKeys = function (profile) {
+    const out = []
+    const order = Array.isArray(OP.TOWER_ORDER) ? OP.TOWER_ORDER : []
+    for (let i = 0; i < order.length; i++) {
+      const def = OP.TOWERS && OP.TOWERS[order[i]]
+      if (Save.towerUnlocked(profile, def)) out.push(order[i])
+    }
+    return out
+  }
+
+  Save.mapWon = function (profile, mapKey) {
+    const diffs = profile && profile.completions && profile.completions[mapKey]
+    if (!isPlainObject(diffs)) return false
+    for (const diff in diffs) {
+      if (!own(diffs, diff) || !isPlainObject(diffs[diff])) continue
+      for (const mode in diffs[diff]) {
+        if (own(diffs[diff], mode) && diffs[diff][mode] === true) return true
+      }
+    }
+    return false
+  }
+
+  Save.tierWins = function (profile, tier) {
+    const order = Array.isArray(OP.MAP_ORDER) ? OP.MAP_ORDER : []
+    let wins = 0
+    for (let i = 0; i < order.length; i++) {
+      const def = OP.MAPS && OP.MAPS[order[i]]
+      if (def && def.tier === tier && Save.mapWon(profile, def.key)) wins++
+    }
+    return wins
+  }
+
+  Save.mapUnlockInfo = function (profile, def) {
+    if (!def || !safeKey(def.key)) return { unlocked: false, reason: 'Unknown map.' }
+    if (Save.mapWon(profile, def.key)) return { unlocked: true, reason: '', required: 0, wins: 0 }
+
+    const tiers = OP.Maps && Array.isArray(OP.Maps.TIERS)
+      ? OP.Maps.TIERS
+      : ['beginner', 'intermediate', 'advanced', 'expert']
+    const tierIndex = tiers.indexOf(def.tier)
+    if (tierIndex <= 0) return { unlocked: true, reason: '', required: 0, wins: 0 }
+
+    const peers = []
+    const order = Array.isArray(OP.MAP_ORDER) ? OP.MAP_ORDER : []
+    for (let i = 0; i < order.length; i++) {
+      const peer = OP.MAPS && OP.MAPS[order[i]]
+      if (peer && peer.tier === def.tier) peers.push(peer)
+    }
+    const mapIndex = peers.indexOf(def)
+    if (mapIndex < 0) return { unlocked: true, reason: '', required: 0, wins: 0 }
+
+    const previousTier = tiers[tierIndex - 1]
+    const required = mapIndex + 1
+    const wins = Save.tierWins(profile, previousTier)
+    const missing = Math.max(0, required - wins)
+    const label = previousTier.charAt(0).toUpperCase() + previousTier.slice(1)
+    return {
+      unlocked: missing === 0,
+      reason: missing ? 'Win ' + missing + ' more ' + label + ' map' + (missing === 1 ? '' : 's') + '.' : '',
+      required: required,
+      wins: wins
+    }
+  }
+
+  Save.mapUnlocked = function (profile, def) {
+    return Save.mapUnlockInfo(profile, def).unlocked
+  }
+
+  Save.availableMapKeys = function (profile) {
+    const out = []
+    const order = Array.isArray(OP.MAP_ORDER) ? OP.MAP_ORDER : []
+    for (let i = 0; i < order.length; i++) {
+      const def = OP.MAPS && OP.MAPS[order[i]]
+      if (def && Save.mapUnlocked(profile, def)) out.push(def.key)
+    }
+    return out
   }
 
   /* ---------- the run save ----------

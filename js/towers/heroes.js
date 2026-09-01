@@ -761,7 +761,7 @@
       const d = hero.data
       let bonus = 0
 
-      if (OP.BALLOON_TIERS[target.tier].blimp) {
+      if (target.isBoss || OP.BALLOON_TIERS[target.tier].blimp) {
         bonus += s.hullBonus || 0
         // The drill only ramps while the target does not change — switching
         // blimps starts the hole again, which is the whole point of the mechanic.
@@ -1307,4 +1307,1524 @@
       })
     }
   })
+
+  /* ================================================================= *
+   * 9. Soot Sprite — the ash walker                                    *
+   * ================================================================= */
+
+  OP.declareProjKind('hero-soot-ember', { shape: 'orb', tint: '#e8702a', size: 4, trail: true })
+  OP.declareProjKind('hero-soot-ash', { shape: 'blob', tint: '#4a3a30', size: 5 })
+  OP.declareProjKind('hero-soot-cinder', { shape: 'spike', tint: '#d45a1a', size: 4, spin: true })
+
+  OP.ABILITIES['hero-soot-ash-cloud'] = function (sim, hero) {
+    const s = hero.s
+    const radius = s.range * 1.5
+    OP.Damage.blast(sim, hero.x, hero.y, radius, {
+      damage: s.ashDamage || 1,
+      dmgType: D.FIRE,
+      sourceId: hero.id,
+      effects: [OP.Effects.make('burn', s.ashBurnT || 3, s.ashBurnDps || 5, hero.id, D.FIRE)]
+    }, { camoDetect: true, maxTargets: 100 })
+  }
+
+  OP.ABILITIES['hero-soot-cinder-burst'] = function (sim, hero) {
+    const s = hero.s
+    const n = 12
+    for (let i = 0; i < n; i++) {
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-soot-cinder',
+        damage: s.cinderDamage || 10,
+        dmgType: D.SHATTER,
+        pierce: 4,
+        radius: 4,
+        life: 1.2,
+        maxRange: s.range,
+        ownerId: hero.id,
+        camoDetect: true
+      }, (i / n) * M.TAU, 400)
+    }
+  }
+
+  OP.ABILITIES['hero-soot-phoenix'] = function (sim, hero) {
+    const s = hero.s
+    hero.data.phoenixT = s.phoenixT || 8
+    sim.buffsDirty = true
+  }
+
+  OP.defineHero({
+    key: 'soot-sprite',
+    name: 'Soot Sprite',
+    title: 'the Ash Walker',
+    blurb: 'Leaves a trail of burning ash wherever it walks. Its embers stack on balloons, and it can sacrifice itself to rise stronger — a hero that feeds on its own destruction.',
+
+    cost: 850,
+    footprint: 13,
+    placement: 'land',
+
+    base: {
+      range: 120,
+      cooldown: 0.85,
+      damage: 1,
+      pierce: 2,
+      dmgType: D.FIRE,
+      projSpeed: 420,
+      projLife: 1.2,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 damage (2 per ember).', apply: function (s) { s.damage += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      {
+        level: 4,
+        desc: 'Unlocks Ash Cloud: a wave of fire and burn damage around the sprite. Sees Veiled balloons.',
+        apply: function (s) {
+          s.camoDetect = true
+          s.ashDamage = 2
+          s.ashBurnDps = 5
+          s.ashBurnT = 3
+          s.ability = { name: 'Ash Cloud', cooldown: 30, duration: 0, key: 'hero-soot-ash-cloud' }
+        }
+      },
+      { level: 5, desc: 'Leaves an ash patch every 0.5 seconds where it stands. Balloons walking through it burn for 8 DPS over 4s.',
+        apply: function (s) { s.trailDps = 8; s.trailT = 4; s.trailPeriod = 0.5 } },
+      { level: 6, desc: '+1 damage and 10% faster attack.', apply: function (s) { s.damage += 1; s.cooldown *= 0.9 } },
+      { level: 7, desc: 'Ash Cloud deals 8 damage and burns for 12 DPS over 5 seconds.',
+        apply: function (s) { s.ashDamage = 8; s.ashBurnDps = 12; s.ashBurnT = 5 } },
+      { level: 8, desc: 'Embers now stack: each hit adds 1 stack of burn, up to 5 stacks per balloon.',
+        apply: function (s) { s.stackBurn = true; s.maxStacks = 5 } },
+      { level: 9, desc: '+12 range and sees Veiled balloons from further away.',
+        apply: function (s) { s.range += 12 } },
+      { level: 10, desc: '+2 damage and ash trail deals 15 DPS.',
+        apply: function (s) { s.damage += 2; s.trailDps = 15 } },
+      { level: 11, desc: 'Throws 2 embers per shot in a narrow fan.',
+        apply: function (s) { s.shots = 2; s.spread = 0.15 } },
+      { level: 12, desc: 'Ash trail slows balloons by 25% while they burn.',
+        apply: function (s) { s.trailGlue = 0.25 } },
+      { level: 13, desc: 'Unlocks Cinder Burst: 12 shatter cinders in a ring. Shatter cracks Lead and Purple.',
+        apply: function (s) {
+          s.cinderDamage = 12
+          s.ability2 = { name: 'Cinder Burst', cooldown: 40, duration: 0, key: 'hero-soot-cinder-burst' }
+        }
+      },
+      { level: 14, desc: 'Ash Cloud hits for 25 and burns for 25 DPS over 6 seconds.',
+        apply: function (s) { s.ashDamage = 25; s.ashBurnDps = 25; s.ashBurnT = 6 } },
+      { level: 15, desc: '+3 damage and throws 3 embers per shot.',
+        apply: function (s) { s.damage += 3; s.shots = 3; s.spread = 0.22 } },
+      { level: 16, desc: 'Ash trail now deals 30 DPS and slows 40%.',
+        apply: function (s) { s.trailDps = 30; s.trailGlue = 0.4 } },
+      { level: 17, desc: '+1 pierce and 15% faster attack.',
+        apply: function (s) { s.pierce += 1; s.cooldown *= 0.85 } },
+      {
+        level: 18,
+        desc: 'Unlocks Phoenix: for 8 seconds, every time the sprite would die it instead heals to full and explodes for 100 shatter damage.',
+        apply: function (s) {
+          s.phoenixT = 8
+          s.ability2 = { name: 'Phoenix', cooldown: 90, duration: 8, key: 'hero-soot-phoenix' }
+        }
+      },
+      { level: 19, desc: '+5 damage, Ash Cloud recharges twice as fast.',
+        apply: function (s) { s.damage += 5; s.ashDamage = 50; s.ashBurnDps = 40; s.ashBurnT = 8 } },
+      {
+        level: 20,
+        desc: '+8 damage, +3 pierce, Phoenix lasts 12 seconds and heals 2 lives on activation.',
+        apply: function (s) {
+          s.damage += 8
+          s.pierce += 3
+          s.phoenixT = 12
+          s.phoenixHeal = 2
+          if (s.ability) {
+            s.ability = { name: s.ability.name, cooldown: s.ability.cooldown * 0.5, duration: s.ability.duration, key: s.ability.key }
+          }
+        }
+      }
+    ],
+
+    fire: function (sim, hero, target) {
+      const s = hero.s
+      volley(sim, hero, target, 'hero-soot-ember', null)
+    },
+
+    update: function (sim, hero, dt) {
+      const s = hero.s
+      const d = hero.data
+
+      // Ash trail
+      if (s.trailPeriod > 0) {
+        d.trailCd = (d.trailCd || 0) - dt
+        if (d.trailCd <= 0) {
+          d.trailCd = s.trailPeriod
+          OP.Projectiles.spawn(sim, {
+            x: hero.x, y: hero.y,
+            kind: 'hero-soot-ash',
+            damage: 0,
+            dmgType: D.FIRE,
+            pierce: 10,
+            radius: 18,
+            life: s.trailT || 4,
+            ownerId: hero.id,
+            camoDetect: true,
+            behaviour: 'hero-soot-trail',
+            data: { dps: s.trailDps, time: s.trailT, glue: s.trailGlue || 0 }
+          })
+        }
+      }
+
+      // Phoenix window
+      if (d.phoenixT > 0) {
+        d.phoenixT -= dt
+        if (d.phoenixT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.trailCd = 0
+      hero.data.phoenixT = 0
+    },
+
+    buffs: function (sim, hero) {
+      if (!(hero.data.phoenixT > 0)) return
+      const s = hero.s
+      const mods = { damageMul: 2.0, cooldownMul: 0.5 }
+      OP.Buffs.register(sim, {
+        id: 'hero-soot-phoenix:' + hero.id,
+        sourceId: hero.id,
+        x: hero.x, y: hero.y,
+        radius: 1,
+        priority: 10,
+        excludeSelf: false,
+        mods: mods
+      })
+    }
+  })
+
+  OP.PROJ_BEHAVIOURS['hero-soot-trail'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('burn', p.data.time, p.data.dps, p.ownerId, D.FIRE))
+      if (p.data.glue > 0) {
+        OP.Effects.apply(b, OP.Effects.make('glue', p.data.time, p.data.glue, p.ownerId, D.NORMAL))
+      }
+      if (p.owner && p.owner.s && p.owner.s.stackBurn) {
+        const existing = OP.Effects.find(b, 'burn')
+        if (existing && existing.stacks < p.owner.s.maxStacks) {
+          existing.mag += 2
+          existing.stacks = (existing.stacks || 0) + 1
+        }
+      }
+    }
+  }
+
+  /* ======================================================================== */
+  /*  HERO 10 — Frost Moth                                                    */
+  /*  ice/cold themed · creates frost zones on the track that slow balloons   */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-moth-dust', { shape: 'circle', tint: '#c8e8ff', size: 3, trail: true })
+  OP.declareProjKind('hero-moth-shard', { shape: 'dart', tint: '#a0d4ff', size: 4, trail: true })
+
+  OP.PROJ_BEHAVIOURS['hero-moth-freeze'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('chill', p.data.time, 1, p.ownerId, D.VOID))
+      if (p.data.freeze > 0 && sim.rng && sim.rng.range(0, 1) < p.data.freeze) {
+        OP.Effects.apply(b, OP.Effects.make('frozen', p.data.freezeTime, 1, p.ownerId, D.VOID))
+      }
+    }
+  }
+
+  OP.PROJ_BEHAVIOURS['hero-moth-zone'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('chill', p.data.time, 1, p.ownerId, D.VOID))
+    }
+  }
+
+  OP.ABILITIES['hero-moth-blizzard'] = function (sim, hero) {
+    for (const b of sim.balloons) {
+      if (!b.alive) continue
+      if (b.boss) continue
+      OP.Effects.apply(b, OP.Effects.make('frozen', 3, 1, hero.id, D.VOID))
+    }
+  }
+
+  OP.ABILITIES['hero-moth-frost-zone'] = function (sim, hero) {
+    hero.data.frostZoneT = 10
+    hero.data.frostZoneRadius = 100
+  }
+
+  OP.defineHero({
+    key: 'frost-moth',
+    name: 'Frost Moth',
+    title: 'the Winter Wing',
+    blurb: 'A delicate moth that trails freezing dust. Its Blizzard freezes the whole screen, and its Frost Zone slows everything that passes through.',
+
+    cost: 900,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 130,
+      cooldown: 1.2,
+      damage: 2,
+      pierce: 3,
+      dmgType: D.VOID,
+      projSpeed: 400,
+      projLife: 1.5,
+      projRadius: 3,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 4, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 7, desc: '+1 damage and +10 range.', apply: function (s) { s.damage += 1; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Blizzard: freezes all non-boss balloons on screen for 3 seconds.', apply: function (s) { s.ability = { name: 'Blizzard', cooldown: 45, duration: 0, key: 'hero-moth-blizzard' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+2 pierce and +2 damage.', apply: function (s) { s.pierce += 2; s.damage += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 17, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Frost Zone: creates a persistent frost zone for 10 seconds that slows all balloons by 40%.', apply: function (s) { s.ability2 = { name: 'Frost Zone', cooldown: 60, duration: 10, key: 'hero-moth-frost-zone' } } }
+    ],
+
+    projKind: 'hero-moth-dust',
+
+    update: function (sim, hero, dt) {
+      if (hero.data.frostZoneT > 0) {
+        hero.data.frostZoneT -= dt
+        if (hero.data.frostZoneT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.frostZoneT = 0
+      hero.data.frostZoneRadius = 100
+    },
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-moth-dust',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {
+      if (!(hero.data.frostZoneT > 0)) return
+      OP.Buffs.register(sim, {
+        id: 'hero-frost-moth-zone:' + hero.id,
+        sourceId: hero.id,
+        x: hero.x, y: hero.y,
+        radius: hero.data.frostZoneRadius,
+        priority: 10,
+        excludeSelf: false,
+        mods: { slowMul: 0.6 }
+      })
+    }
+  })
+
+  /* ======================================================================== */
+  /*  HERO 11 — Rust Beetle                                                    */
+  /*  corrosion/debuff themed · applies "rust" that increases damage taken     */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-beetle-spit', { shape: 'circle', tint: '#c8a060', size: 3, trail: true })
+  OP.declareProjKind('hero-beetle-acid', { shape: 'circle', tint: '#80c040', size: 4, trail: true })
+
+  OP.PROJ_BEHAVIOURS['hero-beetle-corrode'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('corrode', p.data.time, p.data.amp, p.ownerId, D.ACID))
+    }
+  }
+
+  OP.PROJ_BEHAVIOURS['hero-beetle-acid'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('corrode', p.data.time, p.data.amp, p.ownerId, D.ACID))
+      OP.Effects.apply(b, OP.Effects.make('burn', p.data.time, p.data.dps, p.ownerId, D.ACID))
+    }
+  }
+
+  OP.ABILITIES['hero-beetle-corrosion-burst'] = function (sim, hero) {
+    for (const b of sim.balloons) {
+      if (!b.alive) continue
+      if (b.rbe < 10) continue
+      OP.Effects.apply(b, OP.Effects.make('corrode', 8, 1.5, hero.id, D.ACID))
+    }
+  }
+
+  OP.ABILITIES['hero-beetle-plague'] = function (sim, hero) {
+    for (const b of sim.balloons) {
+      if (!b.alive) continue
+      if (b.rbe < 5) continue
+      OP.Effects.apply(b, OP.Effects.make('burn', 5, 10, hero.id, D.ACID))
+      OP.Effects.apply(b, OP.Effects.make('corrode', 5, 1.0, hero.id, D.ACID))
+    }
+  }
+
+  OP.defineHero({
+    key: 'rust-beetle',
+    name: 'Rust Beetle',
+    title: 'the Corroder',
+    blurb: 'A beetle whose spit eats through balloon rubber. Its Corrosion Burst weakens all blimps, and Plague leaves acid pools that damage everything they touch.',
+
+    cost: 850,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 140,
+      cooldown: 0.9,
+      damage: 1,
+      pierce: 2,
+      dmgType: D.ACID,
+      projSpeed: 420,
+      projLife: 1.4,
+      projRadius: 3,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 7, desc: '+2 damage and +10 range.', apply: function (s) { s.damage += 2; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Corrosion Burst: applies maximum rust to all non-boss blimps for 8 seconds.', apply: function (s) { s.ability = { name: 'Corrosion Burst', cooldown: 50, duration: 0, key: 'hero-beetle-corrosion-burst' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+3 damage and +3 pierce.', apply: function (s) { s.damage += 3; s.pierce += 3 } },
+      { level: 17, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Plague: spawns acid pools at all balloon positions for 5 seconds.', apply: function (s) { s.ability2 = { name: 'Plague', cooldown: 70, duration: 0, key: 'hero-beetle-plague' } } }
+    ],
+
+    projKind: 'hero-beetle-spit',
+
+    update: function (sim, hero, dt) {},
+
+    onPlace: function (sim, hero) {},
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-beetle-spit',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {}
+  })
+
+  /* ======================================================================== */
+  /*  HERO 12 — Mirror Bat                                                     */
+  /*  echo/reflection themed · duplicates nearby tower shots at reduced power  */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-bat-pulse', { shape: 'circle', tint: '#e0c8f0', size: 3, trail: true })
+  OP.declareProjKind('hero-bat-echo', { shape: 'circle', tint: '#d0b0e8', size: 2, trail: true })
+
+  OP.ABILITIES['hero-bat-resonance'] = function (sim, hero) {
+    hero.data.resonanceT = 8
+    hero.data.echoMul = 0.5
+    sim.buffsDirty = true
+  }
+
+  OP.ABILITIES['hero-bat-shatter'] = function (sim, hero) {
+    for (const b of sim.balloons) {
+      if (!b.alive) continue
+      if (b.boss) continue
+      b.hp -= 50
+      OP.Effects.apply(b, OP.Effects.make('stun', 2, 1, hero.id, D.VOID))
+    }
+  }
+
+  OP.defineHero({
+    key: 'mirror-bat',
+    name: 'Mirror Bat',
+    title: 'the Echo Wing',
+    blurb: 'A bat whose sonic pulses bounce between balloons. Its Resonance aura causes all towers to fire echo shots, and Shatter Wave stuns everything on screen.',
+
+    cost: 1000,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 120,
+      cooldown: 1.4,
+      damage: 3,
+      pierce: 2,
+      dmgType: D.NORMAL,
+      projSpeed: 380,
+      projLife: 1.5,
+      projRadius: 3,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+2 damage.', apply: function (s) { s.damage += 2 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 7, desc: '+2 damage and +10 range.', apply: function (s) { s.damage += 2; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Resonance: all towers fire echo shots at 50% power for 8 seconds.', apply: function (s) { s.ability = { name: 'Resonance', cooldown: 55, duration: 8, key: 'hero-bat-resonance' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+4 damage and +3 pierce.', apply: function (s) { s.damage += 4; s.pierce += 3 } },
+      { level: 17, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Shatter Wave: deals 50 damage and stuns all non-boss balloons for 2 seconds.', apply: function (s) { s.ability2 = { name: 'Shatter Wave', cooldown: 80, duration: 0, key: 'hero-bat-shatter' } } }
+    ],
+
+    projKind: 'hero-bat-pulse',
+
+    update: function (sim, hero, dt) {
+      if (hero.data.resonanceT > 0) {
+        hero.data.resonanceT -= dt
+        if (hero.data.resonanceT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.resonanceT = 0
+      hero.data.echoMul = 0.5
+    },
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-bat-pulse',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {
+      if (!(hero.data.resonanceT > 0)) return
+      OP.Buffs.register(sim, {
+        id: 'hero-mirror-bat-resonance:' + hero.id,
+        sourceId: hero.id,
+        x: hero.x, y: hero.y,
+        radius: 9999,
+        priority: 10,
+        excludeSelf: false,
+        mods: { echoChance: 0.5, echoPower: hero.data.echoMul }
+      })
+    }
+  })
+
+  /* ======================================================================== */
+  /*  HERO 13 — Gloom Moth                                                     */
+  /*  shadow/stealth themed · hides towers and has a shadow strike ability     */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-gloom-dart', { shape: 'dart', tint: '#8070a0', size: 4, trail: true })
+  OP.declareProjKind('hero-gloom-shade', { shape: 'circle', tint: '#504068', size: 6, trail: true })
+
+  OP.ABILITIES['hero-gloom-shadow-veil'] = function (sim, hero) {
+    hero.data.veilT = 6
+    sim.buffsDirty = true
+  }
+
+  OP.ABILITIES['hero-gloom-phantom-strike'] = function (sim, hero) {
+    const s = hero.s
+    const count = 5
+    for (let i = 0; i < count; i++) {
+      const b = sim.balloons.find(b => b.alive && b.rbe > 0)
+      if (!b) break
+      OP.Damage.hit(sim, b, {
+        damage: s.strikeDamage || 40,
+        dmgType: D.VOID,
+        sourceId: hero.id,
+        effects: [OP.Effects.make('stun', 1.5, 1, hero.id, D.VOID)]
+      })
+    }
+  }
+
+  OP.defineHero({
+    key: 'gloom-moth',
+    name: 'Gloom Moth',
+    title: 'the Night Veil',
+    blurb: 'A moth that wraps towers in shadow, hiding them from balloons. Its Phantom Strike assassinates the strongest blimps on the board.',
+
+    cost: 950,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 135,
+      cooldown: 0.85,
+      damage: 2,
+      pierce: 2,
+      dmgType: D.VOID,
+      projSpeed: 440,
+      projLife: 1.3,
+      projRadius: 4,
+      camoDetect: true,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 7, desc: '+1 damage and +10 range.', apply: function (s) { s.damage += 1; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Shadow Veil: hides all towers from balloons for 6 seconds.', apply: function (s) { s.ability = { name: 'Shadow Veil', cooldown: 45, duration: 6, key: 'hero-gloom-shadow-veil' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+2 damage and +2 pierce.', apply: function (s) { s.damage += 2; s.pierce += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 17, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Phantom Strike: instantly damages the 5 strongest balloons for 40 damage each.', apply: function (s) { s.strikeDamage = 40; s.ability2 = { name: 'Phantom Strike', cooldown: 60, duration: 0, key: 'hero-gloom-phantom-strike' } } }
+    ],
+
+    projKind: 'hero-gloom-dart',
+
+    update: function (sim, hero, dt) {
+      if (hero.data.veilT > 0) {
+        hero.data.veilT -= dt
+        if (hero.data.veilT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.veilT = 0
+    },
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-gloom-dart',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {
+      if (!(hero.data.veilT > 0)) return
+      for (var i = 0; i < sim.towers.length; i++) {
+        var t = sim.towers[i]
+        if (!t.alive) continue
+        OP.Buffs.register(sim, {
+          id: 'hero-gloom-veil:' + hero.id + ':' + t.id,
+          sourceId: hero.id,
+          x: t.x, y: t.y, radius: 1,
+          priority: 10,
+          excludeSelf: false,
+          mods: { invisible: true }
+        })
+      }
+    }
+  })
+
+  /* ======================================================================== */
+  /*  HERO 14 — Thorn Toad                                                     */
+  /*  nature/defensive themed · creates thorn patches and has fortress ability */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-toad-spike', { shape: 'spike', tint: '#70a040', size: 4, trail: true })
+  OP.declareProjKind('hero-toad-thorn', { shape: 'spike', tint: '#90c060', size: 5, trail: true })
+
+  OP.PROJ_BEHAVIOURS['hero-toad-thorns'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('brittle', p.data.time, 1, p.ownerId, D.NORMAL))
+    }
+  }
+
+  OP.ABILITIES['hero-toad-thorn-fortress'] = function (sim, hero) {
+    hero.data.fortressT = 8
+    hero.data.thornRadius = 120
+    sim.buffsDirty = true
+  }
+
+  OP.ABILITIES['hero-toad-needle-storm'] = function (sim, hero) {
+    var s = hero.s
+    var count = 20
+    for (var i = 0; i < count; i++) {
+      var angle = (i / count) * M.TAU
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-toad-thorn',
+        damage: s.stormDamage || 8,
+        dmgType: D.SHARP,
+        pierce: 4,
+        radius: 5,
+        life: 1.2,
+        maxRange: 300,
+        ownerId: hero.id,
+        camoDetect: true
+      }, angle, 350)
+    }
+  }
+
+  OP.defineHero({
+    key: 'thorn-toad',
+    name: 'Thorn Toad',
+    title: 'the Bramble Guard',
+    blurb: 'A toad that grows thorns around itself, damaging balloons that get close. Its Needle Storm launches a barrage of spikes in all directions.',
+
+    cost: 800,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 120,
+      cooldown: 0.8,
+      damage: 1,
+      pierce: 3,
+      dmgType: D.SHARP,
+      projSpeed: 400,
+      projLife: 1.2,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 7, desc: '+1 damage and +10 range.', apply: function (s) { s.damage += 1; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Thorn Fortress: creates a thorn patch that damages nearby balloons for 8 seconds.', apply: function (s) { s.ability = { name: 'Thorn Fortress', cooldown: 40, duration: 8, key: 'hero-toad-thorn-fortress' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+2 damage and +2 pierce.', apply: function (s) { s.damage += 2; s.pierce += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+3 damage and +3 pierce.', apply: function (s) { s.damage += 3; s.pierce += 3 } },
+      { level: 17, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Needle Storm: fires 20 thorn projectiles in a circle.', apply: function (s) { s.stormDamage = 8; s.ability2 = { name: 'Needle Storm', cooldown: 50, duration: 0, key: 'hero-toad-needle-storm' } } }
+    ],
+
+    projKind: 'hero-toad-spike',
+
+    update: function (sim, hero, dt) {
+      if (hero.data.fortressT > 0) {
+        hero.data.fortressT -= dt
+        if (hero.data.fortressT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.fortressT = 0
+      hero.data.thornRadius = 120
+    },
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-toad-spike',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {
+      if (!(hero.data.fortressT > 0)) return
+      OP.Buffs.register(sim, {
+        id: 'hero-thorn-fortress:' + hero.id,
+        sourceId: hero.id,
+        x: hero.x, y: hero.y,
+        radius: hero.data.thornRadius,
+        priority: 10,
+        excludeSelf: false,
+        mods: { damageAdd: 2, thorns: true }
+      })
+    }
+  })
+
+  /* ======================================================================== */
+  /*  HERO 15 — Ember Viper                                                    */
+  /*  fire/explosive themed · leaves burning trails and has firestorm ability  */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-viper-fang', { shape: 'dart', tint: '#e06030', size: 4, trail: true })
+  OP.declareProjKind('hero-viper-ember', { shape: 'circle', tint: '#ff8040', size: 3, trail: true })
+
+  OP.PROJ_BEHAVIOURS['hero-viper-ignite'] = {
+    onHit: function (sim, p, b, res) {
+      if (!p.data) return
+      OP.Effects.apply(b, OP.Effects.make('burn', p.data.time, p.data.dps, p.ownerId, D.FIRE))
+    }
+  }
+
+  OP.ABILITIES['hero-viper-firestorm'] = function (sim, hero) {
+    var s = hero.s
+    for (var i = 0; i < 30; i++) {
+      var angle = (i / 30) * M.TAU
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-viper-ember',
+        damage: s.stormDamage || 6,
+        dmgType: D.FIRE,
+        pierce: 3,
+        radius: 4,
+        life: 1.5,
+        maxRange: 350,
+        ownerId: hero.id,
+        camoDetect: true,
+        behaviour: 'hero-viper-ignite',
+        data: { time: 3, dps: 8 }
+      }, angle, 400)
+    }
+  }
+
+  OP.ABILITIES['hero-viper-inferno'] = function (sim, hero) {
+    hero.data.infernoT = 8
+    hero.data.infernoDps = 15
+    sim.buffsDirty = true
+  }
+
+  OP.defineHero({
+    key: 'ember-viper',
+    name: 'Ember Viper',
+    title: 'the Flame Coils',
+    blurb: 'A viper that leaves burning trails wherever it strikes. Its Firestorm rains embers across the track, and Inferno makes every tower\'s shots burn.',
+
+    cost: 850,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 130,
+      cooldown: 0.8,
+      damage: 2,
+      pierce: 2,
+      dmgType: D.FIRE,
+      projSpeed: 450,
+      projLife: 1.3,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 7, desc: '+1 damage and +10 range.', apply: function (s) { s.damage += 1; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Firestorm: fires 30 ember projectiles in a circle.', apply: function (s) { s.stormDamage = 6; s.ability = { name: 'Firestorm', cooldown: 40, duration: 0, key: 'hero-viper-firestorm' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+2 damage and +2 pierce.', apply: function (s) { s.damage += 2; s.pierce += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 17, desc: '+20 range and longer projectile life.', apply: function (s) { s.range += 20; s.projLife += 0.4 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Inferno: all towers burn balloons for 8 seconds.', apply: function (s) { s.infernoDps = 15; s.ability2 = { name: 'Inferno', cooldown: 60, duration: 8, key: 'hero-viper-inferno' } } }
+    ],
+
+    projKind: 'hero-viper-fang',
+
+    update: function (sim, hero, dt) {
+      if (hero.data.infernoT > 0) {
+        hero.data.infernoT -= dt
+        if (hero.data.infernoT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.infernoT = 0
+      hero.data.infernoDps = 15
+    },
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-viper-fang',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect,
+        behaviour: 'hero-viper-ignite',
+        data: { time: 3, dps: Math.round(s.damage * 1.5) }
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {
+      if (!(hero.data.infernoT > 0)) return
+      for (var i = 0; i < sim.towers.length; i++) {
+        var t = sim.towers[i]
+        if (!t.alive) continue
+        OP.Buffs.register(sim, {
+          id: 'hero-ember-inferno:' + hero.id + ':' + t.id,
+          sourceId: hero.id,
+          x: t.x, y: t.y, radius: 1,
+          priority: 10,
+          excludeSelf: false,
+          mods: { burnDps: hero.data.infernoDps, burnTime: 3 }
+        })
+      }
+    }
+  })
+
+  /* ======================================================================== */
+  /*  HERO 16 — Warden Moose                                                   */
+  /*  support/aura themed · buffs nearby towers and has rallying cry ability   */
+  /* ======================================================================== */
+
+  OP.declareProjKind('hero-moose-antler', { shape: 'dart', tint: '#a08060', size: 5, trail: true })
+
+  OP.ABILITIES['hero-moose-rallying-cry'] = function (sim, hero) {
+    hero.data.rallyT = 10
+    hero.data.rallyMul = 1.5
+    sim.buffsDirty = true
+  }
+
+  OP.ABILITIES['hero-moose-antler-storm'] = function (sim, hero) {
+    var s = hero.s
+    var count = 12
+    for (var i = 0; i < count; i++) {
+      var angle = (i / count) * M.TAU
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-moose-antler',
+        damage: s.stormDamage || 12,
+        dmgType: D.SHARP,
+        pierce: 6,
+        radius: 5,
+        life: 1.8,
+        maxRange: 400,
+        ownerId: hero.id,
+        camoDetect: true
+      }, angle, 380)
+    }
+  }
+
+  OP.defineHero({
+    key: 'warden-moose',
+    name: 'Warden Moose',
+    title: 'the Great Antler',
+    blurb: 'A moose whose presence inspires nearby towers. Its Rallying Cry boosts all tower damage, and Antler Storm fires a barrage of piercing projectiles.',
+
+    cost: 900,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 140,
+      cooldown: 1.0,
+      damage: 3,
+      pierce: 2,
+      dmgType: D.SHARP,
+      projSpeed: 420,
+      projLife: 1.4,
+      projRadius: 5,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 7, desc: '+2 damage and +10 range.', apply: function (s) { s.damage += 2; s.range += 10 } },
+      { level: 8, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 9, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 10, desc: 'Unlocks Rallying Cry: boosts all tower damage by 50% for 10 seconds.', apply: function (s) { s.rallyMul = 1.5; s.ability = { name: 'Rallying Cry', cooldown: 45, duration: 10, key: 'hero-moose-rallying-cry' } } },
+      { level: 11, desc: '+15 range.', apply: function (s) { s.range += 15 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 14, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 15, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 16, desc: '+4 damage and +3 pierce.', apply: function (s) { s.damage += 4; s.pierce += 3 } },
+      { level: 17, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 damage and +3 pierce.', apply: function (s) { s.damage += 5; s.pierce += 3 } },
+      { level: 20, desc: 'Unlocks Antler Storm: fires 12 piercing antler projectiles in a circle.', apply: function (s) { s.stormDamage = 12; s.ability2 = { name: 'Antler Storm', cooldown: 55, duration: 0, key: 'hero-moose-antler-storm' } } }
+    ],
+
+    projKind: 'hero-moose-antler',
+
+    update: function (sim, hero, dt) {
+      if (hero.data.rallyT > 0) {
+        hero.data.rallyT -= dt
+        if (hero.data.rallyT <= 0) sim.buffsDirty = true
+      }
+    },
+
+    onPlace: function (sim, hero) {
+      hero.data.rallyT = 0
+      hero.data.rallyMul = 1.5
+    },
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: s.projKind || 'hero-moose-antler',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.5,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    buffs: function (sim, hero) {
+      var range = hero.s.range + 40
+      for (var i = 0; i < sim.towers.length; i++) {
+        var t = sim.towers[i]
+        if (!t.alive || t.id === hero.id) continue
+        if (M.dist2(hero.x, hero.y, t.x, t.y) > range * range) continue
+        var mods = { damageMul: hero.data.rallyT > 0 ? hero.data.rallyMul : 1.2 }
+        OP.Buffs.register(sim, {
+          id: 'hero-warden-moose:' + hero.id + ':' + t.id,
+          sourceId: hero.id,
+          x: t.x, y: t.y, radius: 1,
+          priority: 5,
+          excludeSelf: false,
+          mods: mods
+        })
+      }
+    }
+  })
+
+  /* ---------- Hero 17: Talon Hawk ---------- */
+
+  OP.declareProjKind('hero-hawk-feather', { shape: 'spike', tint: '#c4a060', size: 5, trail: true })
+
+  OP.ABILITIES['hero-hawk-dive'] = function (sim, hero) {
+    var s = hero.s
+    var angle = hero.data.diveAngle || 0
+    for (var i = 0; i < 8; i++) {
+      var a = angle + (i - 3.5) * 0.15
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-hawk-feather',
+        damage: s.damage * 2,
+        dmgType: D.SHARP,
+        pierce: 4,
+        radius: 5,
+        life: 1.2,
+        maxRange: s.range * 2,
+        ownerId: hero.id,
+        camoDetect: true
+      }, a, s.projSpeed * 1.5)
+    }
+  }
+
+  OP.ABILITIES['hero-hawk-flock'] = function (sim, hero) {
+    hero.data.flockT = 8
+  }
+
+  OP.defineHero({
+    key: 'talon-hawk',
+    name: 'Talon Hawk',
+    title: 'the Sky Dancer',
+    blurb: 'A hawk whose feathered strikes arc through the air. Swooping Dive sends a volley of feathers, and Flock Call summons hawks to join the fight.',
+
+    cost: 850,
+    footprint: 12,
+    placement: 'land',
+
+    base: {
+      range: 150,
+      cooldown: 0.7,
+      damage: 3,
+      pierce: 2,
+      dmgType: D.SHARP,
+      projSpeed: 500,
+      projLife: 1.2,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: 'Faster feathers: 15% attack speed.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 5, desc: '+2 damage.', apply: function (s) { s.damage += 2 } },
+      { level: 6, desc: 'Fires two feathers in a spread.', apply: function (s) { s.shots = 2; s.spread = 0.12 } },
+      { level: 7, desc: 'Sees through Veiled balloons.', apply: function (s) { s.camoDetect = true } },
+      { level: 8, desc: '+2 pierce and +15 range.', apply: function (s) { s.pierce += 2; s.range += 15 } },
+      { level: 9, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 10, desc: 'Unlocks Swooping Dive: launches 8 feathers in a wide arc.', apply: function (s) { s.ability = { name: 'Swooping Dive', cooldown: 35, duration: 0, key: 'hero-hawk-dive' } } },
+      { level: 11, desc: '+3 damage and +2 pierce.', apply: function (s) { s.damage += 3; s.pierce += 2 } },
+      { level: 12, desc: 'Fires three feathers.', apply: function (s) { s.shots = 3; s.spread = 0.18 } },
+      { level: 13, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 14, desc: 'Damage type becomes shatter.', apply: function (s) { s.dmgType = D.SHATTER } },
+      { level: 15, desc: '+20 range and +4 pierce.', apply: function (s) { s.range += 20; s.pierce += 4 } },
+      { level: 16, desc: 'Unlocks Flock Call: hawks circle and attack for 8 seconds.', apply: function (s) { s.ability2 = { name: 'Flock Call', cooldown: 50, duration: 8, key: 'hero-hawk-flock' } } },
+      { level: 17, desc: '+4 damage.', apply: function (s) { s.damage += 4 } },
+      { level: 18, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 19, desc: '+5 pierce and +20 range.', apply: function (s) { s.pierce += 5; s.range += 20 } },
+      { level: 20, desc: 'Swooping Dive fires 12 feathers and both abilities recharge faster.', apply: function (s) { if (s.ability) s.ability = { name: s.ability.name, cooldown: s.ability.cooldown * 0.5, duration: s.ability.duration, key: s.ability.key }; if (s.ability2) s.ability2 = { name: s.ability2.name, cooldown: s.ability2.cooldown * 0.5, duration: s.ability2.duration, key: s.ability2.key } } }
+    ],
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      hero.data.diveAngle = angle
+      for (var i = 0; i < s.shots; i++) {
+        var offset = s.shots === 1 ? 0 : s.spread * (i / (s.shots - 1) - 0.5)
+        OP.Projectiles.fireAt(sim, {
+          x: hero.x, y: hero.y,
+          kind: 'hero-hawk-feather',
+          damage: s.damage,
+          dmgType: s.dmgType,
+          pierce: s.pierce,
+          radius: s.projRadius,
+          life: s.projLife,
+          maxRange: s.range * 1.4,
+          ownerId: hero.id,
+          camoDetect: s.camoDetect
+        }, angle + offset, s.projSpeed)
+      }
+    },
+
+    update: function (sim, hero, dt) {
+      if (hero.data.flockT > 0) hero.data.flockT = Math.max(0, hero.data.flockT - dt)
+    },
+
+    onPlace: function (sim, hero) { hero.data.flockT = 0; hero.data.diveAngle = 0 }
+  })
+
+  /* ---------- Hero 18: Paw Bear ---------- */
+
+  OP.declareProjKind('hero-bear-paw', { shape: 'blob', tint: '#a06030', size: 8, trail: false })
+
+  OP.ABILITIES['hero-bear-pounding'] = function (sim, hero) {
+    OP.Damage.blast(sim, hero.x, hero.y, 80, {
+      damage: 8 + hero.level * 2,
+      dmgType: D.SHATTER,
+      sourceId: hero.id,
+      effects: [OP.Effects.make('stun', 0.8, 1, hero.id, D.NORMAL)]
+    }, { camoDetect: true, maxTargets: 40 })
+    sim.blastEvents.push({ x: hero.x, y: hero.y, radius: 80, kind: 'hero-bear-pounding', hits: 0 })
+  }
+
+  OP.ABILITIES['hero-bear-rush'] = function (sim, hero) {
+    hero.data.rushT = 6
+  }
+
+  OP.defineHero({
+    key: 'paw-bear',
+    name: 'Paw Bear',
+    title: 'the Mountain Fist',
+    blurb: 'A bear who fights up close with devastating ground pounds. Pounding shockwaves stun enemies, and Honey Rush temporarily doubles attack speed.',
+
+    cost: 950,
+    footprint: 16,
+    placement: 'land',
+
+    base: {
+      range: 90,
+      cooldown: 1.2,
+      damage: 6,
+      pierce: 4,
+      dmgType: D.SHATTER,
+      projSpeed: 350,
+      projLife: 0.5,
+      projRadius: 6,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+2 pierce.', apply: function (s) { s.pierce += 2 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+3 damage.', apply: function (s) { s.damage += 3 } },
+      { level: 5, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 6, desc: '+3 pierce.', apply: function (s) { s.pierce += 3 } },
+      { level: 7, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 8, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 9, desc: '+5 damage.', apply: function (s) { s.damage += 5 } },
+      { level: 10, desc: 'Unlocks Pounding: ground-pound AoE stuns nearby foes.', apply: function (s) { s.ability = { name: 'Pounding', cooldown: 30, duration: 0, key: 'hero-bear-pounding' } } },
+      { level: 11, desc: '+4 pierce and +15 range.', apply: function (s) { s.pierce += 4; s.range += 15 } },
+      { level: 12, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 13, desc: '+8 damage.', apply: function (s) { s.damage += 8 } },
+      { level: 14, desc: '+5 pierce.', apply: function (s) { s.pierce += 5 } },
+      { level: 15, desc: '30% faster attack.', apply: function (s) { s.cooldown *= 0.70 } },
+      { level: 16, desc: 'Unlocks Honey Rush: doubles attack speed for 6 seconds.', apply: function (s) { s.ability2 = { name: 'Honey Rush', cooldown: 45, duration: 6, key: 'hero-bear-rush' } } },
+      { level: 17, desc: '+10 damage and +20 range.', apply: function (s) { s.damage += 10; s.range += 20 } },
+      { level: 18, desc: '+8 pierce.', apply: function (s) { s.pierce += 8 } },
+      { level: 19, desc: '35% faster attack.', apply: function (s) { s.cooldown *= 0.65 } },
+      { level: 20, desc: 'Pounding stuns longer and both abilities recharge faster.', apply: function (s) { if (s.ability) s.ability = { name: s.ability.name, cooldown: s.ability.cooldown * 0.5, duration: s.ability.duration, key: s.ability.key }; if (s.ability2) s.ability2 = { name: s.ability2.name, cooldown: s.ability2.cooldown * 0.5, duration: s.ability2.duration, key: s.ability2.key } } }
+    ],
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-bear-paw',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.2,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    update: function (sim, hero, dt) {
+      if (hero.data.rushT > 0) hero.data.rushT = Math.max(0, hero.data.rushT - dt)
+    },
+
+    onPlace: function (sim, hero) { hero.data.rushT = 0 }
+  })
+
+  /* ---------- Hero 19: Quill Porcupine ---------- */
+
+  OP.declareProjKind('hero-quill', { shape: 'spike', tint: '#d4a040', size: 4, trail: true })
+
+  OP.ABILITIES['hero-quill-storm'] = function (sim, hero) {
+    var s = hero.s
+    for (var i = 0; i < 16; i++) {
+      var a = (i / 16) * Math.PI * 2
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-quill',
+        damage: s.damage * 1.5,
+        dmgType: D.ENERGY,
+        pierce: 3,
+        radius: 4,
+        life: 1.0,
+        maxRange: s.range * 1.8,
+        ownerId: hero.id,
+        camoDetect: true
+      }, a, s.projSpeed * 1.2)
+    }
+  }
+
+  OP.ABILITIES['hero-quill-volley'] = function (sim, hero) {
+    hero.data.volleyT = 8
+  }
+
+  OP.defineHero({
+    key: 'quill-porcupine',
+    name: 'Quill Porcupine',
+    title: 'the Thorn Sage',
+    blurb: 'A porcupine whose quills glow with inner energy. Quill Storm fires in all directions, and Quill Volley temporarily doubles the number of quills fired.',
+
+    cost: 850,
+    footprint: 12,
+    placement: 'land',
+
+    base: {
+      range: 130,
+      cooldown: 0.6,
+      damage: 2,
+      pierce: 3,
+      dmgType: D.ENERGY,
+      projSpeed: 480,
+      projLife: 1.0,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 2,
+      spread: 0.2,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: 'Fires three quills.', apply: function (s) { s.shots = 3; s.spread = 0.22 } },
+      { level: 5, desc: '+1 damage.', apply: function (s) { s.damage += 1 } },
+      { level: 6, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 7, desc: 'Sees through Veiled balloons.', apply: function (s) { s.camoDetect = true } },
+      { level: 8, desc: '+2 pierce and +15 range.', apply: function (s) { s.pierce += 2; s.range += 15 } },
+      { level: 9, desc: '+2 damage.', apply: function (s) { s.damage += 2 } },
+      { level: 10, desc: 'Unlocks Quill Storm: fires 16 quills in a circle.', apply: function (s) { s.ability = { name: 'Quill Storm', cooldown: 40, duration: 0, key: 'hero-quill-storm' } } },
+      { level: 11, desc: 'Fires four quills.', apply: function (s) { s.shots = 4; s.spread = 0.24 } },
+      { level: 12, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 13, desc: '+3 damage and +3 pierce.', apply: function (s) { s.damage += 3; s.pierce += 3 } },
+      { level: 14, desc: '+20 range.', apply: function (s) { s.range += 20 } },
+      { level: 15, desc: 'Fires five quills.', apply: function (s) { s.shots = 5; s.spread = 0.26 } },
+      { level: 16, desc: 'Unlocks Quill Volley: doubles quill count for 8 seconds.', apply: function (s) { s.ability2 = { name: 'Quill Volley', cooldown: 50, duration: 8, key: 'hero-quill-volley' } } },
+      { level: 17, desc: '+4 damage and +4 pierce.', apply: function (s) { s.damage += 4; s.pierce += 4 } },
+      { level: 18, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 19, desc: '+25 range and +5 pierce.', apply: function (s) { s.range += 25; s.pierce += 5 } },
+      { level: 20, desc: 'Quill Storm fires 24 quills and both abilities recharge faster.', apply: function (s) { if (s.ability) s.ability = { name: s.ability.name, cooldown: s.ability.cooldown * 0.5, duration: s.ability.duration, key: s.ability.key }; if (s.ability2) s.ability2 = { name: s.ability2.name, cooldown: s.ability2.cooldown * 0.5, duration: s.ability2.duration, key: s.ability2.key } } }
+    ],
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var centre = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      var shots = ((hero.data.volleyT || 0) > 0) ? s.shots * 2 : s.shots
+      for (var i = 0; i < shots; i++) {
+        var offset = shots === 1 ? 0 : s.spread * (i / (shots - 1) - 0.5)
+        OP.Projectiles.fireAt(sim, {
+          x: hero.x, y: hero.y,
+          kind: 'hero-quill',
+          damage: s.damage,
+          dmgType: s.dmgType,
+          pierce: s.pierce,
+          radius: s.projRadius,
+          life: s.projLife,
+          maxRange: s.range * 1.4,
+          ownerId: hero.id,
+          camoDetect: s.camoDetect
+        }, centre + offset, s.projSpeed)
+      }
+    },
+
+    update: function (sim, hero, dt) {
+      if (hero.data.volleyT > 0) hero.data.volleyT = Math.max(0, hero.data.volleyT - dt)
+    },
+
+    onPlace: function (sim, hero) { hero.data.volleyT = 0 }
+  })
+
+  /* ---------- Hero 20: Den Wolf ---------- */
+
+  OP.declareProjKind('hero-wolf-fang', { shape: 'bolt', tint: '#b0b0b0', size: 5, trail: true })
+
+  OP.ABILITIES['hero-wolf-howling'] = function (sim, hero) {
+    hero.data.howlT = 10
+  }
+
+  OP.ABILITIES['hero-wolf-alpha'] = function (sim, hero) {
+    var s = hero.s
+    var best = null
+    var bestDmg = -1
+    for (var i = 0; i < sim.towers.length; i++) {
+      var t = sim.towers[i]
+      if (!t.alive || t.id === hero.id || !t.s) continue
+      if (t.s.damage <= bestDmg) continue
+      if (M.dist2(hero.x, hero.y, t.x, t.y) > (s.range + 40) * (s.range + 40)) continue
+      best = t; bestDmg = t.s.damage
+    }
+    if (best) {
+      OP.Buffs.register(sim, {
+        id: 'hero-wolf-alpha:' + hero.id + ':' + best.id,
+        sourceId: hero.id,
+        x: best.x, y: best.y, radius: 1,
+        priority: 10,
+        excludeSelf: false,
+        mods: { damageMul: 2.5, cooldownMul: 0.5 }
+      })
+    }
+  }
+
+  OP.defineHero({
+    key: 'den-wolf',
+    name: 'Den Wolf',
+    title: 'the Pack Leader',
+    blurb: 'A wolf who strengthens the pack. Howling boosts nearby towers for 10 seconds, and Alpha Strike supercharges the strongest ally.',
+
+    cost: 900,
+    footprint: 14,
+    placement: 'land',
+
+    base: {
+      range: 140,
+      cooldown: 0.9,
+      damage: 3,
+      pierce: 2,
+      dmgType: D.SHARP,
+      projSpeed: 440,
+      projLife: 1.2,
+      projRadius: 4,
+      camoDetect: false,
+      shots: 1,
+      spread: 0,
+      targetModes: ['first', 'last', 'close', 'strong']
+    },
+
+    levels: [
+      { level: 2, desc: '+1 pierce.', apply: function (s) { s.pierce += 1 } },
+      { level: 3, desc: '+10 range.', apply: function (s) { s.range += 10 } },
+      { level: 4, desc: '+2 damage.', apply: function (s) { s.damage += 2 } },
+      { level: 5, desc: '10% faster attack.', apply: function (s) { s.cooldown *= 0.90 } },
+      { level: 6, desc: '+1 pierce and +10 range.', apply: function (s) { s.pierce += 1; s.range += 10 } },
+      { level: 7, desc: 'Sees through Veiled balloons.', apply: function (s) { s.camoDetect = true } },
+      { level: 8, desc: '+3 damage.', apply: function (s) { s.damage += 3 } },
+      { level: 9, desc: '15% faster attack.', apply: function (s) { s.cooldown *= 0.85 } },
+      { level: 10, desc: 'Unlocks Howling: boosts all nearby towers for 10 seconds.', apply: function (s) { s.ability = { name: 'Howling', cooldown: 40, duration: 10, key: 'hero-wolf-howling' } } },
+      { level: 11, desc: '+2 pierce and +15 range.', apply: function (s) { s.pierce += 2; s.range += 15 } },
+      { level: 12, desc: '+4 damage.', apply: function (s) { s.damage += 4 } },
+      { level: 13, desc: '20% faster attack.', apply: function (s) { s.cooldown *= 0.80 } },
+      { level: 14, desc: 'Damage type becomes shatter.', apply: function (s) { s.dmgType = D.SHATTER } },
+      { level: 15, desc: '+3 pierce and +20 range.', apply: function (s) { s.pierce += 3; s.range += 20 } },
+      { level: 16, desc: 'Unlocks Alpha Strike: supercharges the strongest nearby tower.', apply: function (s) { s.ability2 = { name: 'Alpha Strike', cooldown: 35, duration: 0, key: 'hero-wolf-alpha' } } },
+      { level: 17, desc: '+5 damage.', apply: function (s) { s.damage += 5 } },
+      { level: 18, desc: '25% faster attack.', apply: function (s) { s.cooldown *= 0.75 } },
+      { level: 19, desc: '+4 pierce and +25 range.', apply: function (s) { s.pierce += 4; s.range += 25 } },
+      { level: 20, desc: 'Howling lasts longer and both abilities recharge faster.', apply: function (s) { if (s.ability) s.ability = { name: s.ability.name, cooldown: s.ability.cooldown * 0.5, duration: s.ability.duration * 1.5, key: s.ability.key }; if (s.ability2) s.ability2 = { name: s.ability2.name, cooldown: s.ability2.cooldown * 0.5, duration: s.ability2.duration, key: s.ability2.key } } }
+    ],
+
+    fire: function (sim, hero, target) {
+      var s = hero.s
+      var aim = OP.Targeting.leadPoint(sim, hero, target, s.projSpeed)
+      var angle = M.angleTo(hero.x, hero.y, aim.x, aim.y)
+      OP.Projectiles.fireAt(sim, {
+        x: hero.x, y: hero.y,
+        kind: 'hero-wolf-fang',
+        damage: s.damage,
+        dmgType: s.dmgType,
+        pierce: s.pierce,
+        radius: s.projRadius,
+        life: s.projLife,
+        maxRange: s.range * 1.4,
+        ownerId: hero.id,
+        camoDetect: s.camoDetect
+      }, angle, s.projSpeed)
+    },
+
+    update: function (sim, hero, dt) {
+      if (hero.data.howlT > 0) hero.data.howlT = Math.max(0, hero.data.howlT - dt)
+    },
+
+    onPlace: function (sim, hero) { hero.data.howlT = 0 },
+
+    buffs: function (sim, hero) {
+      var range = hero.s.range + 40
+      for (var i = 0; i < sim.towers.length; i++) {
+        var t = sim.towers[i]
+        if (!t.alive || t.id === hero.id) continue
+        if (M.dist2(hero.x, hero.y, t.x, t.y) > range * range) continue
+        var mods = { damageMul: hero.data.howlT > 0 ? 1.5 : 1.2 }
+        OP.Buffs.register(sim, {
+          id: 'hero-den-wolf:' + hero.id + ':' + t.id,
+          sourceId: hero.id,
+          x: t.x, y: t.y, radius: 1,
+          priority: 5,
+          excludeSelf: false,
+          mods: mods
+        })
+      }
+    }
+  })
+
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

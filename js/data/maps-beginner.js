@@ -2,7 +2,7 @@
   'use strict'
 
   /* ============================================================================
-     BEGINNER MAPS — four of them.
+     BEGINNER MAPS — twelve of them.
 
      The authored format, its validation rules and the placement-mask ordering all
      live in js/core/maps.js; read the comment block at the top of that file before
@@ -181,6 +181,233 @@
         water: '#33566b',
         accent: '#c79ad2',
         fog: '#100e14'
+      }
+    },
+
+    {
+      key: 'whisper-glade',
+      name: 'Whisper Glade',
+      tier: 'beginner',
+      blurb: 'A gentle spiral that winds inward — the track folds back on itself so one tower can cover two loops.',
+      trackWidth: 35,
+
+      water: [{ cx: 640, cy: 360, r: 45 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 360 }, { x: 200, y: 360 }, { x: 400, y: 280 }, { x: 560, y: 360 },
+          { x: 640, y: 440 }, { x: 640, y: 560 }, { x: 560, y: 640 }, { x: 400, y: 680 },
+          { x: 280, y: 640 }, { x: 200, y: 560 }, { x: 200, y: 440 }, { x: 280, y: 360 },
+          { x: 400, y: 280 }, { x: 560, y: 360 }, { x: 720, y: 360 }, { x: 900, y: 360 },
+          { x: 1050, y: 360 }, { x: 1280, y: 360 }
+        ]
+      }],
+
+      palette: {
+        base: '#0e120f',
+        grass: '#3a5530',
+        grassAlt: '#48683a',
+        path: '#6f5b3f',
+        pathEdge: '#4a3b24',
+        water: '#2d4a5a',
+        accent: '#d4c85a',
+        fog: '#0e120f'
+      }
+    },
+
+    {
+      key: 'mossy-creek',
+      name: 'Mossy Creek',
+      tier: 'beginner',
+      blurb: 'A gentle path meanders alongside a moss-covered creek — simple and peaceful.',
+      trackWidth: 36,
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 300 }, { x: 150, y: 280 }, { x: 320, y: 320 }, { x: 480, y: 300 },
+          { x: 640, y: 340 }, { x: 800, y: 300 }, { x: 960, y: 320 }, { x: 1120, y: 300 },
+          { x: 1280, y: 320 }
+        ]
+      }],
+
+      water: [{ cx: 640, cy: 420, r: 50 }],
+
+      palette: {
+        base: '#0e140f',
+        grass: '#3f5c33',
+        grassAlt: '#52713d',
+        path: '#7a6647',
+        pathEdge: '#513f26',
+        water: '#2f5a6b',
+        accent: '#80b060'
+      }
+    },
+
+    {
+      key: 'dewdrop-lane',
+      name: 'Dewdrop Lane',
+      tier: 'beginner',
+      blurb: 'A straight shot through a morning meadow — simple, reliable, and full of potential.',
+      trackWidth: 36,
+
+      paths: [{
+        smooth: 3,
+        points: [
+          { x: 0, y: 360 }, { x: 200, y: 360 }, { x: 400, y: 360 }, { x: 600, y: 360 },
+          { x: 800, y: 360 }, { x: 1000, y: 360 }, { x: 1280, y: 360 }
+        ]
+      }],
+
+      water: [{ cx: 640, cy: 250, r: 55 }],
+
+      palette: {
+        base: '#0e140f',
+        grass: '#3f5c33',
+        grassAlt: '#52713d',
+        path: '#7a6647',
+        pathEdge: '#513f26',
+        water: '#2f5a6b',
+        accent: '#c0d870'
+      }
+    },
+
+    {
+      key: 'sunlit-glade',
+      name: 'Sunlit Glade',
+      tier: 'beginner',
+      blurb: 'A peaceful clearing where the sun breaks through the canopy — build among the light pools.',
+      trackWidth: 36,
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 200 }, { x: 200, y: 200 }, { x: 400, y: 280 }, { x: 640, y: 360 },
+          { x: 880, y: 280 }, { x: 1080, y: 200 }, { x: 1280, y: 200 }
+        ]
+      }],
+
+      water: [{ cx: 640, cy: 520, r: 60 }],
+
+      palette: {
+        base: '#0e140f',
+        grass: '#4a6838',
+        grassAlt: '#5c7a44',
+        path: '#7a6647',
+        pathEdge: '#513f26',
+        water: '#2f5a6b',
+        accent: '#e0d060'
+      }
+    },
+
+    {
+      key: 'hazel-bend',
+      name: 'Hazel Bend',
+      tier: 'beginner',
+      blurb: 'A lazy horseshoe around a hazel thicket — one tower at the apex covers both legs.',
+      trackWidth: 35,
+
+      water: [{ cx: 640, cy: 550, r: 50 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 360 }, { x: 200, y: 360 }, { x: 400, y: 200 }, { x: 640, y: 160 },
+          { x: 880, y: 200 }, { x: 1080, y: 360 }, { x: 1280, y: 360 }
+        ]
+      }],
+
+      palette: {
+        base: '#0e140f',
+        grass: '#3f5c33',
+        grassAlt: '#52713d',
+        path: '#7a6647',
+        pathEdge: '#513f26',
+        water: '#2f5a6b',
+        accent: '#c8a848'
+      }
+    },
+
+    {
+      key: 'birch-straight',
+      name: 'Birch Straight',
+      tier: 'beginner',
+      blurb: 'A long straight road through birch stands — the simplest path, but timing is everything.',
+      trackWidth: 34,
+
+      paths: [{
+        smooth: 2,
+        points: [
+          { x: 0, y: 400 }, { x: 320, y: 340 }, { x: 640, y: 380 },
+          { x: 960, y: 340 }, { x: 1280, y: 380 }
+        ]
+      }],
+
+      palette: {
+        base: '#100e14',
+        grass: '#384a35',
+        grassAlt: '#4b6042',
+        path: '#6b5a48',
+        pathEdge: '#46382a',
+        accent: '#d0c060'
+      }
+    },
+
+    {
+      key: 'thistle-bend',
+      name: 'Thistle Bend',
+      tier: 'beginner',
+      blurb: 'A wide arc over a thistle-covered hillside — room to spread out and experiment.',
+      trackWidth: 36,
+
+      water: [{ cx: 400, cy: 550, r: 45 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 600 }, { x: 150, y: 500 }, { x: 320, y: 350 }, { x: 500, y: 250 },
+          { x: 700, y: 200 }, { x: 900, y: 250 }, { x: 1080, y: 350 },
+          { x: 1200, y: 500 }, { x: 1280, y: 600 }
+        ]
+      }],
+
+      palette: {
+        base: '#0e140f',
+        grass: '#3f5c33',
+        grassAlt: '#52713d',
+        path: '#7a6647',
+        pathEdge: '#513f26',
+        water: '#2f5a6b',
+        accent: '#b898d0'
+      }
+    },
+
+    {
+      key: 'marsh-light',
+      name: 'Marsh Light',
+      tier: 'beginner',
+      blurb: 'Fireflies bob over a marshy trail — gentle curves and plenty of open ground.',
+      trackWidth: 35,
+
+      water: [{ cx: 900, cy: 480, r: 55 }],
+
+      paths: [{
+        smooth: 4,
+        points: [
+          { x: 0, y: 200 }, { x: 200, y: 280 }, { x: 400, y: 400 }, { x: 600, y: 480 },
+          { x: 800, y: 400 }, { x: 1000, y: 280 }, { x: 1200, y: 200 }, { x: 1280, y: 200 }
+        ]
+      }],
+
+      palette: {
+        base: '#0e120f',
+        grass: '#3a5530',
+        grassAlt: '#48683a',
+        path: '#6f5b3f',
+        pathEdge: '#4a3b24',
+        water: '#2d4a5a',
+        accent: '#e0d860'
       }
     }
   ]

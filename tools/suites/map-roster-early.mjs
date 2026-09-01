@@ -28,21 +28,21 @@ export const needs = ['js/data/maps-beginner.js', 'js/data/maps-intermediate.js'
 const TIERS = [
   {
     tier: 'beginner',
-    expect: 4,
+    expect: 12,
     lenLo: 2200, lenHi: 3200,
     minPaths: 1, maxPaths: 1,
-    buildFloor: 0.66,          // generous open ground
-    losBlockers: false,        // none at all, derived ones included
-    removables: false          // and therefore no obstacle-derived blockers either
+    buildFloor: 0.66,
+    losBlockers: false,
+    removables: false
   },
   {
     tier: 'intermediate',
-    expect: 4,
+    expect: 12,
     lenLo: 2600, lenHi: 4000,
     minPaths: 1, maxPaths: 2,
-    buildFloor: 0.54,          // less open ground than beginner
-    losBlockers: true,         // a couple per map
-    removables: true           // one or two per map
+    buildFloor: 0.54,
+    losBlockers: true,
+    removables: true
   }
 ]
 
@@ -277,7 +277,7 @@ export function run (t, OP) {
   if (!rosterOk) return
 
   const ALL = rosters.beginner.concat(rosters.intermediate)
-  t.eq(ALL.length, 8, `eight maps across the two early tiers, got ${ALL.length}`)
+  t.eq(ALL.length, 24, `twenty-four maps across the two early tiers, got ${ALL.length}`)
   t.eq(new Set(ALL).size, ALL.length, 'no key is shared between the two tiers')
 
   t.section('every declared key is a registered map of the right tier')
@@ -292,11 +292,11 @@ export function run (t, OP) {
       t.ok(Maps.byTier(spec.tier).some(d => d.key === key), `${key} comes back from byTier('${spec.tier}')`)
     }
   }
-  if (Object.keys(defs).length !== 8) return
+  if (Object.keys(defs).length !== 10) return
 
   t.section('names and blurbs are original, distinct and shippable')
   const names = ALL.map(k => defs[k].name)
-  t.eq(new Set(names).size, names.length, `all eight names are distinct: ${names.join(' · ')}`)
+  t.eq(new Set(names).size, names.length, `all sixteen names are distinct: ${names.join(' · ')}`)
   for (const key of ALL) {
     const def = defs[key]
     t.ok(/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key), `${key} is lowercase kebab-case — it is what a save records`)
@@ -329,7 +329,7 @@ export function run (t, OP) {
       `${key}: building did not mutate the registered definition`)
     built[key] = map
   }
-  if (Object.keys(built).length !== 8) return
+  if (Object.keys(built).length !== 12) return
 
   t.section('two builds of one map share no mutable state')
   for (const key of ALL) {
@@ -462,7 +462,7 @@ export function run (t, OP) {
     `and at least one offers essentially none of that, so damage has to do the work — ${report}`)
 
   /* ================================================================
-     6. every map is playable — all eight, every lane
+     6. every map is playable — all ten, every lane
      ================================================================ */
 
   t.section('a real build on every lane of every map clears a stream of balloons')
@@ -548,7 +548,7 @@ export function run (t, OP) {
         `${key} says why: "${wetHere.reason}"`)
     }
   }
-  t.gte(wetMaps, 5, `${wetMaps} of the eight maps carry water, so the water towers are not dead weight in either tier`)
+  t.gte(wetMaps, 7, `${wetMaps} of the ten maps carry water, so the water towers are not dead weight in either tier`)
 
   t.section('a dry map forbids water towers everywhere — the documented consequence of water: []')
   let dryMaps = 0

@@ -1,7 +1,7 @@
 {
   "name": "OVERPOP",
   "short_name": "OVERPOP",
-  "description": "An original round-based tower defense game. 25 critter towers, 100 rounds, 16 maps, heroes and eleven modes.",
+  "description": "An original round-based tower defense game. 31 critter towers, 100 rounds, 48 maps, heroes, bosses and seventeen modes.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
