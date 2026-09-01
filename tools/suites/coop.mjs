@@ -57,4 +57,34 @@ export function run (t, OP) {
     swapTimer: 0
   }, 'the HUD summary reports both current balances')
   t.eq(OP.Sim.checksum(restored), OP.Sim.checksum(s), 'coop cash pools participate in the checksum')
+
+  t.section('a resumed tag-team game stays in lockstep with the never-saved run')
+  // Regression guard: a coop run mixes per-player cash regeneration with RNG
+  // draws and round-end player swaps — the exact surface where a state
+  // serialisation bug (e.g. an RNG state that did not round-trip bit-for-bit)
+  // would make a reloaded game silently diverge a few ticks after load.
+  // The static checksum equality above cannot catch that; only stepping both
+  // runs forward and comparing every intermediate state can.
+  function mkTag () {
+    const sim = OP.Sim.create({
+      map: { key: 'test', paths: [straightTrack(OP, 3000)], placement: null, blockers: null },
+      seed: 'coop-lockstep', difficulty: 'medium', mode: 'tag-team'
+    })
+    for (let i = 0; i < 60 && sim.towers.length < 3; i++) {
+      OP.Towers.place(sim, 'acorn-fox', 40 + i * 60, 300, { free: true })
+    }
+    return sim
+  }
+  const ctrl = mkTag()
+  const snapC = OP.Sim.serialize(ctrl)
+  const reloaded = OP.Sim.deserialize(snapC,
+    { key: 'test', paths: [straightTrack(OP, 3000)], placement: null, blockers: null })
+  let coopDivergent = -1
+  for (let i = 0; i < 1500 && !ctrl.over && !reloaded.over; i++) {
+    OP.Sim.step(ctrl)
+    OP.Sim.step(reloaded)
+    if (coopDivergent < 0 && OP.Sim.checksum(ctrl) !== OP.Sim.checksum(reloaded)) coopDivergent = i
+  }
+  t.eq(coopDivergent, -1, '1500 steps of a resumed tag-team fight never diverge')
+  t.eq(OP.Sim.checksum(ctrl), OP.Sim.checksum(reloaded), 'final coop checksums match')
 }
