@@ -144,10 +144,10 @@
           hpScale: (g.hpScale || rules.hpScale) * (tier.blimp ? rules.blimpHpMul : 1),
           speedScale: g.speedScale || rules.speedScale
         })
+        if (!b) break                      // hit the entity ceiling; try again next tick
         g.remaining--
         r.released++
         released++
-        if (!b) break                      // hit the entity ceiling; try again next tick
         if (g.spacing <= 0) {
           if (g.remaining <= 0) break
           continue                          // same tick

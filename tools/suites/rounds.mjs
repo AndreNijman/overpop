@@ -69,6 +69,28 @@ export function run (t, OP) {
   t.eq(sim.stats.spawned, 6, 'all six ceramics arrive on the same tick')
   t.eq(census(OP, sim).ceramic, 6, 'and they are all ceramics')
 
+  t.section('the entity ceiling delays releases instead of discarding them')
+  sim = simFor({
+    roundSet: { 1: { groups: [{ tier: 'red', count: 2, spacing: 0 }] } }
+  })
+  R.begin(sim, 1)
+  for (let i = 0; i < OP.MAX_BALLOONS; i++) OP.Balloons.spawn(sim, { tier: 'red' })
+  const spawnedAtCeiling = sim.stats.spawned
+  t.eq(R.tick(sim), 0, 'a full entity list releases nothing')
+  t.eq(sim.round.groups[0].remaining, 2, 'both blocked releases remain queued')
+  t.eq(sim.round.released, 0, 'the round release count records no phantom balloon')
+
+  OP.Balloons.kill(sim, sim.balloons[0])
+  OP.Balloons.compact(sim)
+  t.eq(R.tick(sim), 1, 'one free slot permits one queued release')
+  t.eq(sim.round.groups[0].remaining, 1, 'the other release is still queued')
+
+  OP.Balloons.kill(sim, sim.balloons[0])
+  OP.Balloons.compact(sim)
+  t.eq(R.tick(sim), 1, 'another free slot permits the final release')
+  t.ok(R.allReleased(sim), 'the group finishes only after both balloons really spawned')
+  t.eq(sim.stats.spawned, spawnedAtCeiling + 2, 'neither release was lost at the ceiling')
+
   t.section('delays are honoured')
   sim = simFor()
   R.begin(sim, 5)
