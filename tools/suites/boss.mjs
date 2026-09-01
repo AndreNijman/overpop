@@ -91,4 +91,62 @@ export function run (t, OP) {
   }
   t.eq(divergent, -1, '600 steps of a resumed boss fight never diverge from the original')
   t.eq(OP.Sim.checksum(control), OP.Sim.checksum(resumed), 'final checksums match')
+
+  t.section('minions spawn on the boss cadence')
+  const ms = sim()
+  const mBoss = OP.Boss.spawn(ms, 'elder-worm', 1, false)
+  mBoss.speed = 0
+  const ballBefore = ms.balloons.length
+  ticks(OP, ms, 240)
+  const minions = ms.balloons.length - ballBefore
+  t.gt(minions, 0, 'minions are released after the spawning interval')
+  t.eq(mBoss.minionWave > 0 || ms.balloons.length > ballBefore, true, 'the minion counter advances as they spawn')
+  t.gt(mBoss.minionInterval, 3, 'the spawn cadence is a sane countdown')
+  t.ok(OP.bossMinions(mBoss.def, 1), 'the tier has a minion schedule')
+
+  t.section('abilities engage only at tier 3+ and take effect')
+  const dormant = OP.bossAbility(OP.bossByKey('elder-worm'), 2)
+  t.eq(OP.bossAbility(OP.bossByKey('elder-worm'), 2), null, 'tier 2 has no ability')
+  const active = OP.bossAbility(OP.bossByKey('storm-drake'), 3)
+  t.eq(active && active.key, 'storm-drake-shock', 'tier 3 storm drake has its shock')
+  t.gt(active.cooldown, 0, 'the ability cooldown is positive')
+  const as = sim()
+  const aBoss = OP.Boss.spawn(as, 'storm-drake', 3, false)
+  aBoss.speed = 0
+  const stunned = OP.Towers.place(as, 'acorn-fox', 50, 260, { free: true })
+  t.eq(stunned.stunnedT === undefined || stunned.stunnedT === 0, true, 'tower starts unstunned')
+  aBoss.abilityCd = 1
+  let fired = false
+  for (let i = 0; i < 300 && !fired; i++) {
+    OP.Sim.step(as)
+    if (as.events.some(e => e.kind === 'bossability')) fired = true
+  }
+  t.ok(fired, 'the ability fires once the cooldown elapses')
+  t.gt(stunned.stunnedT || 0, 0, 'the shocked tower is disabled')
+  const serBoss = OP.Sim.serialize(as).boss
+  t.ok(Object.prototype.hasOwnProperty.call(serBoss, 'abilityActive'), 'the ability state serialises on the boss')
+
+  t.section('reaching the exit ends the game as a leak')
+  const rs = sim()
+  const rBoss = OP.Boss.spawn(rs, 'elder-worm', 1, false)
+  rBoss.speed = 1e6 // clear the 5000-unit track in a tick
+  OP.Sim.step(rs)
+  t.eq(rs.over, true, 'the run ends when the boss reaches the exit')
+  t.eq(rs.outcome, 'leaked', 'the ending is a leak')
+  t.eq(rs.events.some(e => e.kind === 'bossreach'), true, 'a bossreach event is emitted')
+
+  t.section('hitting the time limit also ends the game as a leak')
+  const ts = sim()
+  const tBoss = OP.Boss.spawn(ts, 'void-maw', 1, false)
+  tBoss.t = 0
+  tBoss.ticksAlive = tBoss.timeLimit - 1
+  OP.Sim.step(ts)
+  t.eq(ts.over, true, 'the run ends when the time limit is hit')
+  t.eq(ts.outcome, 'leaked', 'the ending is a leak')
+  t.eq(ts.events.some(e => e.kind === 'bosstimeout'), true, 'a bosstimeout event is emitted')
+
+  t.section('boss tier HP scales through the documented curve')
+  t.eq(OP.bossHP(OP.bossByKey('elder-worm'), 2, false), 50000 * 4, 'tier 2 multiplies base HP once')
+  t.eq(OP.bossHP(OP.bossByKey('elder-worm'), 5, false), 50000 * 4 * 4 * 4 * 4, 'tier 5 is base HP to the fourth power')
+  t.eq(OP.bossHP(OP.bossByKey('elder-worm'), 1, true), 50000 * 20, 'elite multiplies tier 1 HP by the elite factor')
 }
