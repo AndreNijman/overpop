@@ -123,7 +123,12 @@
   }
 
   RNG.prototype.setState = function (s) {
-    this.a = s.a >>> 0; this.b = s.b >>> 0; this.c = s.c >>> 0; this.d = s.d >>> 0
+    // The generator keeps its state as signed 32-bit values (`|0` semantics in
+    // u32). `>>> 0` here would flip them to unsigned and `Sim.checksum` — which
+    // folds rng.a/b/c/d directly — would read a different number than the live
+    // generator, so a save/load would compare as "divergent" even though the
+    // random sequence is identical. Preserve signedness with `| 0`.
+    this.a = s.a | 0; this.b = s.b | 0; this.c = s.c | 0; this.d = s.d | 0
     this.calls = s.calls | 0
     this.seed = s.seed
     return this

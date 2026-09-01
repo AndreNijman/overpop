@@ -78,6 +78,22 @@ export function run (t, OP) {
   t.ok(Object.values(snapshot).every(v => typeof v === 'number' || typeof v === 'string'),
     'the whole state is primitive — no closures, so the sim stays serialisable')
 
+  // Regression: fromState(src.state()) must reproduce the *original* generator
+  // at the raw a/b/c/d level, not just a self-consistent clone of a snapshot.
+  // Sim.checksum folds rng.a/b/c/d directly, so if a reload kept the same random
+  // sequence but represented the state with a different signedness (e.g. from a
+  // `>>> 0` in setState), a saved game would compare as "divergent" immediately
+  // even though it simulates identically. The sequence test above can't catch
+  // that, because both sides go through the same (wrong) conversion.
+  t.deep(RNG.fromState(src.state()).state(), src.state(),
+    'fromState(state()) is bit-for-bit identical to the original state')
+  const stAfter = src.state()
+  const resumed = RNG.fromState(stAfter)
+  t.eq(resumed.a, stAfter.a, 'a round-trips with identical signedness')
+  t.eq(resumed.b, stAfter.b, 'b round-trips with identical signedness')
+  t.eq(resumed.c, stAfter.c, 'c round-trips with identical signedness')
+  t.eq(resumed.d, stAfter.d, 'd round-trips with identical signedness')
+
   const cl = new RNG(9).clone()
   t.eq(cl.u32(), new RNG(9).u32(), 'clone() matches a fresh generator on the same seed')
 

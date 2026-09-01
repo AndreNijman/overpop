@@ -60,4 +60,35 @@ export function run (t, OP) {
   OP.Boss.damage(restored, { damage: restored.boss.hp, dmgType: OP.DMG.VOID, sourceId: -1 })
   t.eq(restored.boss, null, 'the active boss slot clears')
   t.eq(restored.byId.get(id), undefined, 'the shared lookup no longer holds the dead boss')
+
+  t.section('a resumed boss fight stays in lockstep with the never-saved run')
+  // Regression: a saved boss battle must resume onto the exact same board. If the
+  // RNG state did not round-trip bit-for-bit, the reloaded sim would diverge from
+  // the original on the very next step even though it looked identical on load —
+  // silently invalidating every mid-boss save.
+  function mk () {
+    const sim = OP.Sim.create({
+      map: { key: 'test', paths: [straightTrack(OP, 5000)], placement: null, blockers: null },
+      seed: 'boss-lockstep', difficulty: 'medium', mode: 'boss-event',
+      rules: { startCash: 100000, startLives: 150 }
+    })
+    const b = OP.Boss.spawn(sim, 'storm-drake', 2, false)
+    for (let i = 0; i < 60 && sim.towers.length < 4; i++) {
+      OP.Towers.place(sim, 'acorn-fox', 40 + i * 50, 350, { free: true })
+    }
+    b.speed = 0.4
+    return sim
+  }
+  const control = mk()
+  const snapB = OP.Sim.serialize(control)
+  const resumed = OP.Sim.deserialize(snapB,
+    { key: 'test', paths: [straightTrack(OP, 5000)], placement: null, blockers: null })
+  let divergent = -1
+  for (let i = 0; i < 600; i++) {
+    OP.Sim.step(control)
+    OP.Sim.step(resumed)
+    if (divergent < 0 && OP.Sim.checksum(control) !== OP.Sim.checksum(resumed)) divergent = i
+  }
+  t.eq(divergent, -1, '600 steps of a resumed boss fight never diverge from the original')
+  t.eq(OP.Sim.checksum(control), OP.Sim.checksum(resumed), 'final checksums match')
 }
