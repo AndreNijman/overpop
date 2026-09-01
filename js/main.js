@@ -314,6 +314,23 @@
       S.screen = 'game'
       OP.FX.reset()
       OP.Render.invalidateTerrain(S.view)
+
+      // The daily challenge's active state lives in memory, not the run save, so
+      // a daily run resumed after a reload would finish without recording its
+      // result. The sim's seed ("daily-<dateKey>") identifies the challenge. Skip
+      // the restore when that date is already recorded: a won challenge saved
+      // mid-freeplay must not re-activate the daily — its continuation must not
+      // re-record the day with freeplay-inflated stats.
+      if (OP.DailyCore && OP.Daily && S.profile &&
+          typeof run.snapshot.seed === 'string' &&
+          run.snapshot.seed.indexOf('daily-') === 0) {
+        const dateKey = run.snapshot.seed.slice('daily-'.length)
+        if (!OP.DailyCore.isDone(S.profile, dateKey)) {
+          const challenge = OP.Daily.generate(dateKey)
+          if (challenge) OP.DailyCore.start(challenge)
+        }
+      }
+
       return S.sim
     } catch (e) {
       // A save from an older build that no longer loads must not brick the game.

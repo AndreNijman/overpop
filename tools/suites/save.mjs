@@ -753,6 +753,76 @@ export function run (t, OP, env) {
   t.eq(resumed.cash, sim.cash, 'the same cash')
   t.eq(resumed.lives, sim.lives, 'and the same lives')
 
+  t.section('a saved and reloaded daily run restores its active challenge')
+  wipe()
+  const daily = OP.Daily.generate('2026-08-31')
+  t.ok(daily !== null, 'there is a deterministic challenge for the fixed date')
+  const dailyMapDef = OP.MAPS[daily.mapKey]
+  t.ok(dailyMapDef, 'the challenge names a registered map')
+  let dailyMap = OP.Maps.build(dailyMapDef)
+  const dailyModeDef = OP.MODES[daily.mode] || {}
+  if (dailyModeDef.rules && dailyModeDef.rules.reversePaths && OP.Maps.reversePaths) {
+    dailyMap = OP.Maps.reversePaths(dailyMap)
+  }
+  const dailySim = OP.Sim.create({
+    map: dailyMap,
+    seed: daily.seed,
+    difficulty: daily.difficulty,
+    mode: daily.mode,
+    rules: daily.rules || {},
+    knowledge: [],
+    roundSetKey: dailyModeDef.roundSetKey || 'standard'
+  })
+  t.eq(dailySim.seed, 'daily-2026-08-31', 'the run carries the daily seed')
+  OP.Sim.startRound(dailySim, 2)
+  t.eq(S.saveRun(dailySim, daily.mapKey), true, 'the daily run is storable')
+  t.notOk(OP.DailyCore.isDone(S.defaults(), '2026-08-31'), 'the day is not recorded yet')
+
+  const app = OP.App
+  const appState = app.state
+  const savedApp = {
+    sim: appState.sim, profile: appState.profile, screen: appState.screen,
+    mapKey: appState.mapKey, difficulty: appState.difficulty, mode: appState.mode
+  }
+  const dailyProfile = S.defaults()
+  try {
+    OP.DailyCore.clear()
+    t.eq(OP.DailyCore.active(), null, 'a fresh page has no active challenge')
+
+    appState.sim = null
+    appState.profile = dailyProfile
+    appState.view = OP.Camera.create()
+    appState.screen = 'menu'
+    appState.mapKey = ''
+    appState.difficulty = 'medium'
+    appState.mode = 'standard'
+
+    const resumedDaily = app.resumeGame()
+    t.ok(resumedDaily !== null, 'the daily run resumes')
+    t.eq(resumedDaily.seed, dailySim.seed, 'with the daily seed restored from the save')
+    const restored = OP.DailyCore.active()
+    t.ok(restored !== null, 'and the active daily challenge is restored for the reloaded run')
+    t.eq(restored.dateKey, '2026-08-31', 'for the date the challenger was created for')
+    t.eq(restored.seed, daily.seed, 'identifying the same challenge')
+    t.eq(appState.mapKey, daily.mapKey, 'the shell lands back on the daily map')
+    t.eq(appState.mode, daily.mode, 'still in the daily mode')
+
+    // A won challenge continued into freeplay, saved mid-continuation and
+    // reloaded, must NOT resurrect the challenge: its day is already recorded,
+    // and the continuation must not re-record the day with freeplay-inflated
+    // stats (DailyCore.complete already deactivates in-session; this is the
+    // cross-reload equivalent).
+    OP.DailyCore.record(dailyProfile, '2026-08-31', { won: true, bestRound: 2, pops: 0, cash: 0 })
+    t.eq(OP.DailyCore.isDone(dailyProfile, '2026-08-31'), true, 'the day is recorded')
+    OP.DailyCore.clear()
+    t.eq(app.resumeGame() !== null, true, 'the stored run still resumes')
+    t.eq(OP.DailyCore.active(), null, 'but the completed day does not resurrect its challenge')
+  } finally {
+    OP.DailyCore.clear()
+    S.clearRun()
+    Object.assign(appState, savedApp)
+  }
+
   t.section('the map key falls back to the sim map when the caller omits it')
   wipe()
   const noArg = liveSim()
