@@ -604,8 +604,15 @@
 
   function boardBusy () {
     const S = App.state
-    if (!S || !S.sim || S.sim.over) return false
-    return S.screen === 'game'
+    if (!S || !S.sim) return false
+    // A live run must never be reloaded away.
+    if (!S.sim.over) return true
+    // A victory on the results screen still offers continuation (FREEPLAY): the
+    // run save was already cleared, so reloading now would throw the winning
+    // board away. Defer the swap until the player leaves results, when the sim
+    // stops being worth preserving.
+    if (S.screen === 'results' && OP.Sim && OP.Sim.canEnterFreeplay && OP.Sim.canEnterFreeplay(S.sim)) return true
+    return false
   }
 
   function applyUpdate () {
@@ -679,7 +686,7 @@
       }
     }
 
-    sim.autostart = true
+     sim.autostart = true
     OP.Sim.startRound(sim, 1)
     let guard = 0
     while (sim.roundIndex <= rounds && !sim.over && guard < 60 * 60 * 15) {
@@ -692,6 +699,11 @@
       over: sim.over, outcome: sim.outcome, checksum: OP.Sim.checksum(sim)
     }
   }
+
+  // Whether a service-worker update may reload the page right now. Exposed so
+  // the harness can pin the deferral contract (a live run or a victory still
+  // offered on the results screen must not be reloaded away).
+  OP.Test.boardBusy = function () { return boardBusy() }
 
   OP.App = App
 

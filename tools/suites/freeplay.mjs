@@ -191,6 +191,47 @@ export function run (t, OP) {
     Object.assign(appState, oldState)
   }
 
+  t.section('an update stays deferred while a victory still offers freeplay')
+  const busy = OP.Test && OP.Test.boardBusy
+  if (busy) {
+    const busySim = makeSim(OP, {
+      trackLength: 200, lives: 1000, cash: 5000,
+      roundSet: { 1: { groups: [{ tier: 'red', count: 1 }] } },
+      roundSetKey: 'fp-busy-suite', rules: { lastRound: 1 }
+    })
+    S.startRound(busySim, 1)
+    ticks(OP, busySim, 600)
+    t.ok(busySim.over && busySim.outcome === 'won', 'sets up a victorious run')
+
+    const oldBusy = {
+      sim: appState.sim, profile: appState.profile, screen: appState.screen
+    }
+    try {
+      appState.sim = busySim
+      appState.screen = 'results'
+      t.ok(busy(), 'a FREEPLAY-offering results screen counts as busy, so the swap waits')
+
+      appState.sim = makeSim(OP, {
+        trackLength: 200, lives: 1000, cash: 5000,
+        roundSet: { 1: { groups: [{ tier: 'red', count: 1 }] } },
+        roundSetKey: 'fp-busy-live-suite', rules: { lastRound: 99 }
+      })
+      appState.screen = 'game'
+      t.ok(busy(), 'an active (live) game screen stays busy')
+      appState.screen = 'menu'
+      t.ok(busy(), 'a live run stays busy even away from the board')
+
+      appState.sim = busySim
+      appState.screen = 'results'
+      t.ok(busy(), 'and the victory still defers after the live board check')
+
+      appState.screen = 'menu'
+      t.notOk(busy(), 'once that victory leaves results, the pending swap may run')
+    } finally {
+      Object.assign(appState, oldBusy)
+    }
+  }
+
   /* ----------------------------------------------------------------- the mix */
 
   t.section('every blimp tier is represented, and density climbs')
