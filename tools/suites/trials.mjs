@@ -50,6 +50,40 @@ export function run (t, OP) {
       'isTowerAllowed accepts family in filter')
   }
 
+  t.section('tower filters permit at least the tower they name')
+  // Regression: the 'sniper-only' trial filtered on the family name 'sniper',
+  // which does not exist (families are primary/military/magic/support), so
+  // isTowerAllowed returned false for every tower and the trial was impossible
+  // to play. A filter that permits no tower makes a trial unwinnable by fiat.
+  for (var fi = 0; fi < defs.length; fi++) {
+    var fdef = defs[fi]
+    if (!fdef.towerFilter || fdef.towerFilter.length === 0) continue
+    var anyAllowed = false
+    var allowedKeys = []
+    for (var fk in OP.TOWERS) {
+      if (TD.isTowerAllowed(fdef.key, fk)) {
+        anyAllowed = true
+        allowedKeys.push(fk)
+        break
+      }
+    }
+    t.ok(anyAllowed, fdef.key + ' ("' + fdef.name + '") permits at least one tower')
+  }
+
+  t.section('sniper-only is restricted to the sniper tower specifically')
+  var sniperTrial = TD.get('sniper-only')
+  t.ok(sniperTrial, 'the sniper-only trial exists')
+  var sniperAllowed = []
+  var sniperRejected = []
+  for (var sk in OP.TOWERS) {
+    if (TD.isTowerAllowed('sniper-only', sk)) sniperAllowed.push(sk)
+    else sniperRejected.push(sk)
+  }
+  t.deep(sniperAllowed, ['longshot-lynx'], 'only the sniper tower is permitted in sniper-only')
+  t.gt(sniperRejected.length, 0, 'the restriction still rejects other towers')
+  t.ok(OP.Trials.isTowerAllowed('sniper-only', 'longshot-lynx'), 'the sniper tower itself is allowed')
+  t.ok(OP.Trials.isTowerAllowed('no-such-trial', 'any-tower'), 'an unknown trial permits every tower')
+
   t.section('Trial.start / isActive / activeDef')
   var profile = OP.Save.defaults()
   t.notOk(T.isActive(profile), 'not active on fresh profile')

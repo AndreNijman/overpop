@@ -21,7 +21,7 @@
       mode: 'standard',
       mapKey: 'twinbrook-fork',
       rules: { allowSell: false, allowAbilities: false, startCash: 1200 },
-      towerFilter: ['sniper'],
+      towerFilter: ['longshot-lynx'],
       goal: 'Clear round 40',
       goalRound: 40
     },
@@ -148,7 +148,12 @@
     var towerDef = OP.TOWERS && OP.TOWERS[towerKey]
     if (!towerDef) return false
     for (var i = 0; i < def.towerFilter.length; i++) {
+      // A filter entry may name a family ('military') or an exact tower key
+      // ('longshot-lynx'). Family matching lets a trial restrict by archetype;
+      // key matching lets one like 'sniper-only' restrict to one specific tower
+      // when there is no family in the game for it.
       if (towerDef.family === def.towerFilter[i]) return true
+      if (towerKey === def.towerFilter[i]) return true
     }
     return false
   }
