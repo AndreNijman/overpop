@@ -30,9 +30,16 @@
 
   /**
    * Mark the current daily challenge as completed.
+   *
+   * Completion also deactivates the challenge: recording is gated on
+   * `DailyCore.active()`, so a run that goes on to end again — a won challenge
+   * continued into freeplay, whose second game-over re-enters the same
+   * onGameOver block — must not re-record the day's result with freeplay-inflated
+   * stats. The menu already falls back to OP.Daily.today() when active() is null.
    */
   DailyCore.complete = function () {
     challengeCompleted = true
+    activeChallenge = null
   }
 
   /**

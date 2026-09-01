@@ -82,8 +82,10 @@ export function run (t, OP, env) {
   t.section('DailyCore.complete and isCompleted')
   DC.start(c)
   t.eq(DC.isCompleted(), false, 'not completed immediately')
+  t.eq(DC.active(), c, 'the challenge is active while in play')
   DC.complete()
   t.eq(DC.isCompleted(), true, 'complete marks it done')
+  t.eq(DC.active(), null, 'and deactivates it — a freeplay-ending won challenge cannot re-record the day')
   DC.clear()
 
   t.section('DailyCore.record and resultFor')
