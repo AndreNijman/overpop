@@ -204,7 +204,7 @@
     OP.Projectiles.compact(sim)
 
     // 13. round completion and payouts
-    if (sim.round && !sim.round.done && OP.Rounds.isComplete(sim)) {
+    if (!sim.over && sim.round && !sim.round.done && OP.Rounds.isComplete(sim)) {
       OP.Rounds.complete(sim)
 
       // Coop: swap active player at round end
@@ -213,7 +213,7 @@
       }
 
       // Boss event: spawn boss at appropriate rounds
-      if (OP.Boss && sim.mode && sim.mode.indexOf('boss-event') === 0) {
+      if (!sim.over && OP.Boss && sim.mode && sim.mode.indexOf('boss-event') === 0) {
         const bossKey = sim.rules.bossKey
         if (bossKey) {
           const bossDef = OP.bossByKey(bossKey)

@@ -193,6 +193,19 @@ export function run (t, OP) {
   t.eq(sim.balloons.length, 0, 'and the board is clear (they leaked)')
   t.ok(sim.round.done, 'the round auto-completed')
 
+  t.section('a fatal final leak does not count as clearing the round')
+  sim = simFor({
+    trackLength: 100, lives: 1, cash: 0, rules: { lastRound: 1 },
+    roundSet: { 1: { groups: [{ tier: 'red', count: 1, spacing: 0 }] } }
+  })
+  R.begin(sim, 1)
+  ticks(OP, sim, 400)
+  t.ok(sim.over, 'the final leak ends the game')
+  t.eq(sim.outcome, 'leaked', 'the result remains a defeat')
+  t.eq(sim.stats.roundsCleared, 0, 'the failed round is not credited as cleared')
+  t.notOk(sim.round.done, 'the failed round is not marked complete')
+  t.eq(sim.events.filter(e => e.kind === 'roundbonus').length, 0, 'no survival bonus is paid after defeat')
+
   t.section('completing a round pays the bonus once')
   sim = simFor({ trackLength: 100, cash: 0 })
   R.begin(sim, 1)

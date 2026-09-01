@@ -145,6 +145,22 @@ export function run (t, OP) {
   t.eq(ts.outcome, 'leaked', 'the ending is a leak')
   t.eq(ts.events.some(e => e.kind === 'bosstimeout'), true, 'a bosstimeout event is emitted')
 
+  t.section('boss cadence stops when the final round wins the game')
+  const cadence = sim()
+  const bossDef = OP.bossByKey(cadence.rules.bossKey)
+  cadence.roundSet = { [bossDef.spawnsOnRound]: { groups: [] } }
+  OP.Rounds.begin(cadence, bossDef.spawnsOnRound)
+  OP.Sim.step(cadence)
+  t.notOk(cadence.over, 'a non-final boss round keeps the run active')
+  t.ok(cadence.boss && cadence.boss.alive, 'and still spawns its scheduled boss')
+
+  const final = sim()
+  final.roundSet = { [final.rules.lastRound]: { groups: [] } }
+  OP.Rounds.begin(final, final.rules.lastRound)
+  OP.Sim.step(final)
+  t.ok(final.over && final.outcome === 'won', 'the final round ends in victory')
+  t.eq(final.boss, null, 'no extra boss is created behind the victory screen')
+
   t.section('boss tier HP scales through the documented curve')
   t.eq(OP.bossHP(OP.bossByKey('elder-worm'), 2, false), 50000 * 4, 'tier 2 multiplies base HP once')
   t.eq(OP.bossHP(OP.bossByKey('elder-worm'), 5, false), 50000 * 4 * 4 * 4 * 4, 'tier 5 is base HP to the fourth power')
