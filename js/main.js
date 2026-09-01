@@ -270,6 +270,9 @@
     S.mapKey = mapKey
     S.difficulty = difficulty || 'medium'
     S.mode = mode || 'standard'
+    S.progressionResult = null
+    S.expeditionResult = null
+    S.trialResult = null
     S.sim = OP.Sim.create({
       map: map,
       seed: opts.seed === undefined ? String(Date.now()) : opts.seed,
@@ -324,6 +327,33 @@
     const S = App.state
     if (!S.sim || S.sim.over || !(OP.Save && OP.Save.saveRun)) return false
     return OP.Save.saveRun(S.sim, S.mapKey)
+  }
+
+  App.canContinueFreeplay = function () {
+    const S = App.state
+    return !!(S.screen === 'results' && !S.expeditionResult &&
+      OP.Sim && OP.Sim.canEnterFreeplay && OP.Sim.canEnterFreeplay(S.sim))
+  }
+
+  App.continueFreeplay = function () {
+    const S = App.state
+    if (!App.canContinueFreeplay() || !OP.Sim.enterFreeplay(S.sim)) return null
+
+    // The victory reward is already in the profile. Carry that exact inventory
+    // into the continued run so powers used in freeplay persist correctly.
+    if (S.profile && OP.Powers && OP.Powers.copyInventory) {
+      S.sim.powers = OP.Powers.copyInventory(S.profile.powers)
+    }
+    S.screen = 'game'
+    S.progressionResult = null
+    if (S.io && OP.Input) {
+      OP.Input.cancel(S.io)
+      S.io.selectedId = -1
+    }
+    if (S.sim.autostart && OP.Rounds && OP.Rounds.next) OP.Rounds.next(S.sim)
+    App.saveRun()
+    if (OP.Audio) OP.Audio.startMusic('calm')
+    return S.sim
   }
 
   App.quitToMenu = function () {
@@ -400,6 +430,10 @@
   function onGameOver () {
     const S = App.state
     S.screen = 'results'
+    if (S.io && OP.Input) {
+      OP.Input.cancel(S.io)
+      S.io.selectedId = -1
+    }
     if (OP.Save && OP.Save.clearRun) OP.Save.clearRun()
     if (OP.Save && OP.Save.recordResult && S.profile) {
       var levelBefore = OP.Save.playerLevel ? OP.Save.playerLevel(S.profile) : 1
@@ -415,7 +449,11 @@
         cash: S.sim.stats.cashEarned,
         powers: S.sim.powers
       }
-      OP.Save.recordResult(S.profile, savedResult)
+      if (S.sim.freeplay && S.sim.freeplayBaseline && OP.Save.recordFreeplayResult) {
+        OP.Save.recordFreeplayResult(S.profile, savedResult, S.sim.freeplayBaseline)
+      } else {
+        OP.Save.recordResult(S.profile, savedResult)
+      }
       S.progressionResult = {
         xpEarned: Math.max(0, (S.profile.playerXp || 0) - xpBefore),
         levelBefore: levelBefore,

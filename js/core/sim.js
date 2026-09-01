@@ -63,6 +63,7 @@
       roundSet: config.roundSet || OP.ROUND_SETS[config.roundSetKey || 'standard'] ||
                 OP.ROUNDS_STANDARD || null,
       freeplay: false,
+      freeplayBaseline: null,
 
       // entities
       balloons: [], balloonPool: [], byId: new Map(),
@@ -309,6 +310,7 @@
     h = mix(h, sim.lives)
     h = mix(h, sim.roundIndex)
     h = mix(h, sim.over ? 1 : 0)
+    h = mix(h, sim.freeplay ? 1 : 0)
     h = mix(h, sim.stats.popped)
     h = mix(h, sim.stats.leaked)
     h = mix(h, sim.stats.layersPopped)
@@ -410,6 +412,9 @@
       roundIndex: sim.roundIndex,
       autostart: sim.autostart,
       freeplay: sim.freeplay,
+      freeplayBaseline: sim.freeplayBaseline
+        ? Object.assign({}, sim.freeplayBaseline)
+        : null,
       over: sim.over,
       outcome: sim.outcome,
       nextEntityId: sim.nextEntityId,
@@ -471,7 +476,10 @@
     sim.lives = snap.lives
     sim.cashPerPopMul = snap.cashPerPopMul
     sim.roundIndex = snap.roundIndex
-    sim.freeplay = snap.freeplay
+    sim.freeplay = !!snap.freeplay
+    sim.freeplayBaseline = snap.freeplayBaseline
+      ? Object.assign({}, snap.freeplayBaseline)
+      : null
     sim.over = snap.over
     sim.outcome = snap.outcome
     sim.heroId = snap.heroId === undefined ? -1 : snap.heroId
@@ -506,6 +514,24 @@
   }
 
   /* ---------- helpers for the shell and the harness ---------- */
+
+  Sim.canEnterFreeplay = function (sim) {
+    return !!(sim && sim.over && sim.outcome === 'won' && !sim.freeplay)
+  }
+
+  Sim.enterFreeplay = function (sim) {
+    if (!Sim.canEnterFreeplay(sim)) return false
+    sim.freeplayBaseline = {
+      round: sim.roundIndex,
+      roundsCleared: sim.stats.roundsCleared,
+      pops: sim.stats.popped,
+      cash: sim.stats.cashEarned
+    }
+    sim.freeplay = true
+    sim.over = false
+    sim.outcome = null
+    return true
+  }
 
   Sim.startRound = function (sim, index) {
     return OP.Rounds.begin(sim, index === undefined ? sim.roundIndex + 1 : index)

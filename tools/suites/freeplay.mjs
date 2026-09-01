@@ -1,5 +1,5 @@
 export const name = 'freeplay'
-export const needs = ['js/core/freeplay.js', 'js/core/rounds.js', 'js/core/sim.js']
+export const needs = ['js/core/freeplay.js', 'js/core/rounds.js', 'js/core/sim.js', 'js/save.js', 'js/main.js']
 
 import { makeSim, ticks, straightTrack } from './_fixture.mjs'
 
@@ -103,6 +103,93 @@ export function run (t, OP) {
   t.eq(sim.tick, before.tick, 'the clock did not move')
   t.eq(sim.round, before.round, 'no round was armed as a side effect')
   t.eq(sim.roundIndex, before.index, 'and the round index is untouched')
+
+  t.section('a completed run can enter freeplay without rebuilding its board')
+  const won = makeSim(OP, {
+    trackLength: 200, lives: 1000000, cash: 5000,
+    roundSet: { 1: { groups: [{ tier: 'red', count: 1 }] } },
+    roundSetKey: 'fp-entry-suite', rules: { lastRound: 1 }
+  })
+  const standing = OP.Towers.place(won, OP.TOWER_ORDER[0], 300, 300, { free: true })
+  S.startRound(won, 1)
+  ticks(OP, won, 600)
+  t.ok(won.over && won.outcome === 'won', 'the authored target ends in victory')
+  const towersBefore = won.towers
+  const cashBefore = won.cash
+  const livesBefore = won.lives
+  t.ok(S.canEnterFreeplay(won), 'that victory is eligible for freeplay')
+  t.ok(S.enterFreeplay(won), 'the sim accepts the transition')
+  t.ok(won.freeplay, 'the freeplay flag is enabled')
+  t.notOk(won.over, 'the sim is active again')
+  t.eq(won.outcome, null, 'the terminal outcome is cleared')
+  t.eq(won.towers, towersBefore, 'the same tower array remains on the board')
+  t.ok(won.towerById.get(standing.id) === standing, 'the placed tower is the same object')
+  t.eq(won.cash, cashBefore, 'cash is preserved')
+  t.eq(won.lives, livesBefore, 'lives are preserved')
+  t.deep(won.freeplayBaseline, {
+    round: 1, roundsCleared: 1, pops: won.stats.popped, cash: won.stats.cashEarned
+  }, 'the already-recorded victory totals are captured')
+  t.notOk(S.enterFreeplay(won), 'the same run cannot enter freeplay twice')
+  t.ok(R.next(won), 'the next round can start on the reactivated sim')
+  t.eq(won.roundIndex, 2, 'continuation advances beyond the victory target')
+  t.notOk(won.over, 'and does not immediately win again')
+
+  t.section('the freeplay transition and accounting baseline survive a save')
+  const enteredSnap = JSON.parse(JSON.stringify(S.serialize(won)))
+  t.ok(enteredSnap.freeplay, 'the snapshot records freeplay')
+  t.deep(enteredSnap.freeplayBaseline, won.freeplayBaseline, 'and its result-accounting baseline')
+  const enteredBack = S.deserialize(enteredSnap, {
+    key: 'test', paths: [straightTrack(OP, 200)], placement: null, blockers: null
+  })
+  t.ok(enteredBack.freeplay, 'the restored sim remains in freeplay')
+  t.deep(enteredBack.freeplayBaseline, won.freeplayBaseline, 'with the same baseline')
+  t.eq(S.checksum(enteredBack), S.checksum(won), 'the restored transition state is bit-identical')
+
+  t.section('the app shell reactivates and immediately saves the winning board')
+  const shellSim = makeSim(OP, {
+    trackLength: 200, lives: 1000, cash: 5000,
+    roundSet: { 1: { groups: [{ tier: 'red', count: 1 }] } },
+    roundSetKey: 'fp-shell-suite', rules: { lastRound: 1 }
+  })
+  S.startRound(shellSim, 1)
+  ticks(OP, shellSim, 600)
+  const shellProfile = OP.Save.defaults()
+  OP.Save.recordResult(shellProfile, {
+    mapKey: 'test', difficulty: shellSim.difficulty, mode: shellSim.mode, won: true,
+    round: shellSim.roundIndex, roundsCleared: shellSim.stats.roundsCleared,
+    pops: shellSim.stats.popped, cash: shellSim.stats.cashEarned, powers: shellSim.powers
+  })
+  const app = OP.App
+  const appState = app.state
+  const oldState = {
+    sim: appState.sim, profile: appState.profile, screen: appState.screen,
+    mapKey: appState.mapKey, difficulty: appState.difficulty, mode: appState.mode,
+    io: appState.io, progressionResult: appState.progressionResult,
+    expeditionResult: appState.expeditionResult, trialResult: appState.trialResult
+  }
+  OP.Save.clearRun()
+  try {
+    appState.sim = shellSim
+    appState.profile = shellProfile
+    appState.screen = 'results'
+    appState.mapKey = 'test'
+    appState.difficulty = shellSim.difficulty
+    appState.mode = shellSim.mode
+    appState.io = OP.Input.create()
+    appState.expeditionResult = null
+    t.ok(app.canContinueFreeplay(), 'the shell recognises an ordinary victory')
+    t.eq(app.continueFreeplay(), shellSim, 'the shell returns the same sim')
+    t.eq(appState.screen, 'game', 'play resumes on the game screen')
+    t.deep(shellSim.powers, OP.Powers.copyInventory(shellProfile.powers),
+      'the awarded profile inventory carries into freeplay')
+    const stored = OP.Save.loadRun()
+    t.ok(stored && stored.snapshot.freeplay, 'an immediately resumable freeplay run is stored')
+    t.deep(stored.snapshot.freeplayBaseline, shellSim.freeplayBaseline,
+      'the stored run can account for its eventual result')
+  } finally {
+    OP.Save.clearRun()
+    Object.assign(appState, oldState)
+  }
 
   /* ----------------------------------------------------------------- the mix */
 

@@ -627,6 +627,40 @@ export function run (t, OP, env) {
   t.ok(completeProfile(OP, fromNothing), 'which produces a fresh complete profile')
   t.eq(fromNothing.stats.gamesPlayed, 1, 'with the game counted')
 
+  t.section('freeplay continuation records only progress after the original victory')
+  const fpProfile = S.defaults()
+  const firstPower = OP.POWER_ORDER[0]
+  const startingPowers = OP.Powers.copyInventory()
+  startingPowers[firstPower] = 2
+  S.recordResult(fpProfile, {
+    mapKey: 'glade', difficulty: 'medium', mode: 'standard', won: true,
+    round: 60, roundsCleared: 60, pops: 1000, cash: 2000, powers: startingPowers
+  })
+  const fpBaseline = { round: 60, roundsCleared: 60, pops: 1000, cash: 2000 }
+  const continuedPowers = OP.Powers.copyInventory(fpProfile.powers)
+  continuedPowers[firstPower]--
+  const gamesBeforeFreeplay = fpProfile.stats.gamesPlayed
+  const winsBeforeFreeplay = fpProfile.stats.gamesWon
+  const kpBeforeFreeplay = fpProfile.knowledgePoints
+  const fpReturned = S.recordFreeplayResult(fpProfile, {
+    mapKey: 'glade', difficulty: 'medium', mode: 'standard', won: false,
+    round: 100, roundsCleared: 100, pops: 5000, cash: 9000, powers: continuedPowers
+  }, fpBaseline)
+  t.eq(fpReturned, fpProfile, 'recordFreeplayResult mutates and returns the profile')
+  t.eq(fpProfile.stats.gamesPlayed, gamesBeforeFreeplay, 'the continuation is not a second game')
+  t.eq(fpProfile.stats.gamesWon, winsBeforeFreeplay, 'and not a second win')
+  t.eq(fpProfile.stats.roundsCleared, 100, 'only forty additional rounds are accumulated')
+  t.eq(fpProfile.stats.totalPops, 5000, 'only post-victory pops are added')
+  t.eq(fpProfile.stats.totalCash, 9000, 'only post-victory cash is added')
+  t.eq(fpProfile.playerXp, 1500, 'only post-victory round XP is added, with no second win bonus')
+  t.eq(fpProfile.stats.bestRound.glade, 100, 'the freeplay best round is retained')
+  t.eq(fpProfile.completions.glade.medium.standard, true, 'the original completion remains')
+  t.eq(fpProfile.powers[firstPower], continuedPowers[firstPower],
+    'freeplay power use persists without another victory reward')
+  t.ok(fpProfile.achievements.indexOf('round-100') >= 0, 'freeplay can unlock later milestones')
+  t.eq(fpProfile.knowledgePoints, kpBeforeFreeplay + OP.ACHIEVEMENTS['round-100'].kp,
+    'but awards no second game-completion knowledge payout')
+
   t.section('progression survives storage')
   wipe()
   t.eq(S.save(prog), true, 'a progressed profile saves')

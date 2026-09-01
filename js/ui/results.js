@@ -5,7 +5,7 @@
 
   /* ============================================================================
      RESULTS — the one screen a player reads carefully, so it says plainly what
-     happened and offers exactly two things to do next.
+     happened and offers clear next steps.
 
      Shown whenever `sim.over`, drawn as a MODAL layer over the board that produced
      it: the last frame of the run stays visible behind the scrim, which is worth
@@ -61,17 +61,20 @@
 
     const won = sim.outcome === 'won'
     const quit = sim.outcome === 'quit'
+    const freeplayEnded = sim.freeplay && !won && !quit
     const P = PANEL
 
     marks.push(U.box(P.x, P.y, P.w, P.h, { fill: C.panel, stroke: won ? C.moss : C.line }))
     marks.push(U.box(P.x, P.y, P.w, 3, { fill: won ? C.moss : C.bad }))
 
-    const title = won ? 'VICTORY' : (quit ? 'ABANDONED' : 'DEFEAT')
+    const title = won ? 'VICTORY' : (quit ? 'ABANDONED' : (freeplayEnded ? 'FREEPLAY OVER' : 'DEFEAT'))
     marks.push(U.tracked(P.x + 40, P.y + 84, title,
       { size: 40, colour: won ? C.moss : C.bad, track: 0.16, weight: '600' }))
     marks.push(U.text(P.x + 42, P.y + 108, won
       ? 'Every round cleared. Nothing got past you.'
-      : (quit ? 'You left this run behind.' : 'The last of your lives went through the exit.'),
+      : (quit ? 'You left this run behind.' : (freeplayEnded
+          ? 'Your defense held beyond the final round.'
+          : 'The last of your lives went through the exit.')),
       { size: 11, colour: C.dim }))
 
     const mapDef = OP.MAPS && app.state ? OP.MAPS[app.state.mapKey] : null
@@ -91,7 +94,7 @@
     const stats = sim.stats || {}
     const rows = [
       ['Round reached', String(Math.max(0, sim.roundIndex)) +
-        (rules.lastRound ? ' of ' + rules.lastRound : '')],
+        (rules.lastRound && !sim.freeplay ? ' of ' + rules.lastRound : '')],
       ['Balloons popped', M.compact(stats.popped || 0)],
       ['Layers popped', M.compact(stats.layersPopped || 0)],
       ['Cash earned', M.money(stats.cashEarned || 0)],
@@ -130,6 +133,8 @@
     // Expedition-specific buttons
     var profile = app && app.state ? app.state.profile : null
     var expResult = app && app.state ? app.state.expeditionResult : null
+    var freeplayEligible = won && !sim.freeplay && !expResult &&
+      (!app || typeof app.canContinueFreeplay !== 'function' || app.canContinueFreeplay())
     if (expResult && expResult.stageComplete && !expResult.expeditionComplete) {
       // Map completed in expedition — show CONTINUE EXPEDITION
       var expDef = profile && OP.Expedition && OP.Expedition.activeDef(profile)
@@ -155,16 +160,32 @@
       }))
     } else {
       // Normal results buttons
-      widgets.push(U.button('results.retry', P.x + 40, by, 250, 48, {
-        label: 'PLAY AGAIN', tone: 'primary', align: 'center', action: 'results-retry',
-        sub: 'same map, same rules'
-      }))
-      widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
-        label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
-      }))
+      if (freeplayEligible) {
+        widgets.push(U.button('results.freeplay', P.x + 40, by, 160, 48, {
+          label: 'FREEPLAY', tone: 'primary', align: 'center', action: 'results-freeplay',
+          sub: 'keep this defense'
+        }))
+        widgets.push(U.button('results.retry', P.x + 220, by, 160, 48, {
+          label: 'PLAY AGAIN', align: 'center', action: 'results-retry',
+          sub: 'restart this map'
+        }))
+        widgets.push(U.button('results.title', P.x + 400, by, 160, 48, {
+          label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
+        }))
+      } else {
+        widgets.push(U.button('results.retry', P.x + 40, by, 250, 48, {
+          label: 'PLAY AGAIN', tone: 'primary', align: 'center', action: 'results-retry',
+          sub: 'same map, same rules'
+        }))
+        widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
+          label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
+        }))
+      }
     }
 
-    marks.push(U.text(FIELD_W / 2, PANEL.y + PANEL.h + 30, 'ENTER plays again · ESC returns to the title',
+    marks.push(U.text(FIELD_W / 2, PANEL.y + PANEL.h + 30, freeplayEligible
+      ? 'ENTER continues in freeplay · ESC returns to the title'
+      : 'ENTER plays again · ESC returns to the title',
       { size: 10, colour: C.faint, align: 'center' }))
 
     return {
@@ -172,7 +193,7 @@
       backdrop: 'scrim',
       marks: marks,
       widgets: widgets,
-      defaultId: 'results.retry',
+      defaultId: freeplayEligible ? 'results.freeplay' : 'results.retry',
       hoverId: hoverId(app, widgets)
     }
   }
@@ -205,6 +226,12 @@
 
   Results.activate = function (app, w) {
     if (!w) return false
+
+    if (w.action === 'results-freeplay') {
+      click(true)
+      if (app && typeof app.continueFreeplay === 'function') app.continueFreeplay()
+      return true
+    }
 
     if (w.action === 'results-retry') {
       click(true)

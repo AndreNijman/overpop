@@ -688,6 +688,40 @@
     return p
   }
 
+  /**
+   * Record only the progress earned after an already-recorded victory continued
+   * into freeplay. The continuation is the same game: it must not add another
+   * game, win, completion reward, knowledge payout or victory power.
+   */
+  Save.recordFreeplayResult = function (profile, result, baseline) {
+    const p = isPlainObject(profile) ? repair(profile) : Save.defaults()
+    if (!isPlainObject(result) || !isPlainObject(baseline)) return p
+
+    const extraRounds = Math.max(0, counter(result.roundsCleared) - counter(baseline.roundsCleared))
+    const extraPops = Math.max(0, counter(result.pops) - counter(baseline.pops))
+    const extraCash = Math.max(0, counter(result.cash) - counter(baseline.cash))
+    p.stats.roundsCleared = addCounter(p.stats.roundsCleared, extraRounds)
+    p.stats.totalPops = addCounter(p.stats.totalPops, extraPops)
+    p.stats.totalCash = addCounter(p.stats.totalCash, extraCash)
+    p.playerXp = addCounter(p.playerXp, Save.xpForResult({ roundsCleared: extraRounds }))
+
+    const mapKey = safeKey(result.mapKey) ? result.mapKey : ''
+    const reached = counter(result.round === undefined ? result.roundsCleared : result.round)
+    if (mapKey && reached > counter(p.stats.bestRound[mapKey])) {
+      p.stats.bestRound[mapKey] = reached
+    }
+
+    p.unlockedTowers = mergeKeys(p.unlockedTowers, result.unlockedTowers)
+    p.seenBalloons = mergeKeys(p.seenBalloons, result.seenBalloons)
+    if (own(result, 'powers')) p.powers = powerInventory(result.powers)
+
+    if (OP.achievementsCheck && OP.achievementsAward) {
+      const earned = OP.achievementsCheck(p, OP)
+      if (earned.length) OP.achievementsAward(p, earned)
+    }
+    return p
+  }
+
   /* ---------- player progression ---------- */
 
   Save.XP_PER_LEVEL = 1000

@@ -109,6 +109,7 @@ export function run (t, OP, env) {
         app.calls.push(['startGame', mapKey, difficulty, mode])
         return null
       },
+      continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app.state.sim },
       quitToMenu: function () { app.calls.push(['quitToMenu']); app.state.screen = 'menu' }
     }
     return app
@@ -1126,12 +1127,20 @@ export function run (t, OP, env) {
   t.notOk(lostDense.includes('VICTORY'), 'and not victory')
   t.neq(lostDense, wonDense, 'the two screens differ')
   t.ok(lostDense.includes('17'), 'with the round it fell on')
+  const lostModel = Results.build(lostApp)
+  t.notOk(byId(lostModel, 'results.freeplay'), 'a defeat cannot continue into freeplay')
+  t.eq(lostModel.defaultId, 'results.retry', 'ENTER retries after a defeat')
 
   t.section('the results buttons act on the shell')
   const rModel = Results.build(wonApp)
+  t.ok(byId(rModel, 'results.freeplay'), 'a freeplay continuation button')
   t.ok(byId(rModel, 'results.retry'), 'a retry button')
   t.ok(byId(rModel, 'results.title'), 'and a way back to the title')
-  t.eq(rModel.defaultId, 'results.retry', 'ENTER retries')
+  t.eq(rModel.defaultId, 'results.freeplay', 'ENTER continues into freeplay after a victory')
+  const freeplayAt = centre(byId(rModel, 'results.freeplay'))
+  Results.tap(wonApp, freeplayAt.x, freeplayAt.y)
+  t.deep(wonApp.calls[wonApp.calls.length - 1], ['continueFreeplay'],
+    'freeplay asks the shell to reactivate the winning board')
   const retryAt = centre(byId(rModel, 'results.retry'))
   Results.tap(wonApp, retryAt.x, retryAt.y)
   t.deep(wonApp.calls[wonApp.calls.length - 1],
@@ -1146,10 +1155,32 @@ export function run (t, OP, env) {
   const keyApp = wireShell(makeApp(sim()))
   OP.Economy.endGame(keyApp.state.sim, 'won')
   t.ok(Results.key(keyApp, 'Enter'), 'ENTER is consumed')
-  t.eq(keyApp.calls[keyApp.calls.length - 1][0], 'startGame', 'and retries')
+  t.eq(keyApp.calls[keyApp.calls.length - 1][0], 'continueFreeplay', 'and continues into freeplay')
   t.ok(Results.key(keyApp, 'Escape'), 'ESC is consumed')
   t.eq(keyApp.calls[keyApp.calls.length - 1][0], 'quitToMenu', 'and quits to the menu')
   t.notOk(Results.key(keyApp, 'q'), 'anything else falls through')
+
+  t.section('an ended freeplay run reports its real round without offering freeplay twice')
+  const fpSim = sim()
+  fpSim.freeplay = true
+  fpSim.roundIndex = 137
+  OP.Economy.endGame(fpSim, 'leaked')
+  const fpApp = wireShell(makeApp(fpSim))
+  const fpDense = drawDense(Results, fpApp)
+  const fpModel = Results.build(fpApp)
+  t.ok(fpDense.includes('FREEPLAY OVER'), 'the result is identified as freeplay')
+  t.ok(fpDense.includes('137'), 'the actual round reached is shown')
+  t.notOk(fpDense.includes('of ' + fpSim.rules.lastRound), 'the old victory target is not shown as a limit')
+  t.notOk(byId(fpModel, 'results.freeplay'), 'freeplay cannot be entered a second time')
+
+  t.section('expedition victories keep their dedicated actions')
+  const expSim = sim()
+  OP.Economy.endGame(expSim, 'won')
+  const expApp = wireShell(makeApp(expSim))
+  expApp.state.expeditionResult = { expeditionComplete: true }
+  const expModel = Results.build(expApp)
+  t.notOk(byId(expModel, 'results.freeplay'), 'an expedition result does not offer freeplay')
+  t.ok(byId(expModel, 'results.title'), 'its expedition-complete action remains')
 
   t.section('the in-game panels stand down once the run is over')
   const overApp = wireShell(makeApp(sim()))
