@@ -48,6 +48,22 @@ export function run (t, OP, env) {
   t.ok(c4 !== null, 'past dates generate valid challenges')
   t.ok(OP.MAPS[c4.mapKey], 'with a valid map')
 
+  t.section('family modifier never leaks into an -only-mode challenge')
+  // 'limited-towers' is a family restriction that is meaningless in a mode that
+  // already restricts families. It must never appear as a listed modifier on an
+  // '-only' challenge. Iterating a fixed date span is deterministic — the same
+  // dates always produce the same challenges — so this is not a statistical probe.
+  let onlySeen = 0
+  let familyLeak = 0
+  for (let day = 1; day <= 366; day++) {
+    const ch = D.generate(D.dateKey(new Date(2026, 0, day - 1)))
+    if (!ch || ch.mode.indexOf('-only') < 0) continue
+    onlySeen++
+    if ((ch.modifiers || []).some(mod => mod.key === 'limited-towers')) familyLeak++
+  }
+  t.gt(onlySeen, 0, 'the date span contains -only-mode challenges')
+  t.eq(familyLeak, 0, 'no -only challenge lists the family modifier')
+
   t.section('today() returns a valid challenge')
   const today = D.today()
   t.ok(today !== null, 'today() is not null')

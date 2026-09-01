@@ -102,15 +102,19 @@
     var chosen = []
     var pool = MODIFIERS.slice()
 
-    for (var i = 0; i < count && pool.length > 0; i++) {
+    for (var i = 0; i < count && pool.length > 0; ) {
       var idx = rng.int(pool.length)
       var mod = pool[idx]
       pool.splice(idx, 1)
 
-      // Skip family-only modifier when the mode already restricts families
+      // Skip family-only modifier when the mode already restricts families —
+      // but re-draw rather than silently dropping the roll, so an '-only' mode
+      // is not quietly stuck with fewer modifiers than the RNG rolled (and thus
+      // anomalously easier) whenever 'limited-towers' is what came up.
       if (mod.family && modeKey.indexOf('-only') >= 0) continue
 
       chosen.push(mod)
+      i++
     }
 
     var rules = {}
