@@ -30,7 +30,9 @@
     for (const f in overrides) {
       const v = overrides[f]
       if (typeof v === 'number') {
-        // Additive for numeric fields
+        // One-life modes and difficulties promise exactly one life; do not let
+        // gen-extra-life override that resolved contract.
+        if (f === 'startLives' && rules[f] === 1) continue
         rules[f] = (rules[f] || 0) + v
       } else {
         // Boolean / other: assign

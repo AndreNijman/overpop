@@ -66,6 +66,26 @@ export function run (t, OP) {
   t.close(s.rules.cashPerPopMul, 1.05, 1e-9, 'Keen Eye adds five percentage points of pop income')
   t.close(s.rules.roundBonusMul, 1.05, 1e-9, 'Round Stipend adds five percentage points')
 
+  // The sim() helper forces startLives: 150, which would mask a mode's one-life
+  // contract. Build a variant without that override so the mode's own lives show.
+  const rawSim = (difficulty, mode, knowledge) => OP.Sim.create({
+    map: { key: 'test', paths: [straightTrack(OP, 3000)], placement: null, blockers: null },
+    seed: 'knowledge-life',
+    difficulty,
+    mode,
+    knowledge: knowledge || []
+  })
+  t.section('gen-extra-life honours the one-life contract')
+  t.eq(rawSim('hard', 'purist', []).lives, 1, 'PURIST starts on one life')
+  t.eq(rawSim('hard', 'purist', ['gen-extra-life']).lives, 1,
+    'PURIST stays one life - extra life does not break the contract')
+  t.eq(rawSim('hard', 'grim', ['gen-extra-life']).lives, 1, 'GRIM stays one life')
+  t.eq(rawSim('hard', 'rampart', ['gen-extra-life']).lives, 1, 'RAMPART stays one life')
+  t.eq(rawSim('relentless', 'standard', ['gen-extra-life']).lives, 1,
+    'a one-life difficulty stays one life')
+  t.eq(rawSim('medium', 'standard', ['gen-extra-life']).lives, 151,
+    'but a multi-life mode still gets the extra life')
+
   t.section('family stat bonuses apply through the buff engine')
   const base = sim([])
   const boosted = sim(['pri-damage', 'pri-range', 'pri-cooldown', 'pri-crit'])
