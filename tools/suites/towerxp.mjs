@@ -1,9 +1,10 @@
 // Tower XP — the BTD6-style progression that gates upgrades behind usage.
 //
-// XP is earned by using a tower: one point per popped layer (scaled by a round
-// ladder at every 10 rounds) plus one point per $1 spent on its upgrades. The
-// banked balance lives in the profile; each run's living towers add their
-// run-earned XP on top; freeplay pays a flat 5%.
+// XP is earned only by using a tower: one point per popped layer (scaled by a
+// round ladder at every 10 rounds). Money never buys XP — once a tier is
+// unlocked, purchasing it is a cash purchase, not a progression. The banked
+// balance lives in the profile; each run's living towers add their run-earned
+// XP on top; freeplay pays a flat 5%.
 
 export const name = 'towerxp'
 export const needs = [
@@ -82,30 +83,30 @@ export function run (t, OP, env) {
   hit(OP, simF, bf, 20, OP.DMG.NORMAL, { sourceId: twF.id })
   t.close(twF.runXp, 0.05, 1e-9, 'a freeplay pop earns 5% of the normal amount')
 
-  t.section('cash XP: 1 per $1 spent on upgrades')
+  t.section('money never buys XP')
   const simC = makeSim(OP, { cash: 99999 })
   simC.towerXp = { 'acorn-fox': 100000 }
   const twC = OP.Towers.place(simC, 'acorn-fox', 100, 360, { free: true })
   t.eq(twC.runXp, 0, 'no XP yet')
   const buyResult = OP.Upgrades.buy(simC, twC, 0)
   t.ok(buyResult.ok, 'an affordable, XP-clear upgrade buys')
-  t.close(twC.runXp, buyResult.cost, 1e-6, 'the purchase earns exactly its paid cost in XP')
+  t.eq(twC.runXp, 0, 'the purchase grants no XP - only popping earns XP')
 
-  t.section('cash XP in freeplay is quartered to 5%')
+  t.section('money never buys XP in freeplay either')
   const simFC = makeSim(OP, { cash: 99999 })
   simFC.freeplay = true
   simFC.towerXp = { 'acorn-fox': 100000 }
   const twFC = OP.Towers.place(simFC, 'acorn-fox', 100, 360, { free: true })
   const buyFC = OP.Upgrades.buy(simFC, twFC, 0)
   t.ok(buyFC.ok, 'the buy succeeds')
-  t.close(twFC.runXp, buyFC.cost * 0.05, 1e-6, 'freeplay upgrade XP is 5% of the spend')
+  t.eq(twFC.runXp, 0, 'and still grants no XP, freeplay or not')
 
   t.section('heroes earn no tower XP')
   const simH = makeSim(OP, { cash: 5000 })
   const fakeHero = { key: 'quincy', heroKey: 'quincy', runXp: 0 }
   t.eq(X.gainPops(simH, fakeHero, 50), 0, 'popping as a hero grants nothing')
   t.ok(!fakeHero.runXp, 'and leaves the hero untouched')
-  t.eq(X.gainCash(simH, fakeHero, 123), 0, 'hero upgrades grant nothing either')
+  t.notOk(X.gainCash, 'the old money-for-XP earner is gone')
   t.eq(X.gainPops(simH, null, 50), 0, 'and a null tower is a safe no-op')
   t.eq(X.gainPops(simH, undefined, 50), 0, 'an undefined tower is a safe no-op')
 
@@ -149,7 +150,7 @@ export function run (t, OP, env) {
   const exactly = OP.Upgrades.buy(simG, twG, 0)
   t.ok(exactly.ok, 'at exactly 150 XP the purchase goes through')
   t.eq(twG.tiers[0], 1, 'the tier was granted')
-  t.close(twG.runXp, exactly.cost, 1e-6, 'and the spent cash starts repaying itself as XP')
+  t.eq(twG.runXp, 0, 'and the purchase changes nothing about XP - it merely spends cash')
 
   t.section('the gate counts this run as well as the bank')
   const simL = makeSim(OP, { cash: 99999 })

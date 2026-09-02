@@ -1,12 +1,13 @@
 ;(function (OP) {
   'use strict'
 
-  /* Tower XP — BTD6-style progression on top of the upgrade tree.
+/* Tower XP — BTD6-style progression on top of the upgrade tree.
 
-     Every upgrade is gated by tower-type XP. XP is earned *by using the tower*:
-     one point per balloon layer popped (scaled by how deep into the run you are)
-     plus one point per $1 spent on its upgrades. A tower that does nothing, or
-     a tower you never place, earns nothing.
+      Every upgrade is gated by tower-type XP. XP is earned *by using the tower*:
+      one point per balloon layer popped (scaled by how deep into the run you
+      are). Money never grants XP — buying an unlocked tier is precisely that, a
+      purchase, not a progression. A tower that does nothing, or a tower you
+      never place, earns nothing.
 
      The player-level XP (`playerXp`) and hero XP (`hero.xp`) are separate
      systems that predate this one; nothing here touches them.
@@ -35,8 +36,7 @@
   TowerXp.TIER_XP = [0, 150, 450, 1500, 6000, 25000]
 
   /* Freeplay pays a flat 5% of normal XP: [user request] "freeplay should earn
-     you 5% of the normal xp." Applied uniformly, including upgrade XP, because
-     an infinite farm of the same towers is the campaign funding the next run. */
+     you 5% of the normal xp." Applied uniformly. */
   TowerXp.FREEPLAY_RATE = 0.05
 
   TowerXp.tierRequired = function (tier) {
@@ -93,21 +93,14 @@
     return { ok: have >= req, have: have, req: req }
   }
 
-  /* The two earners. Both return the point amount so the suite can assert the
-     exact ladder, and both skip heroes — a hero's `xp` field is hero XP, a
-     separate system, and double-counting it under a tower-type key would be
-     wrong on both sides. */
+  /* The one earner. Returns the point amount so the suite can assert the exact
+     ladder, and skips heroes — a hero's `xp` field is hero XP, a separate
+     system, and double-counting it under a tower-type key would be wrong on
+     both sides. */
   TowerXp.gainPops = function (sim, tower, layers) {
     if (!tower || tower.heroKey || !(layers > 0)) return 0
     const amount = layers * TowerXp.roundMultiplier(sim && sim.roundIndex) *
       TowerXp.freeplayMultiplier(sim)
-    tower.runXp = (tower.runXp || 0) + amount
-    return amount
-  }
-
-  TowerXp.gainCash = function (sim, tower, cash) {
-    if (!tower || tower.heroKey || !(cash > 0)) return 0
-    const amount = cash * TowerXp.freeplayMultiplier(sim)
     tower.runXp = (tower.runXp || 0) + amount
     return amount
   }

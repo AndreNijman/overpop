@@ -112,7 +112,6 @@
     const cost = OP.Economy.price(sim, up.cost)
     if (!OP.Economy.canAfford(sim, cost)) return no('Not enough cash.')
     OP.Economy.spend(sim, cost)
-    if (OP.TowerXp && OP.TowerXp.gainCash) OP.TowerXp.gainCash(sim, tower, cost)
 
     tower.tiers[pathIdx]++
     tower.invested += cost
