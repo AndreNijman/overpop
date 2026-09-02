@@ -105,8 +105,8 @@ export function run (t, OP, env) {
         const live = app.state.sim
         return live && io.selectedId >= 0 ? live.towerById.get(io.selectedId) : null
       },
-      startGame: function (mapKey, difficulty, mode) {
-        app.calls.push(['startGame', mapKey, difficulty, mode])
+startGame: function (mapKey, difficulty, mode, opts) {
+        app.calls.push(['startGame', mapKey, difficulty, mode, opts || {}])
         return null
       },
 continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app.state.sim },
@@ -1142,15 +1142,33 @@ continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app
   Results.tap(wonApp, freeplayAt.x, freeplayAt.y)
   t.deep(wonApp.calls[wonApp.calls.length - 1], ['continueFreeplay'],
     'freeplay asks the shell to reactivate the winning board')
-  const retryAt = centre(byId(rModel, 'results.retry'))
+const retryAt = centre(byId(rModel, 'results.retry'))
   Results.tap(wonApp, retryAt.x, retryAt.y)
   t.deep(wonApp.calls[wonApp.calls.length - 1],
-    ['startGame', 'test', wonSim.difficulty, wonSim.mode],
-    'retry restarts the same map, difficulty and mode')
+    ['startGame', 'test', wonSim.difficulty, wonSim.mode, {}],
+    'retry restarts the same map, difficulty and mode (plain runs keep a fresh seed)')
 
   const titleAt = centre(byId(rModel, 'results.title'))
   Results.tap(wonApp, titleAt.x, titleAt.y)
   t.deep(wonApp.calls[wonApp.calls.length - 1], ['quitToMenu'], 'and the other button leaves for the menu')
+
+  t.section('retry replays a finished daily with its challenge seed and rules')
+  const dailySim = sim({ seed: 'daily-2026-08-31', rules: { startLives: 1, startCash: 2500 } })
+  OP.Economy.endGame(dailySim, 'leaked')
+  const dApp = wireShell(makeApp(dailySim))
+  const dModel = Results.build(dApp)
+  t.ok(byId(dModel, 'results.retry'), 'a defeated daily still offers retry')
+  t.eq(dModel.defaultId, 'results.retry', 'and ENTER retries it')
+  const dRetryAt = centre(byId(dModel, 'results.retry'))
+  Results.tap(dApp, dRetryAt.x, dRetryAt.y)
+  const lastStart = dApp.calls[dApp.calls.length - 1]
+  t.eq(lastStart[0], 'startGame', 'retry calls startGame')
+  t.eq(lastStart[1], 'test', 'with the same map')
+  t.eq(lastStart[2], dailySim.difficulty, 'and difficulty')
+  t.eq(lastStart[3], dailySim.mode, 'and the same mode')
+  t.eq(lastStart[4].seed, 'daily-2026-08-31', 'and replays the daily seed')
+  t.deep(lastStart[4].rules, OP.Daily.generate('2026-08-31').rules,
+    'with the challenge modifiers intact — a reduced-lives daily stays reduced-lives')
 
   t.section('the keyboard works on the results screen')
   const keyApp = wireShell(makeApp(sim()))

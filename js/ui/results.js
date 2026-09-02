@@ -243,7 +243,23 @@
       click(true)
       const st = app && app.state ? app.state : null
       if (app && typeof app.startGame === 'function' && st) {
-        app.startGame(st.mapKey, st.difficulty, st.mode)
+        var opts = {}
+        // "PLAY AGAIN" must mean same map, same rules. A finished daily run is
+        // only identified by its sim seed ("daily-<dateKey>"); without carrying
+        // the challenge's seed and modifiers into the replay, retrying a daily
+        // would silently start the plain map with none of them (reduced-lives
+        // becomes a full-lives game). The challenge is not re-armed — the day
+        // was already completed on the first game over, so a replay must not
+        // re-record it either.
+        var live = st.sim
+        if (live && typeof live.seed === 'string' && live.seed.indexOf('daily-') === 0 && OP.Daily) {
+          const challenge = OP.Daily.generate(live.seed.slice('daily-'.length))
+          if (challenge) {
+            opts.seed = challenge.seed
+            opts.rules = challenge.rules || {}
+          }
+        }
+        app.startGame(st.mapKey, st.difficulty, st.mode, opts)
       }
       return true
     }
