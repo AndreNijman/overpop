@@ -175,14 +175,16 @@
   }
 
   /**
-   * Called from the sim step once the round is complete. Pays the bonus, marks
-   * the round done, and either arms the next round or ends a won game.
+   * Called from the sim step once the round is complete. Pays the bonus,
+   * shares the round's tower-XP pool out, marks the round done, and either
+   * arms the next round or ends a won game.
    */
   Rounds.complete = function (sim) {
     const r = sim.round
     if (!r || r.done) return false
     r.done = true
     sim.stats.roundsCleared++
+    if (OP.TowerXp && OP.TowerXp.settle) OP.TowerXp.settle(sim)
     OP.Economy.payRoundBonus(sim)
     sim.events.push({ kind: 'roundend', round: r.index })
 

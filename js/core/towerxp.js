@@ -3,28 +3,32 @@
 
 /* Tower XP — BTD6-style progression on top of the upgrade tree.
 
-      Every upgrade is gated by tower-type XP. XP is earned *by using the tower*:
-      one point per balloon layer popped (scaled by how deep into the run you
-      are). Money never grants XP — buying an unlocked tier is precisely that, a
-      purchase, not a progression. A tower that does nothing, or a tower you
-      never place, earns nothing.
+      Every upgrade is gated by tower-type XP. XP is earned *by using towers*:
+      popping balloons fills a general pool, and when a round completes that pool
+      is shared out to every living tower in proportion to the money invested in
+      it (placement + upgrades). Money never grants XP — buying an unlocked tier
+      is precisely that, a purchase, not a progression. A tower you never place
+      and invest in earns nothing.
 
-     The player-level XP (`playerXp`) and hero XP (`hero.xp`) are separate
-     systems that predate this one; nothing here touches them.
+      The player-level XP (`playerXp`) and hero XP (`hero.xp`) are separate
+      systems that predate this one; nothing here touches them.
 
-     Two clocks are involved in a run:
+      Two clocks are involved in a run:
 
-       sim.towerXp   banked XP, a copy of the profile's towerXp made at start /
-                     resume. Lives on the sim so a resumed run sees the same
-                     total it started with.
-       tower.runXp   XP earned by ONE living tower this run (float). Summed
-                     with sim.towerXp for gating, and banked into the profile at
-                     game over.
+        sim.towerXp   banked XP, a copy of the profile's towerXp made at start /
+                      resume. Lives on the sim so a resumed run sees the same
+                      total it started with.
+        sim.roundXpPool   XP earned from pops this round, undivided. Flushed to
+                          the living towers when the round completes.
 
-     /resume is lossless: tower.runXp is serialized alongside the tower, and the
-     profile copy persists, so a half-finished run reloaded mid-freeplay keeps
-     every point it earned. A run you walk away from banks nothing — the profile
-     only gains what a run *completed*. */
+      tower.runXp is the sum of every round's share the tower has been paid so
+      far. It is summed with sim.towerXp for gating, and banked into the profile
+      at game over.
+
+      /resume is lossless: tower.runXp and sim.roundXpPool are serialized, and
+      the profile copy persists, so a half-finished run reloaded mid-freeplay
+      keeps every point it earned. A run you walk away from banks nothing — the
+      profile only gains what a run *completed*. */
 
   const TowerXp = {}
 
@@ -93,16 +97,42 @@
     return { ok: have >= req, have: have, req: req }
   }
 
-  /* The one earner. Returns the point amount so the suite can assert the exact
-     ladder, and skips heroes — a hero's `xp` field is hero XP, a separate
-     system, and double-counting it under a tower-type key would be wrong on
-     both sides. */
+  /* The one earner. Adds every pop to the round pool — no tower is credited
+     yet, because the pool is divided by *spending*, not by who popped. Returns
+     the point amount so the suite can assert the exact ladder. Heroes earn
+     nothing: a hero's `xp` field is hero XP, a separate system, and counting
+     their pops here would cross the two. */
   TowerXp.gainPops = function (sim, tower, layers) {
     if (!tower || tower.heroKey || !(layers > 0)) return 0
     const amount = layers * TowerXp.roundMultiplier(sim && sim.roundIndex) *
       TowerXp.freeplayMultiplier(sim)
-    tower.runXp = (tower.runXp || 0) + amount
+    if (!sim) return amount
+    sim.roundXpPool = (sim.roundXpPool || 0) + amount
     return amount
+  }
+
+  /* Share the round pool out to the living towers, each tower getting a slice
+     proportional to the money invested in it (placement + upgrades, i.e.
+     `tower.invested`). Free placements (invested 0) get nothing — nothing was
+     spent on them. Called at round completion and at game over. */
+  TowerXp.settle = function (sim) {
+    if (!sim || !(sim.roundXpPool > 0)) return sim
+    const pool = sim.roundXpPool
+    sim.roundXpPool = 0
+    const towers = Array.isArray(sim.towers) ? sim.towers : []
+    let total = 0
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i]
+      if (t && !t.heroKey && t.invested > 0) total += t.invested
+    }
+    if (!(total > 0)) return sim
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i]
+      if (t && !t.heroKey && t.invested > 0) {
+        t.runXp = (t.runXp || 0) + pool * (t.invested / total)
+      }
+    }
+    return sim
   }
 
   /* One-time move at game over: floor each living tower's float into the

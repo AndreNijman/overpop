@@ -507,8 +507,11 @@
       var trialResult = OP.Trial.recordGameOver(S.profile, S.sim.outcome === 'won', S.sim.roundIndex)
       S.trialResult = trialResult
     }
-    // Bank what the run's towers actually earned. Writes profile.towerXp only
-    // from living towers, so a run walked away from banks nothing.
+    // Share out any XP still sitting in the round pool (a losing round never
+    // completed, so the settle hook never fired), then bank what the run's
+    // towers actually earned. Writes profile.towerXp only from living towers,
+    // so a run walked away from banks nothing.
+    if (OP.TowerXp && OP.TowerXp.settle) OP.TowerXp.settle(S.sim)
     if (OP.TowerXp && OP.TowerXp.bank) OP.TowerXp.bank(S.profile, S.sim)
     if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     if (OP.Audio) OP.Audio.stopMusic()

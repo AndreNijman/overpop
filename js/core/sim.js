@@ -410,6 +410,7 @@
       lives: sim.lives,
       cashPerPopMul: sim.cashPerPopMul,
       roundIndex: sim.roundIndex,
+      roundXpPool: sim.roundXpPool || 0,
       autostart: sim.autostart,
       freeplay: sim.freeplay,
       freeplayBaseline: sim.freeplayBaseline
@@ -476,6 +477,7 @@
     sim.lives = snap.lives
     sim.cashPerPopMul = snap.cashPerPopMul
     sim.roundIndex = snap.roundIndex
+    sim.roundXpPool = snap.roundXpPool || 0
     sim.freeplay = !!snap.freeplay
     sim.freeplayBaseline = snap.freeplayBaseline
       ? Object.assign({}, snap.freeplayBaseline)

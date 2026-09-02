@@ -1,10 +1,11 @@
 // Tower XP — the BTD6-style progression that gates upgrades behind usage.
 //
-// XP is earned only by using a tower: one point per popped layer (scaled by a
-// round ladder at every 10 rounds). Money never buys XP — once a tier is
-// unlocked, purchasing it is a cash purchase, not a progression. The banked
-// balance lives in the profile; each run's living towers add their run-earned
-// XP on top; freeplay pays a flat 5%.
+// Pops fill a general per-round pool (scaled by a round ladder at every 10
+// rounds; freeplay pays a flat 5%). When the round completes, the pool is
+// shared out to every living tower in proportion to the money invested in it —
+// placement + upgrades — so a type's earn is its share of total spending. Money
+// never buys XP: once a tier is unlocked, purchasing it is a cash purchase, not
+// a progression.
 
 export const name = 'towerxp'
 export const needs = [
@@ -52,36 +53,82 @@ export function run (t, OP, env) {
   t.eq(X.freeplayMultiplier({ freeplay: false }), 1, 'explicitly not freeplay is full rate')
   t.eq(X.freeplayMultiplier({ freeplay: true }), 0.05, 'freeplay pays the flat 5%')
 
-  t.section('pop XP accrues on living towers')
+  t.section('pops fill a general round pool')
   const sim = makeSim(OP, { cash: 5000 })
   const tw = OP.Towers.place(sim, 'acorn-fox', 100, 360, { free: true })
   t.ok(tw, 'a acorn-fox tower can be placed')
+  tw.invested = 100
   t.eq(tw.runXp, 0, 'placement itself grants no XP')
+  t.eq(sim.roundXpPool, undefined, 'and the round pool starts empty')
   const b = spawn(OP, sim, 0, 0, 0)
   const res = hit(OP, sim, b, 20, OP.DMG.NORMAL, { sourceId: tw.id })
   t.ok(res.destroyed, 'the red balloon pops')
-  t.close(tw.runXp, 1, 1e-9, 'one red layer at round 0 earns 1 XP')
+  t.close(sim.roundXpPool, 1, 1e-9, 'one red layer at round 0 adds 1 XP to the pool')
+  t.eq(tw.runXp, 0, 'but the tower is not credited until the pool settles')
+  X.settle(sim)
+  t.close(tw.runXp, 1, 1e-9, 'settling pays the sole tower the whole pool')
+  t.eq(sim.roundXpPool, 0, 'and empties the pool')
 
   t.section('the round ladder scales pop XP in-run')
   const simR = makeSim(OP, { cash: 5000 })
   const twR = OP.Towers.place(simR, 'acorn-fox', 100, 360, { free: true })
+  twR.invested = 100
   simR.roundIndex = 25
   const br = spawn(OP, simR, 0, 0, 0)
   hit(OP, simR, br, 20, OP.DMG.NORMAL, { sourceId: twR.id })
-  t.close(twR.runXp, 3, 1e-9, 'a round-25 pop earns 1 + floor(25/10) per layer')
+  t.close(simR.roundXpPool, 3, 1e-9, 'a round-25 pop adds 1 + floor(25/10) per layer')
+  X.settle(simR)
+  t.close(twR.runXp, 3, 1e-9, 'and the settle pays it out')
   const before = twR.runXp
   simR.roundIndex = 9
   const br9 = spawn(OP, simR, 0, 0, 0)
   hit(OP, simR, br9, 20, OP.DMG.NORMAL, { sourceId: twR.id })
-  t.close(twR.runXp - before, 1, 1e-9, 'the multiplier recomputes per pop, per round')
+  t.close(simR.roundXpPool, 1, 1e-9, 'the multiplier recomputes per pop, per round')
+  X.settle(simR)
+  t.close(twR.runXp - before, 1, 1e-9, 'and each round settles into the tower')
 
   t.section('freeplay pays 5% for the same pop')
   const simF = makeSim(OP, { cash: 5000 })
   simF.freeplay = true
   const twF = OP.Towers.place(simF, 'acorn-fox', 100, 360, { free: true })
+  twF.invested = 100
   const bf = spawn(OP, simF, 0, 0, 0)
   hit(OP, simF, bf, 20, OP.DMG.NORMAL, { sourceId: twF.id })
-  t.close(twF.runXp, 0.05, 1e-9, 'a freeplay pop earns 5% of the normal amount')
+  t.close(simF.roundXpPool, 0.05, 1e-9, 'a freeplay pop adds 5% of the normal amount')
+  X.settle(simF)
+  t.close(twF.runXp, 0.05, 1e-9, 'and the paid pool matches')
+
+t.section('the pool is shared pro rata by money invested')
+  const simP = makeSim(OP, { cash: 5000 })
+  const twPa = OP.Towers.place(simP, 'acorn-fox', 100, 360, { free: true })
+  twPa.invested = 300
+  const twPb = OP.Towers.place(simP, 'rune-weasel', 300, 360, { free: true })
+  twPb.invested = 100
+  const bp = spawn(OP, simP, 0, 0, 0)
+  hit(OP, simP, bp, 20, OP.DMG.NORMAL, { sourceId: twPa.id })
+  t.close(simP.roundXpPool, 1, 1e-9, 'the pop fills the pool')
+  X.settle(simP)
+  t.close(twPa.runXp, 0.75, 1e-9, 'the $300 tower earns 3/4 of the pool')
+  t.close(twPb.runXp, 0.25, 1e-9, 'the $100 tower earns 1/4 of the pool')
+  t.close(twPa.runXp + twPb.runXp, 1, 1e-9, 'and the paid shares sum to the pool')
+  const simP2 = makeSim(OP, { cash: 5000 })
+  const twPc = OP.Towers.place(simP2, 'acorn-fox', 100, 360, { free: true })
+  twPc.invested = 0
+  const twPd = OP.Towers.place(simP2, 'rune-weasel', 300, 360, { free: true })
+  twPd.invested = 50
+  const bp2 = spawn(OP, simP2, 0, 0, 0)
+  hit(OP, simP2, bp2, 20, OP.DMG.NORMAL, { sourceId: twPd.id })
+  X.settle(simP2)
+  t.eq(twPc.runXp, 0, 'a free placement with nothing invested earns nothing')
+  t.close(twPd.runXp, 1, 1e-9, 'the invested tower takes the pool')
+  const simP3 = makeSim(OP, { cash: 5000 })
+  const twPe = OP.Towers.place(simP3, 'acorn-fox', 100, 360, { free: true })
+  twPe.invested = 100
+  const bp3 = spawn(OP, simP3, 0, 0, 0)
+  hit(OP, simP3, bp3, 20, OP.DMG.NORMAL, { sourceId: twPe.id })
+  X.settle(simP3)
+  X.settle(simP3)
+  t.close(twPe.runXp, 1, 1e-9, 'a second settle with an empty pool changes nothing')
 
   t.section('money never buys XP')
   const simC = makeSim(OP, { cash: 99999 })
@@ -117,7 +164,7 @@ export function run (t, OP, env) {
   twA.runXp = 25
   t.eq(X.baseOf(simA, 'acorn-fox'), 300, 'the banked half reads back')
   t.eq(X.available(simA, 'acorn-fox'), 325, 'and sums with the live half')
-  t.eq(X.available(simA, 'ninja'), 0, 'an unpaid tower type has nothing')
+  t.eq(X.available(simA, 'rune-weasel'), 0, 'an unpaid tower type has nothing')
   t.eq(X.baseOf(simA, 'missing-key'), 0, 'an unknown key banks nothing')
   const manual = { key: 'acorn-fox', runXp: 8 }
   simA.towers.push(manual)
