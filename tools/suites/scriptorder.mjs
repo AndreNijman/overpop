@@ -115,12 +115,6 @@ export function run (t, OP, env) {
   t.ok(/<h1>/.test(html), 'a real <h1> is present for crawlers and screen readers')
   t.ok(/<noscript/.test(html), 'and a noscript fallback')
 
-  t.section('the service worker will precache the whole bundle')
-  const sw = readFileSync(resolve(ROOT, 'sw.js'), 'utf8')
-  t.ok(sw.includes('buildPrecacheList') || /<script\[\^>\]/.test(sw),
-    'sw.js derives its list from index.html rather than hardcoding it — 50 tags would drift')
-  t.ok(/CACHE_NAME\s*=\s*'overpop-/.test(sw), 'and uses a namespaced cache key')
-
   t.section('main.js exposes the autoplay hook the browser smoke test drives')
   t.ok(OP.Test && typeof OP.Test.autoplay === 'function',
     'OP.Test.autoplay exists, so tools/smoke.mjs drives the same path a player does')

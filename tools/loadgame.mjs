@@ -201,7 +201,7 @@ export function loadGame ({ silent = true, stopOnError = true } = {}) {
     devicePixelRatio: 1,
     innerWidth: 1280, innerHeight: 720,
     location: { href: 'https://overpop.andrenijman.com/', protocol: 'https:', hostname: 'overpop.andrenijman.com', search: '', hash: '', reload () {} },
-    navigator: { userAgent: 'node-harness', language: 'en', maxTouchPoints: 0, serviceWorker: { register: () => Promise.resolve({}) }, vibrate: () => true, clipboard: { writeText: () => Promise.resolve() } },
+    navigator: { userAgent: 'node-harness', language: 'en', maxTouchPoints: 0, vibrate: () => true, clipboard: { writeText: () => Promise.resolve() } },
     matchMedia: q => ({ matches: false, media: q, addEventListener () {}, removeEventListener () {}, addListener () {}, removeListener () {} }),
     addEventListener () {}, removeEventListener () {},
     Image: class { constructor () { this.width = 0; this.height = 0 } set src (_v) { this.onload?.() } },

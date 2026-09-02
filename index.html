@@ -3,14 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="OVERPOP">
-  <meta name="application-name" content="OVERPOP">
   <meta name="theme-color" content="#0e1410">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="OVERPOP is a free, original tower defense game you play in your browser. 31 critter towers, 100 rounds, 48 maps, heroes, bosses, persistent progression and seventeen game modes. No download, works offline.">
+  <meta name="description" content="OVERPOP is a free, original tower defense game you play in your browser. 31 critter towers, 100 rounds, 48 maps, heroes, bosses, persistent progression and seventeen game modes. No download.">
   <title>OVERPOP — Free Browser Tower Defense Game</title>
   <link rel="canonical" href="https://overpop.andrenijman.com/">
 
@@ -31,7 +26,7 @@
     "@type": "VideoGame",
     "name": "OVERPOP",
     "url": "https://overpop.andrenijman.com/",
-    "description": "A free, original round-based tower defense game played in the browser. Thirty-one woodland-critter towers, a hundred rounds, forty-eight maps, levelling heroes, paragons, bosses, persistent progression and seventeen game modes. Installable as a PWA and fully playable offline.",
+    "description": "A free, original round-based tower defense game played in the browser. Thirty-one woodland-critter towers, a hundred rounds, forty-eight maps, levelling heroes, paragons, bosses, persistent progression and seventeen game modes.",
     "genre": ["Tower defense", "Strategy"],
     "playMode": ["SinglePlayer", "MultiPlayer"],
     "gamePlatform": "Web browser",
@@ -44,10 +39,6 @@
   }
   </script>
 
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -85,7 +76,7 @@
   <!-- ORDERED SCRIPT MANIFEST — load order is dependency order.
        Classic scripts, no modules: nothing resolves this for us, and
        `harness.mjs --suite scriptorder` fails if this list drifts from
-       sw.js's PRECACHE or from what exists on disk. -->
+       what exists on disk. -->
 
   <!-- foundations -->
   <script src="js/core/const.js"></script>

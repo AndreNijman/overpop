@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
 import { scriptManifest, ROOT } from '../loadgame.mjs'
 
 export const name = 'loader'
-export const needs = ['index.html', 'sw.js']
+export const needs = ['index.html']
 
 export function run (t, OP, env) {
   const manifest = scriptManifest()
@@ -52,13 +52,6 @@ export function run (t, OP, env) {
   const leaked = Object.keys(env.ctx).filter(k => !allowed.has(k))
   t.eq(leaked.length, 0, 'no file leaked a top-level binding into the global scope',
     leaked.length ? `leaked: ${leaked.join(', ')}` : '')
-
-  t.section('service worker derives its own precache list')
-  const sw = readFileSync(resolve(ROOT, 'sw.js'), 'utf8')
-  t.ok(/<script\[\^>\]\+src=|script\[\^>\]/.test(sw) || sw.includes('buildPrecacheList'),
-    'sw.js builds its precache list from index.html rather than hardcoding it')
-  t.ok(sw.includes("'./index.html'"), 'sw.js precaches the shell explicitly')
-  t.ok(/CACHE_NAME\s*=\s*'overpop-/.test(sw), 'sw.js uses a namespaced cache key')
 
   t.section('harness stubs')
   t.ok(env.canvas && typeof env.canvas.getContext === 'function', 'a stub canvas is available')
