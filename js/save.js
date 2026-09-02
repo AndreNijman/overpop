@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 7
+  Save.SCHEMA_VERSION = 8
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -244,7 +244,8 @@
       expedition: null,     // active expedition state or null
       completedExpeditions: {}, // expeditionKey -> completion count
       activeTrial: null,    // active trial state or null
-      completedTrials: {}   // trialKey -> { completed, bestTime, completedAt }
+      completedTrials: {},   // trialKey -> { completed, bestTime, completedAt }
+      towerXp: {}            // towerKey -> banked tower XP from completed runs
     }
   }
 
@@ -294,6 +295,7 @@
     out.completedExpeditions = normaliseCompletedExpeditions(raw.completedExpeditions)
     out.activeTrial = normaliseActiveTrial(raw.activeTrial)
     out.completedTrials = normaliseCompletedTrials(raw.completedTrials)
+    out.towerXp = normaliseTowerXp(raw.towerXp)
     out.schemaVersion = Save.SCHEMA_VERSION
     return out
   }
@@ -406,6 +408,20 @@
     return out
   }
 
+  /* Normalise banked tower XP. towerKey -> non-negative integer XP. Keys are
+     safeKey()-screened like every other user-keyed map, and stray decimals from
+     a hand-edited entry are floored into integral balance. */
+  function normaliseTowerXp (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    for (const key in raw) {
+      if (!own(raw, key) || !safeKey(key)) continue
+      const n = counter(raw[key])
+      if (n > 0) out[key] = n
+    }
+    return out
+  }
+
   /** mapKey -> difficulty -> mode -> true. Only literal `true` leaves survive,
       and a branch with no surviving leaf is dropped rather than left empty.
       Every key is safeKey()-screened and every "does this branch exist?" test is
@@ -488,6 +504,13 @@
         const winXp = counter(counter(stats.gamesWon) * 500)
         p.playerXp = addCounter(roundXp, winXp)
       }
+      return p
+    },
+    // Version 7 → 8: add banked tower XP. Nothing to derive — the game has no
+    // per-tower usage history worth trusting, so progression starts at zero and
+    // is earned the same way for everyone.
+    7: function (p) {
+      if (!isPlainObject(p.towerXp)) p.towerXp = {}
       return p
     }
   }
@@ -614,6 +637,7 @@
     if (!isPlainObject(p.completedExpeditions)) p.completedExpeditions = {}
     if (p.activeTrial !== null && !isPlainObject(p.activeTrial)) p.activeTrial = null
     if (!isPlainObject(p.completedTrials)) p.completedTrials = {}
+    if (!isPlainObject(p.towerXp)) p.towerXp = {}
     return p
   }
 

@@ -92,6 +92,10 @@
 
     const rules = sim.rules || {}
     const stats = sim.stats || {}
+    let xpTally = 0
+    if (OP.TowerXp) {
+      for (const t of (sim.towers || [])) xpTally += Math.floor(t.runXp || 0)
+    }
     const rows = [
       ['Round reached', String(Math.max(0, sim.roundIndex)) +
         (rules.lastRound && !sim.freeplay ? ' of ' + rules.lastRound : '')],
@@ -101,7 +105,8 @@
       ['Lives left', String(Math.max(0, sim.lives))],
       ['Balloons leaked', M.compact(stats.leaked || 0)],
       ['Towers standing', String(sim.towers ? sim.towers.length : 0)],
-      ['Time played', M.time(sim.time || 0)]
+      ['Time played', M.time(sim.time || 0)],
+      ['Tower XP earned', M.compact(xpTally)]
     ]
     // Race-specific rows
     if (OP.Race && OP.Race.isActive && OP.Race.isActive(sim)) {

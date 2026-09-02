@@ -289,6 +289,10 @@
     // Apply expedition carry-over state
     if (opts.expeditionCash != null) S.sim.cash = opts.expeditionCash
     if (opts.expeditionLives != null) S.sim.lives = opts.expeditionLives
+    // Banked tower XP rides along on the sim so gating has one source of truth
+    // for "how much of this tower type may I spend". A shallow copy is fine —
+    // the map only ever grows at game over, never mid-run.
+    S.sim.towerXp = Object.assign({}, (S.profile && S.profile.towerXp) || {})
     S.screen = 'game'
     OP.FX.reset()
     OP.FX.view = S.view
@@ -308,6 +312,9 @@
     if (!def) return null
     try {
       S.sim = OP.Sim.deserialize(run.snapshot, buildMapFor(def, run.snapshot.mode))
+      // tower.runXp is per-tower inside the snapshot, so the run's own XP is
+      // already restored; this copy re-attaches the banked half.
+      S.sim.towerXp = Object.assign({}, (S.profile && S.profile.towerXp) || {})
       S.mapKey = run.mapKey
       S.difficulty = S.sim.difficulty
       S.mode = S.sim.mode
@@ -503,6 +510,9 @@
       var trialResult = OP.Trial.recordGameOver(S.profile, S.sim.outcome === 'won', S.sim.roundIndex)
       S.trialResult = trialResult
     }
+    // Bank what the run's towers actually earned. Writes profile.towerXp only
+    // from living towers, so a run walked away from banks nothing.
+    if (OP.TowerXp && OP.TowerXp.bank) OP.TowerXp.bank(S.profile, S.sim)
     if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     if (OP.Audio) OP.Audio.stopMusic()
   }

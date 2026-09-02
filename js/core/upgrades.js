@@ -99,9 +99,20 @@
     const up = Upgrades.nextUpgrade(tower, pathIdx)
     if (!up) return no('Nothing left to buy on this branch.')
 
+    // Tower XP gates upgrades. A raw sim with no progression (test harness,
+    // preview) is unlimited; a real run can only spend what it has earned.
+    const next = tower.tiers[pathIdx] + 1
+    if (OP.TowerXp && OP.TowerXp.canUnlock) {
+      const xp = OP.TowerXp.canUnlock(sim, tower.key, next)
+      if (!xp.ok) {
+        return no('Tier ' + next + ' needs ' + xp.req + ' tower XP — you have ' + Math.floor(xp.have) + '.')
+      }
+    }
+
     const cost = OP.Economy.price(sim, up.cost)
     if (!OP.Economy.canAfford(sim, cost)) return no('Not enough cash.')
     OP.Economy.spend(sim, cost)
+    if (OP.TowerXp && OP.TowerXp.gainCash) OP.TowerXp.gainCash(sim, tower, cost)
 
     tower.tiers[pathIdx]++
     tower.invested += cost

@@ -68,6 +68,7 @@ function completeProfile (OP, p) {
   if (!isObj(p.completedExpeditions)) return false
   if (p.activeTrial !== null && !isObj(p.activeTrial)) return false
   if (!isObj(p.completedTrials)) return false
+  if (!isObj(p.towerXp)) return false
   return true
 }
 
@@ -113,7 +114,7 @@ export function run (t, OP, env) {
 
   t.section('a fresh profile is complete and storable')
   const d = S.defaults()
-  t.eq(S.SCHEMA_VERSION, 7, 'the schema starts at version 7')
+  t.eq(S.SCHEMA_VERSION, 8, 'the schema starts at version 8')
   t.ok(Number.isInteger(S.SCHEMA_VERSION) && S.SCHEMA_VERSION >= 1, 'and is a positive integer')
   t.ok(completeProfile(OP, d), 'defaults() has every field the game reads')
   t.eq(d.settings.gameSpeed, 1, 'the game starts at normal speed')
@@ -240,49 +241,49 @@ export function run (t, OP, env) {
   t.eq(fractional.stats.gamesPlayed, 6, 'its data is kept')
   t.eq(fractional.schemaVersion, S.SCHEMA_VERSION, 'and the version is normalised')
 
-  t.section('the migration engine really steps — proved by pretending to be version 8')
+  t.section('the migration engine really steps — proved by pretending to be version 9')
   // With two live versions there is a real hop to observe. So stand up a
-  // version 8 the way a future build would: one MIGRATIONS entry plus the bump.
+  // version 9 the way a future build would: one MIGRATIONS entry plus the bump.
   const realVersion = S.SCHEMA_VERSION
   try {
     let ran = 0
-    S.SCHEMA_VERSION = 8
-    S.MIGRATIONS[7] = function (old) {
+    S.SCHEMA_VERSION = 9
+    S.MIGRATIONS[8] = function (old) {
       ran++
       old.stats = old.stats || {}
       old.stats.totalCash = (old.stats.totalCash || 0) + 500
       return old
     }
     const stepped = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 2, totalCash: 100 } })
-    t.eq(ran, 1, 'the from-version-7 step ran exactly once')
-    t.eq(stepped.schemaVersion, 8, 'the result is stamped with the new version')
+    t.eq(ran, 1, 'the from-version-8 step ran exactly once')
+    t.eq(stepped.schemaVersion, 9, 'the result is stamped with the new version')
     t.eq(stepped.stats.totalCash, 600, "and carries the step's change")
     t.eq(stepped.stats.gamesPlayed, 2, 'while fields the step ignored came across untouched')
 
-    const already = S.migrate({ schemaVersion: 8, stats: { gamesPlayed: 9 } })
+    const already = S.migrate({ schemaVersion: 9, stats: { gamesPlayed: 9 } })
     t.eq(already.stats.gamesPlayed, 9, 'a profile already at the current version is kept')
     t.eq(ran, 1, 'and no step re-runs on it')
 
     const chained = S.migrate({ stats: { gamesPlayed: 1 } })
-    t.eq(chained.schemaVersion, 8, 'an unversioned profile walks the whole chain')
+    t.eq(chained.schemaVersion, 9, 'an unversioned profile walks the whole chain')
     t.eq(ran, 2, 'running every step on the way')
 
-    S.MIGRATIONS[7] = function () { throw new Error('a future migration step with a bug in it') }
+    S.MIGRATIONS[8] = function () { throw new Error('a future migration step with a bug in it') }
     let thrown = null
     t.noThrow(() => { thrown = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }) },
       'a migration step that throws does not take the boot down with it')
     t.deep(canon(thrown), canon(S.defaults()), 'it loses the profile instead')
 
-    S.MIGRATIONS[7] = function () { return 'not a profile' }
+    S.MIGRATIONS[8] = function () { return 'not a profile' }
     t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
       'and a step that returns junk is caught too')
 
-    delete S.MIGRATIONS[7]
+    delete S.MIGRATIONS[8]
     t.deep(canon(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } })), canon(S.defaults()),
       'a version with no registered step gives defaults rather than a guess')
   } finally {
     S.SCHEMA_VERSION = realVersion
-    delete S.MIGRATIONS[7]
+    delete S.MIGRATIONS[8]
   }
   t.eq(S.SCHEMA_VERSION, realVersion, 'the real schema version is restored')
   t.eq(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }).stats.gamesPlayed, 5,

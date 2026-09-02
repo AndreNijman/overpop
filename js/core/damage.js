@@ -160,7 +160,10 @@
     else { sim.cash += cash; sim.stats.cashEarned += cash }
     if (hit.sourceId >= 0 && sim.towerById) {
       const tower = sim.towerById.get(hit.sourceId)
-      if (tower) tower.pops += res.layersPopped
+      if (tower) {
+        tower.pops += res.layersPopped
+        if (OP.TowerXp && OP.TowerXp.gainPops) OP.TowerXp.gainPops(sim, tower, res.layersPopped)
+      }
     }
   }
 

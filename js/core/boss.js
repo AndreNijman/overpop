@@ -176,7 +176,10 @@
     // Award pop stats
     if (hit.sourceId >= 0 && sim.towerById) {
       const tower = sim.towerById.get(hit.sourceId)
-      if (tower) tower.pops += Math.ceil(damage / 10)
+      if (tower) {
+        tower.pops += Math.ceil(damage / 10)
+        if (OP.TowerXp && OP.TowerXp.gainPops) OP.TowerXp.gainPops(sim, tower, Math.ceil(damage / 10))
+      }
     }
     sim.stats.layersPopped += Math.ceil(damage / 10)
 

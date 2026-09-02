@@ -121,15 +121,23 @@
     const up = OP.Upgrades.nextUpgrade(tower, p)
     const cost = up ? OP.Economy.price(sim, up.cost) : 0
     const afford = !!up && OP.Economy.canAfford(sim, cost)
+    // Tower XP gate: whether the tower type holds the requirement for the NEXT
+    // tier. Unlimited for raw sims with no progression (menu preview, harness).
+    const nextTier = tower.tiers[p] + 1
+    const xp = OP.TowerXp && OP.TowerXp.canUnlock
+      ? OP.TowerXp.canUnlock(sim, tower.key, nextTier)
+      : { ok: true, req: Infinity, have: Infinity }
     let reason = ''
     if (!legal.ok) reason = legal.reason
     else if (!up) reason = 'This branch is fully upgraded.'
+    else if (!xp.ok) reason = 'Tier ' + nextTier + ' needs ' + M.compact(xp.req) +
+      ' tower XP — you have ' + M.compact(Math.floor(xp.have)) + '.'
     else if (!afford) reason = 'Not enough cash — ' + M.money(cost) + ' needed.'
     return {
       up: up,
       cost: cost,
-      ok: legal.ok && !!up && afford,
-      locked: !legal.ok,        // a rule refusal, not merely an empty wallet
+      ok: legal.ok && !!up && xp.ok && afford,
+      locked: !legal.ok || !xp.ok,   // a rule refusal, not merely an empty wallet
       reason: reason
     }
   }
@@ -210,6 +218,9 @@
 
     marks.push(U.text(x0, y, 'earned ' + M.money(tower.earned || 0) +
       ' · invested ' + M.money(tower.invested || 0) +
+      (isHero || !OP.TowerXp || !OP.TowerXp.available
+        ? ''
+        : ' · ' + M.compact(Math.floor(OP.TowerXp.available(sim, tower.key))) + ' XP') +
       (s.camoDetect ? ' · sees veiled' : ''), { size: 9, colour: C.dim }))
     y += 14
 
