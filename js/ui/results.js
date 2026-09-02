@@ -258,6 +258,15 @@
             opts.seed = challenge.seed
             opts.rules = challenge.rules || {}
           }
+        } else if (live && typeof live.rules === 'object' && live.rules !== null) {
+          // "PLAY AGAIN" promises the same map and rules. Trials and other
+          // curated modes author modifiers (reduced lives, tower filters, cost
+          // multipliers) that reach the sim through startGame's `opts.rules`;
+          // replaying with an empty set would silently drop them and start a
+          // plain game instead of the same challenge. Standard runs only carry
+          // `allowedTowerKeys` here, which startGame recomputes identically, so
+          // this is a no-op for them.
+          opts.rules = Object.assign({}, live.rules)
         }
         app.startGame(st.mapKey, st.difficulty, st.mode, opts)
       }

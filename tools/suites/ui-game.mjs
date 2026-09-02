@@ -1144,9 +1144,14 @@ continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app
     'freeplay asks the shell to reactivate the winning board')
 const retryAt = centre(byId(rModel, 'results.retry'))
   Results.tap(wonApp, retryAt.x, retryAt.y)
-  t.deep(wonApp.calls[wonApp.calls.length - 1],
-    ['startGame', 'test', wonSim.difficulty, wonSim.mode, {}],
-    'retry restarts the same map, difficulty and mode (plain runs keep a fresh seed)')
+  const wonStart = wonApp.calls[wonApp.calls.length - 1]
+  t.eq(wonStart[0], 'startGame', 'retry restarts the same map')
+  t.eq(wonStart[1], 'test', 'on the same map')
+  t.eq(wonStart[2], wonSim.difficulty, 'and difficulty')
+  t.eq(wonStart[3], wonSim.mode, 'and mode')
+  t.ok(wonStart[4].seed === undefined, 'plain runs keep a fresh seed on retry')
+  t.deep(wonStart[4].rules, Object.assign({}, wonSim.rules),
+    'and carry the same rules so same-map-same-rules holds')
 
   const titleAt = centre(byId(rModel, 'results.title'))
   Results.tap(wonApp, titleAt.x, titleAt.y)
@@ -1169,6 +1174,32 @@ const retryAt = centre(byId(rModel, 'results.retry'))
   t.eq(lastStart[4].seed, 'daily-2026-08-31', 'and replays the daily seed')
   t.deep(lastStart[4].rules, OP.Daily.generate('2026-08-31').rules,
     'with the challenge modifiers intact — a reduced-lives daily stays reduced-lives')
+
+  t.section('retry replays a finished trial with its authored rules')
+  const trialSim = sim({ seed: 'trial-seed', rules: { startLives: 1, allowSell: false, towerCostMul: 0.5 } })
+  OP.Economy.endGame(trialSim, 'leaked')
+  const trApp = wireShell(makeApp(trialSim))
+  const trModel = Results.build(trApp)
+  t.ok(byId(trModel, 'results.retry'), 'a defeated trial still offers retry')
+  const tRetryAt = centre(byId(trModel, 'results.retry'))
+  Results.tap(trApp, tRetryAt.x, tRetryAt.y)
+  const trStart = trApp.calls[trApp.calls.length - 1]
+  t.eq(trStart[0], 'startGame', 'retry calls startGame')
+  t.deep(trStart[4].rules, Object.assign({}, trialSim.rules),
+    'with the challenge modifiers intact — a one-life trial stays one-life')
+
+  t.section('retry of a plain run keeps a fresh seed while carrying its rules')
+  const plainSim = sim()
+  OP.Economy.endGame(plainSim, 'leaked')
+  const plApp = wireShell(makeApp(plainSim))
+  const plModel = Results.build(plApp)
+  const pRetryAt = centre(byId(plModel, 'results.retry'))
+  Results.tap(plApp, pRetryAt.x, pRetryAt.y)
+  const plStart = plApp.calls[plApp.calls.length - 1]
+  t.ok(plStart[4].seed === undefined, 'a plain replay carries no seed override')
+  t.deep(plStart[4].rules, Object.assign({}, plainSim.rules),
+    'and carries the same rules so same-map-same-rules holds')
+
 
   t.section('the keyboard works on the results screen')
   const keyApp = wireShell(makeApp(sim()))
