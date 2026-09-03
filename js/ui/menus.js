@@ -836,7 +836,7 @@
     /* Two columns so every button stays on the 720px field: the primary/utility
        stack on the left, the content/mode screens on the right. A single column
        ran past 720 once DAILY, EXPEDITION and TRIALS were added. */
-    const bx = PAD, bw = 330, bh = 52, gap = 14
+    const bx = PAD, bw = 330, bh = 46, gap = 12
     const gx = PAD + bw + 24, gw = 250
     let byL = 320
     let byR = 320
@@ -891,6 +891,14 @@
       var trialSub = trialActive ? 'resume your active trial' : 'curated challenge scenarios with unique rules'
       widgets.push(UI.button('title.trial', gx, byR, gw, bh, {
         label: 'TRIALS', action: 'goto', arg: 'trials', sub: trialSub
+      }))
+      byR += bh + gap
+    }
+    if (OP.Legends && OP.LegendsData) {
+      var legendsActive = OP.Legends.isActive(profileOf(app))
+      var legendsSub = legendsActive ? 'resume your active campaign' : 'a rogue-lite campaign across escalating stages'
+      widgets.push(UI.button('title.legends', gx, byR, gw, bh, {
+        label: 'LEGENDS', action: 'goto', arg: 'legends', sub: legendsSub
       }))
       byR += bh + gap
     }

@@ -335,8 +335,55 @@ export function run (t, OP, env) {
     t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'towers'), 'the TOWERS button is on the title')
     t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'settings'), 'and SETTINGS is still reachable')
     t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'trials'), 'and TRIALS is on the field too — the worst single-column case')
+    t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'legends'), 'and LEGENDS is on the field too — seven right-column buttons must still fit')
   } else {
     t.ok(true, 'Menus not loaded — skipped')
+  }
+
+  /* ---------- the Legends campaign screen ---------- */
+
+  t.section('the Legends board screen draws in both entry and active states')
+  if (OP.LegendsScreen && Menus.go && Menus.build) {
+    // Entry state: no campaign running yet.
+    const entryApp = stubApp()
+    Menus.install(entryApp)
+    if (OP.LegendsScreen.install) OP.LegendsScreen.install(entryApp)
+    Menus.go(entryApp, 'legends')
+    const entryModel = Menus.build(entryApp)
+    t.eq(entryModel.screen, 'legends', 'the legends screen resolves by name')
+    const entryCtx = recorder()
+    t.noThrow(() => Menus.draw(entryCtx, entryApp), 'legends screen draws in the entry state without throwing')
+    t.gt(entryCtx.texts.length, 0, 'and draws some text on entry')
+
+    // Active state: an in-progress campaign with a board + artifacts.
+    if (OP.Legends && OP.Legends.start) {
+      const profile = OP.Save.defaults()
+      if (OP.Legends.start(profile, 'ui-seed')) {
+        const activeApp = stubApp({ profile })
+        Menus.install(activeApp)
+        if (OP.LegendsScreen.install) OP.LegendsScreen.install(activeApp)
+        Menus.go(activeApp, 'legends')
+        const activeModel = Menus.build(activeApp)
+        const actx = recorder()
+        t.noThrow(() => Menus.draw(actx, activeApp), 'legends screen draws in the active state without throwing')
+        const label = (activeModel.widgets || []).map(w => String(w.label || ''))
+        t.ok(label.some(l => /fight/i.test(l)) || label.some(l => /battle/i.test(l)),
+          'the active board offers a battle action')
+        // Pressing FIGHT launches the battle (the shell hands off to startLegends).
+        const fight = (activeModel.widgets || []).find(w => w && w.action === 'legends-fight')
+        if (fight && OP.LegendsScreen.activate) {
+          let started = 0
+          const launchApp = stubApp({ profile })
+          launchApp.startLegends = function () { started++ }
+          OP.LegendsScreen.activate(launchApp, fight)
+          t.eq(started, 1, 'the FIGHT button launches the campaign battle')
+        } else {
+          t.ok(true, 'no fight widget on the entry node — skipped')
+        }
+      }
+    }
+  } else {
+    t.ok(true, 'LegendsScreen not loaded — skipped')
   }
 
   /* ---------- empty registries must not throw ---------- */

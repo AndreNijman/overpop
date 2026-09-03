@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 8
+  Save.SCHEMA_VERSION = 9
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -245,7 +245,9 @@
       completedExpeditions: {}, // expeditionKey -> completion count
       activeTrial: null,    // active trial state or null
       completedTrials: {},   // trialKey -> { completed, bestTime, completedAt }
-      towerXp: {}            // towerKey -> banked tower XP from completed runs
+      towerXp: {},            // towerKey -> banked tower XP from completed runs
+      legends: null,          // active Legends campaign state or null
+      legendsCompletions: 0   // completed Legends campaigns
     }
   }
 
@@ -295,6 +297,8 @@
     out.completedExpeditions = normaliseCompletedExpeditions(raw.completedExpeditions)
     out.activeTrial = normaliseActiveTrial(raw.activeTrial)
     out.completedTrials = normaliseCompletedTrials(raw.completedTrials)
+    out.legends = normaliseLegends(raw.legends)
+    out.legendsCompletions = counter(raw.legendsCompletions)
     out.towerXp = normaliseTowerXp(raw.towerXp)
     out.schemaVersion = Save.SCHEMA_VERSION
     return out
@@ -386,6 +390,29 @@
     return {
       trialKey: raw.trialKey,
       startTime: finite(raw.startTime) ? raw.startTime : Date.now()
+    }
+  }
+
+  /**
+   * Normalise active Legends campaign. null or a rolled run object.
+   */
+  function normaliseLegends (raw) {
+    if (!isPlainObject(raw)) return null
+    if (typeof raw.seed !== 'string' || !raw.seed) return null
+    const artifacts = []
+    if (Array.isArray(raw.artifacts)) {
+      for (const a of raw.artifacts) {
+        if (typeof a === 'string' && safeKey(a)) artifacts.push(a)
+      }
+    }
+    return {
+      seed: raw.seed,
+      stage: counter(raw.stage),
+      nodeIndex: counter(raw.nodeIndex),
+      cash: finite(raw.cash) ? raw.cash : 0,
+      lives: finite(raw.lives) ? raw.lives : 40,
+      artifacts: artifacts,
+      wonStages: counter(raw.wonStages)
     }
   }
 
@@ -511,6 +538,13 @@
     // is earned the same way for everyone.
     7: function (p) {
       if (!isPlainObject(p.towerXp)) p.towerXp = {}
+      return p
+    },
+    // Version 8 → 9: add Legends campaign fields. Nothing to derive — a new run
+    // is started on demand and completions accrue from play.
+    8: function (p) {
+      if (typeof p.legends !== 'object' || p.legends === null) p.legends = null
+      if (typeof p.legendsCompletions !== 'number') p.legendsCompletions = 0
       return p
     }
   }

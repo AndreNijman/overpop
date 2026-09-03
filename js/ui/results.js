@@ -138,6 +138,7 @@
 // Expedition-specific buttons
     var profile = app && app.state ? app.state.profile : null
     var expResult = app && app.state ? app.state.expeditionResult : null
+    var legendsResult = app && app.state ? app.state.legendsResult : null
     var freeplayEligible = won && !sim.freeplay && !expResult &&
       (!app || typeof app.canContinueFreeplay !== 'function' || app.canContinueFreeplay())
     var defaultAction = freeplayEligible ? 'results.freeplay' : 'results.retry'
@@ -171,6 +172,32 @@
       }))
       defaultAction = 'results.title'
       hint = 'EXPEDITION COMPLETE · ESC returns to the title'
+    } else if (legendsResult) {
+      // Legends battle result — a won battle offers CONTINUE (advance the run);
+      // a lost battle ends the run.
+      var runActive = OP.Legends && OP.Legends.isActive(profile)
+      if (legendsResult.won && runActive) {
+        widgets.push(U.button('results.legCont', P.x + 40, by, 250, 48, {
+          label: 'CONTINUE LEGENDS', tone: 'primary', align: 'center',
+          action: 'results-legends-continue',
+          sub: 'advance through the campaign'
+        }))
+        widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
+          label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
+        }))
+        defaultAction = 'results.legCont'
+        hint = 'ENTER continues the campaign · ESC returns to the title'
+      } else {
+        widgets.push(U.button('results.title', P.x + 40, by, 250, 48, {
+          label: 'RUN OVER', tone: 'primary', align: 'center',
+          action: 'results-title', sub: 'the campaign ends here'
+        }))
+        widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
+          label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
+        }))
+        defaultAction = 'results.title'
+        hint = 'THE RUN IS OVER · your completion is banked'
+      }
     } else {
       // Normal results buttons
       if (freeplayEligible) {
@@ -296,6 +323,12 @@
       click(true)
       if (app && typeof app.abandonExpedition === 'function') app.abandonExpedition()
       if (OP.Menus && OP.Menus.go) OP.Menus.go(app, 'title')
+      return true
+    }
+
+    if (w.action === 'results-legends-continue') {
+      click(true)
+      if (app && typeof app.advanceLegends === 'function') app.advanceLegends()
       return true
     }
 

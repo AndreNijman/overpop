@@ -100,6 +100,7 @@
     if (OP.TowerPanel && OP.TowerPanel.install) OP.TowerPanel.install(App)
     if (OP.KnowledgeScreen && OP.KnowledgeScreen.install) OP.KnowledgeScreen.install(App)
     if (OP.Bestiary && OP.Bestiary.install) OP.Bestiary.install(App)
+    if (OP.LegendsScreen && OP.LegendsScreen.install) OP.LegendsScreen.install(App)
     if (OP.Results && OP.Results.install) OP.Results.install(App)
 
     // Something must be on screen even with no menu module built yet.
@@ -270,6 +271,7 @@
     S.progressionResult = null
     S.expeditionResult = null
     S.trialResult = null
+    S.legendsResult = null
     S.sim = OP.Sim.create({
       map: map,
       seed: opts.seed === undefined ? String(Date.now()) : opts.seed,
@@ -423,6 +425,67 @@
   }
 
   /**
+   * Start (or resume) a Legends campaign and launch the current node's battle.
+   */
+  App.startLegends = function () {
+    const S = App.state
+    if (!S.profile || !OP.Legends) return null
+    if (!OP.Legends.isActive(S.profile)) {
+      if (!OP.Legends.start(S.profile)) return null
+      if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    }
+    var launched = App.launchLegendsBattle()
+    S.legendsResult = null
+    return launched
+  }
+
+  /**
+   * Advance a won Legends battle to the next node, then launch it (or return
+   * to the board when a battle just opened a chest / the run finished).
+   */
+  App.advanceLegends = function () {
+    const S = App.state
+    if (!S.profile || !OP.Legends || !OP.Legends.isActive(S.profile)) return null
+    var res = OP.Legends.recordWin(S.profile, S.sim)
+    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    S.legendsResult = null
+    if (res && res.campaignComplete) {
+      App.quitToMenu()
+      return null
+    }
+    if (res && res.nextStage) {
+      App.quitToMenu()
+      return { nextStage: true }
+    }
+    return App.launchLegendsBattle()
+  }
+
+  /**
+   * Launch the current Legends node's battle: build the config, create the sim,
+   * drive its escalating round set + artifacts, then hand off to the game screen.
+   */
+  App.launchLegendsBattle = function () {
+    const S = App.state
+    if (!S.profile || !OP.Legends || !OP.Legends.isActive(S.profile)) return null
+    var cfg = OP.Legends.battleConfig(S.profile)
+    if (!cfg) return null
+    var sim = App.startGame(cfg.mapKey, cfg.difficulty, cfg.mode, {})
+    if (!sim) return null
+    // Escalating rounds: an explicit table beats any round-set key (rounds.js),
+    // so a fought-through battle gets a denser, faster-ramping set than standard.
+    // roundSetKey is left as-startGame set it, so a resumed Legends battle loads
+    // cleanly (it just falls back to the standard set if the player re-enters it).
+    if (cfg.roundSet) sim.roundSet = cfg.roundSet
+    // Non-serialised marker so onGameOver can tell a Legends battle apart.
+    sim.isLegends = true
+    // Resource/artifact carry-over.
+    sim.cash = cfg.startCash != null ? cfg.startCash : sim.cash
+    if (cfg.startLives != null) sim.lives = cfg.startLives
+    if (OP.Legends.applyArtifacts) OP.Legends.applyArtifacts(S.profile, sim)
+    return sim
+  }
+
+  /**
    * Abandon the current expedition.
    */
   App.abandonExpedition = function () {
@@ -506,6 +569,18 @@
     if (OP.Trial && OP.Trial.isActive(S.profile)) {
       var trialResult = OP.Trial.recordGameOver(S.profile, S.sim.outcome === 'won', S.sim.roundIndex)
       S.trialResult = trialResult
+    }
+    // Handle a Legends battle ending. Winning records the advance lazily — the
+    // results screen offers "CONTINUE" which calls advanceLegends(); losing ends
+    // the run here. `isLegends` is a non-serialised marker set on the live sim so
+    // a stray expedition/trial never cross-fires into it.
+    if (OP.Legends && OP.Legends.isActive(S.profile) && S.sim && S.sim.isLegends) {
+      if (S.sim.outcome === 'won') {
+        S.legendsResult = { won: true }
+      } else {
+        OP.Legends.recordLoss(S.profile)
+        S.legendsResult = { won: false }
+      }
     }
     // Share out any XP still sitting in the round pool (a losing round never
     // completed, so the settle hook never fired), then bank what the run's
