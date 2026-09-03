@@ -833,60 +833,67 @@
     marks.push(UI.rule(PAD, 252, 400))
     marks.push(UI.text(PAD, 276, 'Every sprite drawn in code. Every sound synthesised.', { size: 11, colour: C.faint }))
 
-    const bx = PAD, bw = 330, bh = 52
-    let by = 320
-    widgets.push(UI.button('title.play', bx, by, bw, bh, {
+    /* Two columns so every button stays on the 720px field: the primary/utility
+       stack on the left, the content/mode screens on the right. A single column
+       ran past 720 once DAILY, EXPEDITION and TRIALS were added. */
+    const bx = PAD, bw = 330, bh = 52, gap = 14
+    const gx = PAD + bw + 24, gw = 250
+    let byL = 320
+    let byR = 320
+
+    widgets.push(UI.button('title.play', bx, byL, bw, bh, {
       label: 'PLAY', tone: 'primary', action: 'goto', arg: 'maps',
       sub: 'choose a map, a difficulty and a mode'
     }))
-    by += bh + 14
+    byL += bh + gap
     if (refreshRun()) {
-      widgets.push(UI.button('title.continue', bx, by, bw, bh, {
+      widgets.push(UI.button('title.continue', bx, byL, bw, bh, {
         label: 'CONTINUE', action: 'continue', sub: 'resume the run in progress'
       }))
-      by += bh + 14
+      byL += bh + gap
     }
-    widgets.push(UI.button('title.bestiary', bx, by, bw, bh, {
+    widgets.push(UI.button('title.settings', bx, byL, bw, bh, {
+      label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'volume, trails, round autostart'
+    }))
+
+    widgets.push(UI.button('title.bestiary', gx, byR, gw, bh, {
       label: 'BESTIARY', action: 'goto', arg: 'bestiary', sub: 'balloons, immunities and towers'
     }))
-    by += bh + 14
-    widgets.push(UI.button('title.towers', bx, by, bw, bh, {
+    byR += bh + gap
+    widgets.push(UI.button('title.towers', gx, byR, gw, bh, {
       label: 'TOWERS', action: 'goto', arg: 'towers', sub: 'upgrades, costs and tower XP'
     }))
-    by += bh + 14
-    widgets.push(UI.button('title.knowledge', bx, by, bw, bh, {
+    byR += bh + gap
+    widgets.push(UI.button('title.knowledge', gx, byR, gw, bh, {
       label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'spend knowledge points on permanent bonuses'
     }))
-    by += bh + 14
+    byR += bh + gap
     if (OP.Daily && OP.DailyCore) {
       var daily = OP.DailyCore.summary ? OP.DailyCore.summary(profileOf(app)) : null
       var dailyDone = daily && daily.done
       var dailySub = dailyDone ? 'already completed today — come back tomorrow' : 'a fresh challenge every day'
-      widgets.push(UI.button('title.daily', bx, by, bw, bh, {
+      widgets.push(UI.button('title.daily', gx, byR, gw, bh, {
         label: 'DAILY CHALLENGE', action: 'goto', arg: 'daily', sub: dailySub,
         disabled: dailyDone
       }))
-      by += bh + 14
+      byR += bh + gap
     }
     if (OP.Expedition && OP.Expeditions) {
       var expActive = OP.Expedition.isActive(profileOf(app))
       var expSub = expActive ? 'resume your active expedition' : 'multi-map campaigns with resource carry-over'
-      widgets.push(UI.button('title.expedition', bx, by, bw, bh, {
+      widgets.push(UI.button('title.expedition', gx, byR, gw, bh, {
         label: 'EXPEDITION', action: 'goto', arg: 'expedition', sub: expSub
       }))
-      by += bh + 14
+      byR += bh + gap
     }
     if (OP.Trial && OP.Trials) {
       var trialActive = OP.Trial.isActive(profileOf(app))
       var trialSub = trialActive ? 'resume your active trial' : 'curated challenge scenarios with unique rules'
-      widgets.push(UI.button('title.trial', bx, by, bw, bh, {
+      widgets.push(UI.button('title.trial', gx, byR, gw, bh, {
         label: 'TRIALS', action: 'goto', arg: 'trials', sub: trialSub
       }))
-      by += bh + 14
+      byR += bh + gap
     }
-    widgets.push(UI.button('title.settings', bx, by, bw, bh, {
-      label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'volume, trails, round autostart'
-    }))
 
     /* Right column: the record. Restrained on purpose — a wall of counters would
        compete with the four things a player came here to press. */

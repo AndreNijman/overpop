@@ -1,5 +1,5 @@
 export const name = 'ui-menus'
-export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js', 'js/core/towerxp.js']
+export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js', 'js/core/towerxp.js', 'js/core/daily.js', 'js/core/expedition.js', 'js/core/trial.js']
 
 import { makeSim } from './_fixture.mjs'
 import { arena } from './_towerfamily.mjs'
@@ -313,6 +313,30 @@ export function run (t, OP, env) {
     if (OP.Bestiary) { OP.Bestiary.state.towerKey = null }
   } else {
     t.ok(true, 'TowerMenu not loaded — skipped')
+  }
+
+  t.section('the title menu fits on the field')
+  if (Menus.go && Menus.build) {
+    const fitApp = stubApp()
+    Menus.install(fitApp)
+    Menus.go(fitApp, 'title')
+    const model = Menus.build(fitApp)
+    const buttons = (Array.isArray(model.widgets) ? model.widgets : [])
+      .filter(w => w && String(w.id || '').indexOf('title.') === 0)
+    t.gt(buttons.length, 4, 'the title pushes several buttons (' + buttons.length + ')')
+    let allFit = true
+    let worst = 0
+    for (let i = 0; i < buttons.length; i++) {
+      const b = buttons[i]
+      if (!(b.y + b.h <= OP.FIELD_H) || !(b.x + b.w <= OP.FIELD_W)) allFit = false
+      if ((b.y || 0) + (b.h || 0) > worst) worst = (b.y || 0) + (b.h || 0)
+    }
+    t.ok(allFit, 'no title button runs past the field (lowest bottom ' + worst + ' of ' + OP.FIELD_H + ')')
+    t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'towers'), 'the TOWERS button is on the title')
+    t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'settings'), 'and SETTINGS is still reachable')
+    t.ok(buttons.some(b => b.action === 'goto' && b.arg === 'trials'), 'and TRIALS is on the field too — the worst single-column case')
+  } else {
+    t.ok(true, 'Menus not loaded — skipped')
   }
 
   /* ---------- empty registries must not throw ---------- */
