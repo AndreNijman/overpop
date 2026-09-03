@@ -850,6 +850,10 @@
       label: 'BESTIARY', action: 'goto', arg: 'bestiary', sub: 'balloons, immunities and towers'
     }))
     by += bh + 14
+    widgets.push(UI.button('title.towers', bx, by, bw, bh, {
+      label: 'TOWERS', action: 'goto', arg: 'towers', sub: 'upgrades, costs and tower XP'
+    }))
+    by += bh + 14
     widgets.push(UI.button('title.knowledge', bx, by, bw, bh, {
       label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'spend knowledge points on permanent bonuses'
     }))
@@ -1870,6 +1874,11 @@
     if (w.action === 'goto') {
       if (w.arg === 'bestiary' && !SCREENS.bestiary) {
         state.notice = 'The bestiary is not available in this build.'
+        click(false)
+        return true
+      }
+      if (w.arg === 'towers' && !SCREENS.towers) {
+        state.notice = 'The tower menu is not available in this build.'
         click(false)
         return true
       }

@@ -297,6 +297,24 @@ export function run (t, OP, env) {
     t.ok(true, 'tower XP not loaded — skipped')
   }
 
+  t.section('the dedicated TOWERS menu is a standalone screen')
+  if (OP.TowerMenu && OP.TowerMenu.build && Menus.go) {
+    const tmApp = stubApp({ profile: Object.assign(OP.Save.defaults(), { towerXp: { 'acorn-fox': 500 } }) })
+    Menus.install(tmApp)
+    t.eq(Menus.go(tmApp, 'towers'), 'towers', 'the towers screen is reachable by name')
+    const ctx = recorder()
+    t.noThrow(() => OP.Menus.draw(ctx, tmApp), 'the tower menu draws without throwing')
+    const squashed = ctx.texts.join(' ').toUpperCase()
+    t.ok(squashed.indexOf('TOWERS') >= 0, 'the chrome title is TOWERS')
+    t.ok(squashed.indexOf('BESTIARY') < 0, 'it does not reuse the BESTIARY title')
+    t.ok(squashed.indexOf('LIFETIME') < 0, 'and omits the bestiary balloon/type-chart tabs')
+    t.ok(squashed.indexOf('LOCKED') >= 0, 'the tower menu still marks locked upgrade tiers')
+    t.ok(squashed.indexOf('TOWER XP') >= 0, 'and still shows the XP readout')
+    if (OP.Bestiary) { OP.Bestiary.state.towerKey = null }
+  } else {
+    t.ok(true, 'TowerMenu not loaded — skipped')
+  }
+
   /* ---------- empty registries must not throw ---------- */
 
   t.section('every screen survives empty registries')

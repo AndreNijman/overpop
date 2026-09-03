@@ -173,18 +173,21 @@
 
   /* ---------- shared chrome ---------- */
 
-  function chrome (marks, widgets, sub) {
+  function chrome (marks, widgets, sub, opts) {
+    opts = opts || {}
     const U = ui(); const C = colours()
-    marks.push(U.tracked(PAD, 92, 'BESTIARY', { size: 20, colour: C.ink, track: 0.26, weight: '600' }))
+    marks.push(U.tracked(PAD, 92, opts.title || 'BESTIARY', { size: 20, colour: C.ink, track: 0.26, weight: '600' }))
     marks.push(U.text(PAD, 114, sub, { size: 11, colour: C.dim }))
     marks.push(U.rule(PAD, 130, CONTENT_W))
-    widgets.push(U.button('bestiary.back', FIELD_W - PAD - 96, 74, 96, 32, {
+    widgets.push(U.button(opts.backId || 'bestiary.back', FIELD_W - PAD - 96, 74, 96, 32, {
       label: 'BACK', action: 'back', align: 'center'
     }))
-    for (let i = 0; i < TABS.length; i++) {
-      widgets.push(U.tab('bestiary.tab.' + TABS[i].key, PAD + i * 150, 142, 150, 34, {
-        label: TABS[i].label, selected: state.tab === TABS[i].key, action: 'bestiary-tab', arg: TABS[i].key
-      }))
+    if (!opts.noTabs) {
+      for (let i = 0; i < TABS.length; i++) {
+        widgets.push(U.tab('bestiary.tab.' + TABS[i].key, PAD + i * 150, 142, 150, 34, {
+          label: TABS[i].label, selected: state.tab === TABS[i].key, action: 'bestiary-tab', arg: TABS[i].key
+        }))
+      }
     }
     marks.push(U.rule(PAD, 700 - 24, CONTENT_W, { alpha: 0.6 }))
   }
@@ -377,19 +380,24 @@
      TOWERS
      ============================================================================ */
 
-  function buildTowers (app) {
+  function buildTowers (app, mode) {
+    mode = mode || {}
     const U = ui(); const C = colours()
     const marks = []
     const widgets = []
     const list = towers()
     const sel = resolveTower()
+    const backId = mode.backId || 'bestiary.back'
+    const screen = mode.screen || 'bestiary'
 
-    chrome(marks, widgets, list.length + (list.length === 1 ? ' tower' : ' towers') + ' · three branches each, at most one past tier 2')
+    chrome(marks, widgets, list.length + (list.length === 1 ? ' tower' : ' towers') + ' · three branches · XP unlocks tiers, cash buys them', {
+      title: mode.title, backId: backId, noTabs: mode.noTabs
+    })
 
     if (!list.length) {
       marks.push(U.text(PAD, 300, 'No towers are registered yet.', { size: 18, colour: C.dim }))
       marks.push(U.text(PAD, 328, 'Each js/towers/*.js file registers its family; this screen reads the registry.', { size: 11, colour: C.faint }))
-      return model(marks, widgets, 'bestiary.back')
+      return model(marks, widgets, backId)
     }
 
     const lx = PAD, lw = 290, top = 200, bottom = 656
@@ -409,7 +417,7 @@
 
     const dx = 418
     const dw = FIELD_W - PAD - dx
-    if (!sel) return model(marks, widgets, 'bestiary.back')
+    if (!sel) return model(marks, widgets, backId, screen)
 
     const famLabel = (OP.FAMILY_LABELS && OP.FAMILY_LABELS[sel.family]) || sel.family || '—'
     marks.push(U.tracked(dx, 232, (sel.name || sel.key).toUpperCase(), { size: 22, colour: C.ink, track: 0.16, weight: '600' }))
@@ -451,7 +459,7 @@
     const paths = Array.isArray(sel.paths) ? sel.paths : []
     if (!paths.length) {
       marks.push(U.text(dx, 430, 'No upgrade branches declared.', { size: 12, colour: C.warn }))
-      return model(marks, widgets, 'bestiary.back')
+      return model(marks, widgets, backId, screen)
     }
     const colW = Math.floor(dw / Math.max(1, paths.length))
     for (let p = 0; p < paths.length; p++) {
@@ -483,15 +491,67 @@
     }
 
     marks.push(U.text(PAD, 700, 'ESC back · XP unlocks tiers permanently; money pays for them in a run', { size: 10, colour: C.faint }))
-    return model(marks, widgets, 'bestiary.back')
+    return model(marks, widgets, backId, screen)
   }
 
   /* ============================================================================
-     SCREEN PLUMBING
+     DEDICATED TOWER MENU
+     A standalone screen that opens straight into the tower/XP/upgrade view, with
+     no balloons/type-chart tabs. Shares every line of buildTowers above.
      ============================================================================ */
 
-  function model (marks, widgets, defaultId) {
-    return { screen: 'bestiary', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: defaultId }
+  const TowerMenu = {}
+
+  TowerMenu.build = function (app) {
+    if (!ui()) return { screen: 'towers', backdrop: 'solid', marks: [], widgets: [] }
+    const m = buildTowers(app, {
+      title: 'TOWERS', backId: 'towers.back', noTabs: true, screen: 'towers'
+    })
+    return m
+  }
+
+  TowerMenu.draw = function (ctx, app) {
+    const U = ui()
+    if (!U) return 0
+    return U.paint(ctx, TowerMenu.build(app), {
+      hoverId: OP.Menus && OP.Menus.state ? OP.Menus.state.hoverId : null
+    })
+  }
+
+  TowerMenu.activate = function (app, w) {
+    if (!w) return false
+    if (w.action === 'bestiary-tower') { state.towerKey = w.arg; return true }
+    return false
+  }
+
+  /** Up/down cycle the selected tower; left/right are no-ops here. */
+  TowerMenu.key = function (app, key) {
+    if (key !== 'ArrowUp' && key !== 'ArrowDown') return false
+    const list = towers()
+    if (!list.length) return true
+    const step = key === 'ArrowDown' ? 1 : -1
+    const cur = Math.max(0, indexOfKey(list, state.towerKey))
+    state.towerKey = list[(cur + step + list.length) % list.length].key
+    return true
+  }
+
+  TowerMenu.install = function (app) {
+    if (OP.Menus && OP.Menus.registerScreen) {
+      OP.Menus.registerScreen('towers', {
+        build: TowerMenu.build,
+        paint: TowerMenu.draw,
+        activate: TowerMenu.activate,
+        key: TowerMenu.key,
+        back: function () { return 'title' }
+      })
+    }
+    return TowerMenu
+  }
+
+  OP.TowerMenu = TowerMenu
+
+  function model (marks, widgets, defaultId, screen) {
+    return { screen: screen || 'bestiary', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: defaultId }
   }
 
   /** The model for the active tab. Pure — safe to call from a draw. */
@@ -567,6 +627,7 @@
         key: Bestiary.key,
         back: function () { return 'title' }
       })
+      TowerMenu.install(app)
     }
     return Bestiary
   }
