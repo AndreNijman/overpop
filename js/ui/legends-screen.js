@@ -38,12 +38,23 @@
     marks.push(U.tracked(PAD, 90, 'LEGENDS', { size: 30, colour: C.ink, track: 0.2, weight: '600' }))
 
     if (!sum || !sum.active) {
-      marks.push(U.text(PAD, 150, 'No campaign in progress.', { size: 15, colour: C.dim }))
-      marks.push(U.text(PAD, 176, 'Begin a run from the LEGENDS entry screen.', { size: 11, colour: C.faint }))
+      marks.push(U.text(PAD, 148, 'No campaign in progress.', { size: 15, colour: C.dim }))
+      marks.push(U.rule(PAD, 178, FIELD_W - PAD * 2))
+      marks.push(U.text(PAD, 200, 'Rogue-Legends-style campaign. Beat battles to advance',
+        { size: 11, colour: C.dim }))
+      marks.push(U.text(PAD, 218, 'across escalating stages, collect artifacts, and keep',
+        { size: 11, colour: C.dim }))
+      marks.push(U.text(PAD, 236, 'your cash and lives between battles. Lose a battle and',
+        { size: 11, colour: C.dim }))
+      marks.push(U.text(PAD, 254, 'the run is over.', { size: 11, colour: C.dim }))
+      widgets.push(U.button('legends.start', PAD, 300, 360, 58, {
+        label: 'START NEW RUN', tone: 'primary', action: 'legends-start',
+        sub: 'begin a fresh campaign'
+      }))
       widgets.push(U.button('legends.back', FIELD_W - PAD - 120, 60, 120, 38, {
         label: '< BACK', action: 'back'
       }))
-      return model(marks, widgets)
+      return model(marks, widgets, 'legends.start')
     }
 
     // Status bar.
@@ -122,7 +133,7 @@
 
   function activate (app, w) {
     if (!w) return false
-    if (w.action === 'legends-fight') {
+    if (w.action === 'legends-fight' || w.action === 'legends-start') {
       if (app && app.startLegends) { app.startLegends() }
       else if (OP.Menus) OP.Menus.go(app, 'maps')
       return true
@@ -136,8 +147,11 @@
     return false
   }
 
-  function model (marks, widgets) {
-    return { screen: 'legends', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: 'legends.fight' }
+  function model (marks, widgets, defaultId) {
+    return {
+      screen: 'legends', backdrop: 'solid', marks: marks, widgets: widgets,
+      defaultId: defaultId || 'legends.fight'
+    }
   }
 
   LegendsScreen.build = build

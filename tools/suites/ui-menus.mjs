@@ -354,6 +354,19 @@ export function run (t, OP, env) {
     const entryCtx = recorder()
     t.noThrow(() => Menus.draw(entryCtx, entryApp), 'legends screen draws in the entry state without throwing')
     t.gt(entryCtx.texts.length, 0, 'and draws some text on entry')
+    const entryActions = (entryModel.widgets || []).map(w => w && w.action)
+    t.ok(entryActions.indexOf('legends-start') >= 0,
+      'the entry screen offers a START NEW RUN button so a run can actually begin')
+    t.eq(entryModel.defaultId, 'legends.start', 'and Enter defaults to starting a run')
+    // Pressing START must begin the campaign.
+    const startWidget = (entryModel.widgets || []).find(w => w && w.action === 'legends-start')
+    if (startWidget) {
+      let started = 0
+      const startApp = stubApp()
+      startApp.startLegends = function () { started++ }
+      OP.LegendsScreen.activate(startApp, startWidget)
+      t.eq(started, 1, 'the START NEW RUN button launches the campaign')
+    }
 
     // Active state: an in-progress campaign with a board + artifacts.
     if (OP.Legends && OP.Legends.start) {
