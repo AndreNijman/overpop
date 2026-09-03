@@ -49,6 +49,23 @@
     return req === undefined ? Infinity : req
   }
 
+  /* Lifetime banked XP for a tower type, straight off the profile. The menu
+     screens have a profile, not a sim, so they read this rather than
+     `baseOf`/`available` (which expect sim.towerXp). */
+  TowerXp.profileXp = function (profile, towerKey) {
+    const map = profile && profile.towerXp
+    if (!map) return 0
+    const v = map[towerKey]
+    return typeof v === 'number' && isFinite(v) && v > 0 ? v : 0
+  }
+
+  /* Whether a tower type may buy INTO `tier` given the profile's banked XP.
+     A missing profile or towerXp reads as 0 — the menu just shows what the
+     save says, no synthetic unlocks. */
+  TowerXp.tierUnlocked = function (profile, towerKey, tier) {
+    return TowerXp.profileXp(profile, towerKey) >= TowerXp.tierRequired(tier)
+  }
+
   /* The round ladder: every 10 rounds, each pop is worth one point more. A pop
      in round 1-9 is worth 1, round 10-19 worth 2, and so on. Deep runs, and
      deep-run *towers*, climb faster — which is the whole point of the system. */

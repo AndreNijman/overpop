@@ -1,5 +1,5 @@
 export const name = 'ui-menus'
-export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js']
+export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js', 'js/core/towerxp.js']
 
 import { makeSim } from './_fixture.mjs'
 import { arena } from './_towerfamily.mjs'
@@ -271,6 +271,30 @@ export function run (t, OP, env) {
     t.eq(broke.length, 0, broke.length ? 'these threw: ' + broke.join(' / ') : `all ${OP.TOWER_ORDER.length} towers display`)
     OP.Bestiary.state.tab = 'balloons'
     OP.Bestiary.state.towerKey = null
+  }
+
+  t.section('the tower tab reports lifetime XP and upgrade lock state')
+  if (OP.Bestiary.state.tab !== undefined && OP.TowerXp && OP.TowerXp.profileXp) {
+    const xpApp = stubApp({ profile: Object.assign(OP.Save.defaults(), { towerXp: { 'acorn-fox': 500 } }) })
+    Menus.install(xpApp)
+    OP.Bestiary.state.tab = 'towers'
+    OP.Bestiary.state.towerKey = 'acorn-fox'
+    const ctx = recorder()
+    t.noThrow(() => Menus.draw(ctx, xpApp), 'the tower tab draws with a populated profile')
+    const squashed = ctx.texts.join(' ').toUpperCase()
+    t.ok(squashed.indexOf('TOWER XP') >= 0, 'the XP readout is present')
+    t.ok(squashed.indexOf('500') >= 0, 'and shows the tower type total')
+    // 500 XP buys tier 1 and 2 (150, 450) but not tier 3 (1500).
+    t.eq(OP.TowerXp.tierUnlocked(xpApp.state.profile, 'acorn-fox', 1), true, 'tier 1 is unlocked at 500 XP')
+    t.eq(OP.TowerXp.tierUnlocked(xpApp.state.profile, 'acorn-fox', 2), true, 'tier 2 is unlocked at 500 XP')
+    t.eq(OP.TowerXp.tierUnlocked(xpApp.state.profile, 'acorn-fox', 3), false, 'tier 3 is locked at 500 XP')
+    t.ok(squashed.indexOf('LOCKED') >= 0, 'the detail panel marks locked tiers')
+    t.ok(squashed.indexOf('NEXT UNLOCK AT') >= 0, 'and announces the next unlock threshold')
+    t.eq(OP.TowerXp.profileXp(xpApp.state.profile, 'acorn-fox'), 500, 'the profile XP helper reads the save')
+    OP.Bestiary.state.tab = 'balloons'
+    OP.Bestiary.state.towerKey = null
+  } else {
+    t.ok(true, 'tower XP not loaded — skipped')
   }
 
   /* ---------- empty registries must not throw ---------- */

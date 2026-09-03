@@ -68,6 +68,43 @@
     return out
   }
 
+  /* The player profile, reached through the menus so this screen never has to
+     know how a save is shaped. Absent on a first-run player, which every reader
+     below tolerates. */
+  function profileOf (app) {
+    return (OP.Menus && OP.Menus.profile) ? OP.Menus.profile(app) : null
+  }
+
+  /** type -> lifetime banked tower XP, for every shipped tower. Tolerant of an
+      empty registry and a missing profile. */
+  function totalXp (app) {
+    const out = {}
+    const p = profileOf(app)
+    const map = (p && p.towerXp) || {}
+    const list = towers()
+    for (let i = 0; i < list.length; i++) {
+      out[list[i].key] = (OP.TowerXp && OP.TowerXp.profileXp)
+        ? OP.TowerXp.profileXp(p, list[i].key)
+        : (typeof map[list[i].key] === 'number' ? map[list[i].key] : 0)
+    }
+    return out
+  }
+
+  function fmtXp (n) {
+    return (M && M.compact) ? M.compact(n) : String(Math.floor(n))
+  }
+
+  /** The first tier (1-5) this XP total cannot buy into, or null when it can
+      buy every tier. */
+  function firstLocked (xp) {
+    if (!OP.TowerXp || !OP.TowerXp.TIER_XP) return null
+    for (let i = 1; i < OP.TowerXp.TIER_XP.length; i++) {
+      const req = OP.TowerXp.tierRequired(i)
+      if (xp < req) return i
+    }
+    return null
+  }
+
   function dmgOrder () {
     return Array.isArray(OP.DMG_ORDER) ? OP.DMG_ORDER : []
   }
@@ -357,11 +394,13 @@
 
     const lx = PAD, lw = 290, top = 200, bottom = 656
     const rowH = listRows(list.length, top, bottom, 24)
+    const xp = totalXp(app)
     for (let i = 0; i < list.length; i++) {
       const def = list[i]
       widgets.push(U.row('bestiary.tower.' + def.key, lx, top + i * rowH, lw, rowH - 2, {
         label: def.name || def.key,
-        note: '$' + (def.cost === undefined ? '?' : def.cost),
+        note: xp[def.key] === 0 ? '$' + (def.cost === undefined ? '?' : def.cost)
+          : fmtXp(xp[def.key]) + ' XP',
         selected: !!sel && def.key === sel.key,
         action: 'bestiary-tower',
         arg: def.key
@@ -377,6 +416,15 @@
     marks.push(U.text(dx, 252, String(famLabel).toUpperCase() + ' · $' + (sel.cost === undefined ? '?' : sel.cost) +
       ' · ' + (sel.placement || 'land') + (sel.unlockLevel > 1 ? ' · unlocks level ' + sel.unlockLevel : ''),
       { size: 10, colour: C.moss }))
+
+    /* ----- lifetime tower XP and the unlock ladder ----- */
+    const selXp = xp[sel.key] || 0
+    marks.push(U.text(dx, 270, 'TOWER XP  ' + fmtXp(selXp), { size: 10, colour: C.gold, weight: '600' }))
+    const nextLocked = firstLocked(selXp)
+    marks.push(U.text(dx + 130, 270, nextLocked === null
+      ? 'all tiers unlocked'
+      : 'next unlock at ' + fmtXp(OP.TowerXp.tierRequired(nextLocked)) + ' XP',
+      { size: 10, colour: nextLocked === null ? C.moss : C.dim }))
 
     const blurb = U.wrapText(sel.blurb, 11, dw - 20, 3)
     for (let i = 0; i < blurb.length; i++) {
@@ -409,23 +457,32 @@
     for (let p = 0; p < paths.length; p++) {
       const path = paths[p] || {}
       const cx = dx + p * colW
-      marks.push(U.tracked(cx, 424, String(path.name || 'PATH ' + (p + 1)).toUpperCase(), { size: 10, colour: C.moss, track: 0.24 }))
-      marks.push(U.rule(cx, 434, colW - 16, { alpha: 0.6 }))
+      marks.push(U.tracked(cx, 452, String(path.name || 'PATH ' + (p + 1)).toUpperCase(), { size: 10, colour: C.moss, track: 0.24 }))
+      marks.push(U.rule(cx, 462, colW - 16, { alpha: 0.6 }))
       const ups = Array.isArray(path.tiers) ? path.tiers : []
       for (let i = 0; i < ups.length; i++) {
         const up = ups[i] || {}
-        const y = 456 + i * 44
-        marks.push(U.text(cx, y, String(i + 1), { size: 9, colour: C.faint }))
-        marks.push(U.text(cx + 14, y, U.clipText(up.name || '—', 11, colW - 76), { size: 11, colour: C.ink }))
-        marks.push(U.text(cx + colW - 20, y, '$' + (up.cost === undefined ? '?' : up.cost), { size: 10, colour: C.gold, align: 'right' }))
+        const tier = i + 1
+        const unlocked = OP.TowerXp && OP.TowerXp.tierUnlocked
+          ? OP.TowerXp.tierUnlocked(profileOf(app), sel.key, tier)
+          : true
+        const y = 484 + i * 42
+        marks.push(U.text(cx, y, String(tier), { size: 9, colour: unlocked ? C.faint : C.warn }))
+        if (!unlocked) marks.push(U.text(cx + 5, y - 3, 'LOCKED', { size: 7, colour: C.warn }))
+        marks.push(U.text(cx + 14, y, U.clipText(up.name || '—', 11, colW - 76), {
+          size: 11, colour: unlocked ? C.ink : C.faint
+        }))
+        marks.push(U.text(cx + colW - 20, y, unlocked ? '$' + (up.cost === undefined ? '?' : up.cost) : fmtXp(OP.TowerXp.tierRequired(tier)) + ' XP', {
+          size: 10, colour: unlocked ? C.gold : C.warn, align: 'right'
+        }))
         const desc = U.wrapText(up.desc, 9, colW - 32, 2)
         for (let d = 0; d < desc.length; d++) {
-          marks.push(U.text(cx + 14, y + 13 + d * 11, desc[d], { size: 9, colour: C.faint }))
+          marks.push(U.text(cx + 14, y + 13 + d * 11, desc[d], { size: 9, colour: unlocked ? C.faint : C.deep }))
         }
       }
     }
 
-    marks.push(U.text(PAD, 700, 'ESC back · at most one branch past tier 2, at most two branches touched', { size: 10, colour: C.faint }))
+    marks.push(U.text(PAD, 700, 'ESC back · XP unlocks tiers permanently; money pays for them in a run', { size: 10, colour: C.faint }))
     return model(marks, widgets, 'bestiary.back')
   }
 
