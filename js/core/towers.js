@@ -299,6 +299,7 @@
       paragonDegree: 0,
       placedRound: sim.roundIndex,
       runXp: 0,
+      roundPops: 0,
       s: null,
       data: {}
     }
@@ -479,6 +480,7 @@
         level: tower.level === undefined ? 0 : tower.level,
         xp: tower.xp === undefined ? 0 : tower.xp,
         runXp: tower.runXp === undefined ? 0 : tower.runXp,
+        roundPops: tower.roundPops === undefined ? 0 : tower.roundPops,
         ability2Cd: tower.ability2Cd === undefined ? 0 : tower.ability2Cd,
         data: JSON.parse(JSON.stringify(tower.data || {}))
       }
@@ -498,6 +500,7 @@
         level: s.level || undefined,
         xp: s.xp || 0,
         runXp: s.runXp || 0,
+        roundPops: s.roundPops || 0,
         ability2Cd: s.ability2Cd || 0,
         x: s.x, y: s.y, tiers: s.tiers.slice(),
         targetMode: s.targetMode, targetId: s.targetId,

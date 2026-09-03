@@ -2,10 +2,10 @@
 //
 // Pops fill a general per-round pool (scaled by a round ladder at every 10
 // rounds; freeplay pays a flat 5%). When the round completes, the pool is
-// shared out to every living tower in proportion to the money invested in it —
-// placement + upgrades — so a type's earn is its share of total spending. Money
-// never buys XP: once a tier is unlocked, purchasing it is a cash purchase, not
-// a progression.
+// shared out to every living tower by a 50/50 blend — half by how much money is
+// invested in it (placement + upgrades), half by how many layers it popped this
+// round. Money never buys XP: once a tier is unlocked, purchasing it is a cash
+// purchase, not a progression.
 
 export const name = 'towerxp'
 export const needs = [
@@ -98,7 +98,7 @@ export function run (t, OP, env) {
   X.settle(simF)
   t.close(twF.runXp, 0.05, 1e-9, 'and the paid pool matches')
 
-t.section('the pool is shared pro rata by money invested')
+t.section('pool splits 50/50 between spending and popping')
   const simP = makeSim(OP, { cash: 5000 })
   const twPa = OP.Towers.place(simP, 'acorn-fox', 100, 360, { free: true })
   twPa.invested = 300
@@ -108,9 +108,24 @@ t.section('the pool is shared pro rata by money invested')
   hit(OP, simP, bp, 20, OP.DMG.NORMAL, { sourceId: twPa.id })
   t.close(simP.roundXpPool, 1, 1e-9, 'the pop fills the pool')
   X.settle(simP)
-  t.close(twPa.runXp, 0.75, 1e-9, 'the $300 tower earns 3/4 of the pool')
-  t.close(twPb.runXp, 0.25, 1e-9, 'the $100 tower earns 1/4 of the pool')
+  t.close(twPa.runXp, 0.875, 1e-9, 'the popper ALSO biggest spender earns 0.5 pops + 0.375 spend = 0.875')
+  t.close(twPb.runXp, 0.125, 1e-9, 'the idle $100 tower earns only 0.125 from the spend half')
   t.close(twPa.runXp + twPb.runXp, 1, 1e-9, 'and the paid shares sum to the pool')
+
+  t.section('a cheap workhorse out-earns an idle money-sink')
+  const simHW = makeSim(OP, { cash: 5000 })
+  const twCheap = OP.Towers.place(simHW, 'acorn-fox', 100, 360, { free: true })
+  twCheap.invested = 50
+  const twSink = OP.Towers.place(simHW, 'rune-weasel', 300, 360, { free: true })
+  twSink.invested = 1000
+  const bHW = spawn(OP, simHW, 0, 0, 0)
+  hit(OP, simHW, bHW, 20, OP.DMG.NORMAL, { sourceId: twCheap.id })
+  X.settle(simHW)
+  t.close(twCheap.runXp, 0.52381, 1e-4, 'cheap popper: 0.5 pops + 0.5*(50/1050) spend')
+  t.close(twSink.runXp, 0.47619, 1e-4, 'idle sink: 0.5*(1000/1050) spend')
+  t.ok(twCheap.runXp > twSink.runXp, 'and the popper wins despite spending 20x less')
+
+  t.section('free placements earn from pops, nothing from spend')
   const simP2 = makeSim(OP, { cash: 5000 })
   const twPc = OP.Towers.place(simP2, 'acorn-fox', 100, 360, { free: true })
   twPc.invested = 0
@@ -119,8 +134,8 @@ t.section('the pool is shared pro rata by money invested')
   const bp2 = spawn(OP, simP2, 0, 0, 0)
   hit(OP, simP2, bp2, 20, OP.DMG.NORMAL, { sourceId: twPd.id })
   X.settle(simP2)
-  t.eq(twPc.runXp, 0, 'a free placement with nothing invested earns nothing')
-  t.close(twPd.runXp, 1, 1e-9, 'the invested tower takes the pool')
+  t.eq(twPc.runXp, 0, 'a free tower that pops nothing earns nothing')
+  t.close(twPd.runXp, 1, 1e-9, 'the sole pops+spend tower takes the pool')
   const simP3 = makeSim(OP, { cash: 5000 })
   const twPe = OP.Towers.place(simP3, 'acorn-fox', 100, 360, { free: true })
   twPe.invested = 100
@@ -129,6 +144,7 @@ t.section('the pool is shared pro rata by money invested')
   X.settle(simP3)
   X.settle(simP3)
   t.close(twPe.runXp, 1, 1e-9, 'a second settle with an empty pool changes nothing')
+  t.eq(twPe.roundPops, 0, 'and round pops are reset after settling')
 
   t.section('money never buys XP')
   const simC = makeSim(OP, { cash: 99999 })
