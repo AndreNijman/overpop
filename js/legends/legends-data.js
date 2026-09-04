@@ -39,6 +39,7 @@
   LegendsData.BOSS = 'boss'
   LegendsData.MERCHANT = 'merchant'
   LegendsData.MINIGAME = 'minigame'
+  LegendsData.BOOST = 'boost'
 
   /* The three official Rogue Legends mini-games. A Mini-game tile is one of
      these, rolled deterministically per seed+node; each has its own goal that
@@ -56,6 +57,18 @@
     raceSeconds: [60, 70, 80, 90],
     endurancePops: [1200, 2000, 3000, 4500]
   }
+
+  /* Boosts: temporary campaign-wide surges granted by Boost tiles. Each boosts
+     lasts for BOOST_DURATION battles (see core/legends.js). They use the same
+     mods/ruleOverrides vocabularies as artifacts, but are layered on top and
+     timed rather than permanent. */
+  LegendsData.BOOSTS = [
+    { key: 'fury', name: 'Fury Surge', blurb: 'All critters gain 2 damage and 1 extra pierce for the next 3 battles.', mods: { damageAdd: 2, pierceAdd: 1 } },
+    { key: 'focus', name: 'Focus Fire', blurb: 'All critters fire 15% faster for the next 3 battles.', mods: { cooldownMul: 0.85 } },
+    { key: 'wealth', name: 'Wealth Surge', blurb: 'Earn 50% more cash per pop for the next 3 battles.', ruleOverrides: { cashPerPopMul: 0.5 } },
+    { key: 'fortify', name: 'Fortify', blurb: 'Carry 25 bonus lives into every battle for the next 3 battles.', ruleOverrides: { startLives: 25 } },
+    { key: 'adrenaline', name: 'Adrenaline', blurb: 'All critters gain 80 attack speed and 15 range for the next 3 battles.', mods: { projSpeedAdd: 80, rangeAdd: 15 } }
+  ]
 
   /* Artifact rarities, ordered common < rare < legendary. */
   LegendsData.COMMON = 'common'
@@ -163,6 +176,15 @@
     return 'Mini-game'
   }
 
+  LegendsData.getBoost = function (key) {
+    for (var i = 0; i < LegendsData.BOOSTS.length; i++) {
+      if (LegendsData.BOOSTS[i].key === key) return LegendsData.BOOSTS[i]
+    }
+    return null
+  }
+
+  LegendsData.allBoosts = function () { return LegendsData.BOOSTS }
+
   /* ---------- deep freeze ---------- */
 
   function deepFreeze (obj) {
@@ -180,6 +202,7 @@
   deepFreeze(RARITY_WEIGHTS)
   deepFreeze(MERCHANT_PRICE)
   deepFreeze(MINI_GOALS)
+  deepFreeze(LegendsData.BOOSTS)
 
   OP.LegendsData = LegendsData
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

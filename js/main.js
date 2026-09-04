@@ -437,8 +437,10 @@
       // hand them through so the campaign opens with the player's starter relics.
       var picks = (OP.Menus && OP.Menus.state && OP.Menus.state.legendsStart)
         ? OP.Menus.state.legendsStart.picks : null
+      var hero = (OP.Menus && OP.Menus.state && OP.Menus.state.legendsStart)
+        ? OP.Menus.state.legendsStart.hero : null
       if (OP.Menus && OP.Menus.state) OP.Menus.state.legendsStart = null
-      if (!OP.Legends.start(S.profile, null, picks ? { picks: picks } : null)) return null
+      if (!OP.Legends.start(S.profile, null, { picks: picks || [], hero: hero })) return null
       if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     }
     var launched = App.launchLegendsBattle()
@@ -490,6 +492,8 @@
   App.launchLegendsBattle = function () {
     const S = App.state
     if (!S.profile || !OP.Legends || !OP.Legends.isActive(S.profile)) return null
+    // Tick the active boost before launching (decrement at battle START).
+    if (OP.Legends.tickBoost) OP.Legends.tickBoost(S.profile)
     var cfg = OP.Legends.battleConfig(S.profile)
     if (!cfg) return null
     var sim = App.startGame(cfg.mapKey, cfg.difficulty, cfg.mode, {})
@@ -508,6 +512,16 @@
     sim.cash = cfg.startCash != null ? cfg.startCash : sim.cash
     if (cfg.startLives != null) sim.lives = cfg.startLives
     if (OP.Legends.applyArtifacts) OP.Legends.applyArtifacts(S.profile, sim)
+    // Boost resource carry-over (fortify startLives, etc.)
+    if (OP.Legends.boostResourceBoosts) {
+      var bRes = OP.Legends.boostResourceBoosts(S.profile)
+      if (bRes.cash) sim.cash += bRes.cash
+      if (bRes.lives) sim.lives += bRes.lives
+    }
+    // Apply active boost mods/rules to the sim.
+    if (OP.Legends.applyBoost) OP.Legends.applyBoost(S.profile, sim)
+    // Deploy the campaign hero onto the map.
+    if (OP.Legends.deployHero) OP.Legends.deployHero(S.profile, sim)
     return sim
   }
 

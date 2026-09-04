@@ -27,6 +27,7 @@
   /* How many artifacts the player may select for a Starter Party (Rogue
      Legends lets you bring up to three). */
   Legends.STARTING_PARTY = 3
+  Legends.BOOST_DURATION = 3
 
   /* Battle rounds per stage, and how the tier ramp is tuned. `frontier` is a
      0..1 position across the whole campaign used to scale battle size. */
@@ -84,6 +85,7 @@
     if (rng.chance(0.14)) return bos.MERCHANT
     if (rng.chance(0.22)) return bos.CHEST
     if (rng.chance(0.14)) return bos.MINIGAME
+    if (rng.chance(0.10)) return bos.BOOST
     return bos.BATTLE
   }
 
@@ -100,6 +102,7 @@
       name = bos.miniName(type)
     }
     else if (kind === bos.ELITE) name = 'Elite Encounter'
+    else if (kind === bos.BOOST) name = 'Power Surge'
     else if (kind === bos.BOSS) name = 'Boss'
     var node = { kind: kind, name: name }
     if (type) node.miniType = type
@@ -187,7 +190,8 @@
       miniType: miniType,
       miniGoal: miniType ? OP.LegendsData.miniGoal(miniType, l.stage) : null,
       startCash: Math.max(0, l.cash) + (boosts.cash || 0),
-      startLives: Math.max(1, l.lives) + (boosts.lives || 0)
+      startLives: Math.max(1, l.lives) + (boosts.lives || 0),
+      heroKey: l.heroKey || null
     }
   }
 
@@ -204,6 +208,112 @@
       if (art.ruleOverrides.startLives) out.lives += art.ruleOverrides.startLives
     }
     return out
+  }
+
+  /* Sum the boost-style rule overrides for resource carry-over. */
+  Legends.boostResourceBoosts = function (profile) {
+    var out = { cash: 0, lives: 0 }
+    var l = Legends.get(profile)
+    if (!l || !l.boost || !l.boost.key) return out
+    var bos = OP.LegendsData
+    var boost = bos.getBoost(l.boost.key)
+    if (!boost || !boost.ruleOverrides) return out
+    if (boost.ruleOverrides.startCash) out.cash += boost.ruleOverrides.startCash
+    if (boost.ruleOverrides.startLives) out.lives += boost.ruleOverrides.startLives
+    return out
+  }
+
+  /* Deploy the campaign hero onto a fresh battle sim. Scans the map for a
+     buildable cell near the track entrance and places the hero free. Returns
+     the placed hero or null if no valid spot exists. */
+  Legends.deployHero = function (profile, sim) {
+    var l = Legends.get(profile)
+    if (!l || !l.heroKey || !sim || !OP.Heroes) return null
+    var heroKey = l.heroKey
+    if (!OP.HEROES || !OP.HEROES[heroKey]) return null
+    if (sim.heroId >= 0) return null
+    var def = OP.HEROES[heroKey]
+    var footprint = def.footprint || 14
+    var map = sim.map
+    // Find a buildable cell. Scan a coarse grid and pick the first cell where
+    // Maps.canPlace approves the hero footprint, preferring cells near the
+    // track entrance.
+    var entrance = null
+    if (map && map.paths && map.paths[0]) {
+      var track = map.paths[0]
+      if (track.points && track.points.length) entrance = track.points[0]
+      else if (Array.isArray(track) && track.length) entrance = track[0]
+    }
+    var step = 16
+    var best = null
+    var bestDist = Infinity
+    for (var cy = footprint; cy < OP.FIELD_H - footprint; cy += step) {
+      for (var cx = footprint; cx < OP.FIELD_W - footprint; cx += step) {
+        var placeCheck = OP.Maps && OP.Maps.canPlace ? OP.Maps.canPlace(map, def, cx, cy) : { ok: true }
+        if (!placeCheck.ok) continue
+        // Check overlap with existing towers
+        var overlap = false
+        for (var ti = 0; ti < sim.towers.length; ti++) {
+          var other = sim.towers[ti]
+          var min = footprint + (other.def.footprint || 14)
+          var dx = cx - other.x, dy = cy - other.y
+          if (dx * dx + dy * dy < min * min) { overlap = true; break }
+        }
+        if (overlap) continue
+        var dist = entrance ? ((cx - entrance.x) * (cx - entrance.x) + (cy - entrance.y) * (cy - entrance.y)) : ((cx - 200) * (cx - 200) + (cy - 360) * (cy - 360))
+        if (dist < bestDist) { bestDist = dist; best = { x: cx, y: cy } }
+      }
+    }
+    if (!best) return null
+    return OP.Heroes.place(sim, heroKey, best.x, best.y, { free: true })
+  }
+
+  /* Grant a temporary campaign-wide surge. */
+  Legends.grantBoost = function (profile, boostKey) {
+    var l = Legends.get(profile)
+    if (!l || !boostKey) return false
+    l.boost = { key: boostKey, battlesLeft: Legends.BOOST_DURATION }
+    return true
+  }
+
+  /* Apply the active boost's mods/rules to a battle sim. */
+  Legends.applyBoost = function (profile, sim) {
+    var l = Legends.get(profile)
+    if (!l || !l.boost || !l.boost.key || !sim) return sim
+    var bos = OP.LegendsData
+    var boost = bos.getBoost(l.boost.key)
+    if (!boost) return sim
+    var rules = sim.rules
+    if (boost.ruleOverrides) {
+      for (var f in boost.ruleOverrides) {
+        if (f === 'startCash' || f === 'startLives') continue
+        if (typeof boost.ruleOverrides[f] === 'number') rules[f] = (rules[f] || 0) + boost.ruleOverrides[f]
+      }
+    }
+    if (boost.mods && OP.Buffs && OP.Buffs.register) {
+      OP.Buffs.register(sim, {
+        id: 'boost-' + boost.key,
+        sourceId: -1,
+        x: 0,
+        y: 0,
+        radius: 'global',
+        priority: 0,
+        families: null,
+        keys: null,
+        selfOnly: false,
+        excludeSelf: false,
+        mods: boost.mods
+      })
+    }
+    return sim
+  }
+
+  /* Decrement the active boost's battle counter. Called at battle end. */
+  Legends.tickBoost = function (profile) {
+    var l = Legends.get(profile)
+    if (!l || !l.boost) return
+    l.boost.battlesLeft--
+    if (l.boost.battlesLeft <= 0) l.boost = null
   }
 
   /* Generate the escalating round table for a battle. Pure + deterministic.
@@ -310,6 +420,14 @@
       var starter = rng.pick(starters)
       if (starter) picks.push(starter)
     }
+    // Hero selection: validate against the registered hero roster; fall back to
+    // the first available hero if the pick is invalid.
+    var heroKey = null
+    if (opts && opts.hero && OP.HEROES && OP.HEROES[opts.hero]) {
+      heroKey = opts.hero
+    } else if (OP.HERO_ORDER && OP.HERO_ORDER.length) {
+      heroKey = OP.HERO_ORDER[0]
+    }
     profile.legends = {
       seed: rng.seed,
       stage: 0,
@@ -317,6 +435,8 @@
       cash: Legends.START_CASH,
       lives: Legends.START_LIVES,
       artifacts: picks,
+      heroKey: heroKey,
+      boost: null,
       wonStages: 0
     }
     return true
@@ -349,6 +469,12 @@
         l.artifacts.push(miniPayout.artifact)
         result.chest = miniPayout.artifact
       }
+    } else if (node && node.kind === bos.BOOST) {
+      var allBoosts = bos.allBoosts()
+      var boostRng = new OP.RNG(l.seed + ':boost-' + l.stage + '-' + l.nodeIndex)
+      var boostPick = allBoosts[boostRng.int(allBoosts.length)]
+      Legends.grantBoost(profile, boostPick.key)
+      result.boost = boostPick.key
     }
 
     result.clearedStage = l.stage || 0
@@ -542,7 +668,9 @@
       completions: (profile && profile.legendsCompletions) || 0,
       cash: l ? l.cash : 0,
       lives: l ? l.lives : 0,
-      artifacts: (l && Array.isArray(l.artifacts)) ? l.artifacts.slice() : []
+      artifacts: (l && Array.isArray(l.artifacts)) ? l.artifacts.slice() : [],
+      heroKey: l ? l.heroKey : null,
+      boost: l && l.boost ? { key: l.boost.key, battlesLeft: l.boost.battlesLeft } : null
     }
   }
 

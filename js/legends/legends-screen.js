@@ -77,11 +77,42 @@
         (picks.length === maxParty ? '  (party full)' : ''),
         { size: 11, colour: picks.length ? C.moss : C.dim }))
 
-      widgets.push(U.button('legends.start', PAD, vy + 24, 360, 54, {
+      // Hero selection — pick one hero to carry into the campaign.
+      var heroY = vy + 40
+      var heroKey = (pickState && pickState.hero) ? pickState.hero : null
+      var heroes = OP.HERO_ORDER ? OP.HERO_ORDER.slice() : []
+      marks.push(U.tracked(PAD, heroY, 'CHOOSE YOUR HERO', { size: 16, colour: C.moss, track: 0.24, weight: '600' }))
+      marks.push(U.text(PAD + 2, heroY + 22, 'One hero deploys on each battlefield. Choose wisely.',
+        { size: 10, colour: C.dim }))
+      marks.push(U.rule(PAD, heroY + 38, FIELD_W - PAD * 2))
+      var heroCardW = 220
+      var heroCardH = 48
+      var heroGap = 16
+      for (var hi = 0; hi < heroes.length; hi++) {
+        var hk = heroes[hi]
+        var hDef = OP.HEROES && OP.HEROES[hk] ? OP.HEROES[hk] : null
+        if (!hDef) continue
+        var hCol = hi % 5
+        var hRow = Math.floor(hi / 5)
+        var hx = PAD + hCol * (heroCardW + heroGap)
+        var hy = heroY + 54 + hRow * (heroCardH + 10)
+        var hSel = heroKey === hk
+        widgets.push(U.button('legends.hero.' + hk, hx, hy, heroCardW, heroCardH, {
+          label: hDef.name, action: 'legends-hero', arg: hk, selected: hSel,
+          sub: '$' + hDef.cost, align: 'left'
+        }))
+      }
+      marks.push(U.text(PAD, heroY + 54 + Math.ceil(heroes.length / 5) * (heroCardH + 10) + 4,
+        heroKey ? 'Hero: ' + (OP.HEROES && OP.HEROES[heroKey] ? OP.HEROES[heroKey].name : heroKey)
+          : 'No hero selected (first available will deploy)',
+        { size: 11, colour: heroKey ? C.moss : C.dim }))
+
+      var startY = heroY + 54 + Math.ceil(heroes.length / 5) * (heroCardH + 10) + 24
+      widgets.push(U.button('legends.start', PAD, startY, 360, 54, {
         label: 'BEGIN RUN', tone: 'primary', action: 'legends-start',
         sub: picks.length ? 'start with your chosen artifacts' : 'start with a random artifact'
       }))
-      widgets.push(U.button('legends.quick', PAD + 384, vy + 24, 360, 54, {
+      widgets.push(U.button('legends.quick', PAD + 384, startY, 360, 54, {
         label: 'CLEAR PICKS', action: 'legends-clear',
         sub: 'clear the party, begin with a random artifact'
       }))
@@ -96,6 +127,16 @@
     marks.push(U.text(PAD, 150, 'CASH $' + Math.floor(sum.cash) + '   ·   LIVES ' + sum.lives, { size: 12, colour: C.ink, weight: '600' }))
     var artLine = 'ARTIFACTS: ' + (sum.artifacts.length ? sum.artifacts.map(artName).join(', ') : 'none')
     marks.push(U.text(PAD, 172, artLine, { size: 10, colour: C.dim }))
+    // Hero + Boost status
+    var heroName = sum.heroKey && OP.HEROES && OP.HEROES[sum.heroKey]
+      ? OP.HEROES[sum.heroKey].name : 'none'
+    var boostLine = sum.boost
+      ? 'BOOST: ' + (OP.LegendsData && OP.LegendsData.getBoost
+        ? (OP.LegendsData.getBoost(sum.boost.key) || {}).name || sum.boost.key
+        : sum.boost.key) + ' (' + sum.boost.battlesLeft + ' left)'
+      : ''
+    marks.push(U.text(PAD + 500, 172, 'HERO: ' + heroName + (boostLine ? '   ·   ' + boostLine : ''),
+      { size: 10, colour: sum.boost ? '#d4a843' : C.dim }))
     marks.push(U.rule(PAD, 190, FIELD_W - PAD * 2))
 
     // The board: one tile per node, entrance..boss.
@@ -236,6 +277,13 @@
       }
       return true
     }
+    if (w.action === 'legends-hero') {
+      var ms = OP.Menus && OP.Menus.state
+      if (!ms) return false
+      var pickState = ms.legendsStart = (ms.legendsStart || { picks: [] })
+      pickState.hero = w.arg
+      return true
+    }
     if (w.action === 'legends-clear') {
       var sc = OP.Menus && OP.Menus.state
       if (sc) sc.legendsStart = null
@@ -283,4 +331,4 @@
 
   OP.LegendsScreen = LegendsScreen
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))
-// build-epoch 2026-09-04B (mini-game tile labels)
+// build-epoch 2026-09-04D (hero + boost nodes)

@@ -121,12 +121,13 @@ Legends* (BTD6 v47 paid DLC):
 | Cash/lives carry between battles | ✓ |
 | Mini-game tiles (Least Cash, Race, Endurance) | ✓ (canon has mini challenges) |
 | Rarity weighting (common/rare/legendary) rising over stages | ✓ |
-| Start-with-a-Hero + Insta Monkey + Boosts meta | `–` (no hero/insta/boost in local Legends) |
+| Start-with-a-Hero + Boosts meta | `–` (no insta monkey; hero + boost nodes delivered) |
 | Merchant tile | ✓ (canon lets you buy/sell/markup) |
 
 The broad architecture maps cleanly; the local build is a smaller content slice
-(28 artifacts vs 85+; no heroes/boosts inside Legends). No Frontier-Legends /
-ranch-hands content.
+(28 artifacts vs 85+; no insta-monkey mechanic). Hero auto-deploy and campaign-wide
+boost surges are now implemented inside Legends. No Frontier-Legends / ranch-hands
+content.
 
 ## 8. Playthrough observation (triangle split)
 
@@ -164,10 +165,9 @@ ladder currently gates more steeply.
    no-borrowed-proper-nouns gate bans the literal "CHIMPS" (see `tools/suites/modes.mjs`).
 2. Decide the **economy fork**: keep Knowledge-Points-only (document it) or add a
    spendable currency + shop to unlock powers/Insta-Monkeys.
-3. ~~Content-close **Legends** (more artifacts; optionally hero/boost nodes).~~
-   **Artifacts done** — the pool grew from 9 to 28 (13 common / 9 rare / 6
-   legendary), every one riding the engine's real buff + rules vocabularies, with
-   a suite gate keeping new entries honest. **Still open:** hero and boost nodes
-   inside Legends (the `–` rows in §7).
+3. ~~Content-close **Legends** (more artifacts; hero/boost nodes).~~
+   **Done** — artifacts grew from 9 to 28, heroes auto-deploy on each battle
+   (player picks one at campaign start), and Boost tiles grant 3-battle temporary
+   surges (damage, speed, cash, lives, range). No insta-monkey mechanic.
 4. Rebalance the **medium+ reference curve** so a competent generic build can
    hold at least Medium Standard (currently 0/4 maps).

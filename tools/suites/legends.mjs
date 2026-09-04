@@ -510,4 +510,107 @@ export function run (t, OP) {
   const fresh = Save.defaults()
   t.eq(fresh.legends, null, 'fresh legends is null')
   t.eq(fresh.legendsCompletions, 0, 'fresh legendsCompletions is 0')
+
+  t.section('boost definitions are well-formed')
+  const allBoosts = LD.allBoosts()
+  t.ok(Array.isArray(allBoosts) && allBoosts.length >= 4, 'at least 4 boosts defined')
+  for (let i = 0; i < allBoosts.length; i++) {
+    const b = allBoosts[i]
+    t.ok(typeof b.key === 'string' && b.key.length > 0, 'boost ' + i + ' has a key')
+    t.ok(typeof b.name === 'string' && b.name.length > 0, 'boost ' + i + ' has a name')
+    t.ok(b.mods || b.ruleOverrides, 'boost ' + i + ' has mods or ruleOverrides')
+  }
+  const fury = LD.getBoost('fury')
+  t.ok(fury, 'fury boost resolves')
+  t.eq(fury.mods.damageAdd, 2, 'fury adds 2 damage')
+  t.eq(fury.mods.pierceAdd, 1, 'fury adds 1 pierce')
+  t.eq(LD.getBoost('nonexistent'), null, 'getBoost returns null for unknown')
+
+  t.section('boost lifecycle')
+  const pb = Save.defaults()
+  L.start(pb, 'boost-seed')
+  t.ok(L.isActive(pb), 'active after start')
+  t.eq(pb.legends.boost, null, 'no active boost at start')
+  L.grantBoost(pb, 'fury')
+  t.ok(pb.legends.boost, 'boost granted')
+  t.eq(pb.legends.boost.key, 'fury', 'boost key is fury')
+  t.eq(pb.legends.boost.battlesLeft, L.BOOST_DURATION || 3, 'boost duration matches BOOST_DURATION')
+  // Apply to a battle sim
+  const simB = makeSim(OP)
+  t.ok(simB, 'fixture sim created')
+  L.applyBoost(pb, simB)
+  t.ok(true, 'applyBoost does not throw')
+  // Tick down
+  L.tickBoost(pb)
+  t.eq(pb.legends.boost.battlesLeft, (L.BOOST_DURATION || 3) - 1, 'boost decremented by 1')
+  L.tickBoost(pb)
+  L.tickBoost(pb)
+  t.eq(pb.legends.boost, null, 'boost expires after BOOST_DURATION ticks')
+
+  t.section('boost rule overrides in resource boosts')
+  const pc = Save.defaults()
+  L.start(pc, 'boost-res-seed')
+  L.grantBoost(pc, 'fortify')
+  const bRes = L.boostResourceBoosts(pc)
+  t.eq(bRes.lives, 25, 'fortify boost grants 25 lives')
+  const pc2 = Save.defaults()
+  L.start(pc2, 'boost-res-seed2')
+  L.grantBoost(pc2, 'wealth')
+  const bRes2 = L.boostResourceBoosts(pc2)
+  t.eq(bRes2.lives, 0, 'wealth gives no lives')
+  t.eq(bRes2.cash, 0, 'wealth gives no lives')
+  const pb2 = Save.defaults()
+  t.eq(L.boostResourceBoosts(pb2).cash, 0, 'no boost = no resource boosts')
+
+  t.section('hero key stored in campaign state')
+  const ph = Save.defaults()
+  L.start(ph, 'hero-seed')
+  t.ok(ph.legends.heroKey, 'heroKey assigned at start')
+  t.ok(OP.HEROES && OP.HEROES[ph.legends.heroKey], 'heroKey is a registered hero')
+  // Explicit hero pick
+  const ph2 = Save.defaults()
+  const heroOrder = OP.HERO_ORDER || []
+  if (heroOrder.length >= 2) {
+    L.start(ph2, 'hero-seed2', { picks: [], hero: heroOrder[1] })
+    t.eq(ph2.legends.heroKey, heroOrder[1], 'explicit hero pick stored')
+  }
+  // Invalid hero falls back to first
+  const ph3 = Save.defaults()
+  L.start(ph3, 'hero-seed3', { picks: [], hero: 'nonexistent-hero-xyz' })
+  t.eq(ph3.legends.heroKey, OP.HERO_ORDER[0], 'invalid hero falls back to first hero')
+
+  t.section('summary exposes hero and boost')
+  const ps = Save.defaults()
+  L.start(ps, 'summary-hero-seed')
+  const heroSum = L.summary(ps)
+  t.ok(heroSum.heroKey, 'summary has heroKey')
+  t.eq(heroSum.boost, null, 'summary boost is null when no active boost')
+  L.grantBoost(ps, 'faderush')
+  const heroSum2 = L.summary(ps)
+  t.ok(heroSum2.boost && heroSum2.boost.key === 'faderush', 'summary reports active boost')
+  t.eq(heroSum2.boost.battlesLeft, L.BOOST_DURATION || 3, 'summary reports boost duration')
+
+  t.section('battleConfig carries heroKey')
+  const pk = Save.defaults()
+  L.start(pk, 'bc-hero-seed')
+  const bcCfg = L.battleConfig(pk)
+  t.ok(bcCfg, 'battleConfig returns a config')
+  t.eq(bcCfg.heroKey, pk.legends.heroKey, 'battleConfig.heroKey matches campaign state')
+
+  t.section('BOOST node kind in legends data')
+  t.eq(typeof LD.BOOST, 'string', 'BOOST constant defined')
+  t.ok(LD.BOOST.length > 0, 'BOOST constant non-empty')
+
+  t.section('recordWin handles BOOST nodes')
+  const pw = Save.defaults()
+  L.start(pw, 'rw-boost-seed')
+  // currentNode regenerates the board each call, so we mock it to return BOOST.
+  const origCurrentNode = L.currentNode
+  L.currentNode = () => ({ kind: LD.BOOST, name: 'Power Surge' })
+  const rwResult = L.recordWin(pw, { cash: 0, lives: 20, rounds: { current: 0, last: 0 }, towers: [] })
+  L.currentNode = origCurrentNode
+  t.ok(rwResult, 'recordWin returns result for BOOST node')
+  t.ok(rwResult.boost, 'BOOST win result includes boost key')
+  t.ok(pw.legends.boost, 'boost granted after winning BOOST node')
+  t.eq(pw.legends.boost.key, rwResult.boost, 'granted boost matches result')
 }
