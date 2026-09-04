@@ -193,6 +193,11 @@
       const killCash = Math.floor(boss.maxHP * 0.01)
       OP.Economy.earn(sim, killCash, hit.sourceId)
 
+      // Count the tier slain — the Boss Event reward recorder reads this to know
+      // how many tiers of this run's boss the player cleared. Lives on sim.stats
+      // so it round-trips with the rest of the stats block.
+      sim.stats.bossTiersKilled = (sim.stats.bossTiersKilled || 0) + 1
+
       sim.events.push({
         kind: 'bosskill',
         boss: boss.def.key,

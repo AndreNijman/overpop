@@ -125,6 +125,24 @@
         rows.push(['Best time', OP.Race.formatTime(raceTime) + ' (new!)'])
       }
     }
+    // Boss Event-specific rows (per-tier progression + KP payout from the recorder).
+    var beResult = app && app.state ? app.state.bossEventResult : null
+    if (beResult) {
+      var beBoss = OP.bossByKey && beResult.bossKey ? OP.bossByKey(beResult.bossKey) : null
+      var beName = (beBoss && beBoss.name) || beResult.bossKey || 'Boss'
+      rows.push(['Boss', beName])
+      rows.push(['Tiers beaten', beResult.tiersKilled + ' / 5'])
+      if (beResult.kpEarned > 0) {
+        var kpLabel = 'Knowledge Points'
+        var kpValue = '+' + beResult.kpEarned
+        if (beResult.newTiers === 1) kpLabel += ' (new tier)'
+        else if (beResult.newTiers > 1) kpLabel += ' (' + beResult.newTiers + ' new tiers)'
+        if (beResult.fullClear) kpLabel += ' · full clear!'
+        rows.push([kpLabel, kpValue])
+      } else {
+        rows.push(['Knowledge Points', '—'])
+      }
+    }
     for (let i = 0; i < rows.length; i++) {
       const y = P.y + 158 + i * 26
       marks.push(U.text(P.x + 40, y, rows[i][0], { size: 11, colour: C.dim }))

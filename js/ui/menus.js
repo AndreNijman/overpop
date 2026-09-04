@@ -835,8 +835,9 @@
 
     /* Two columns so every button stays on the 720px field: the primary/utility
        stack on the left, the content/mode screens on the right. A single column
-       ran past 720 once DAILY, EXPEDITION and TRIALS were added. */
-    const bx = PAD, bw = 330, bh = 46, gap = 12
+       ran past 720 once DAILY, EXPEDITION and TRIALS were added; the right column
+       now carries eight screens, so the gap stays tight to fit the field. */
+    const bx = PAD, bw = 330, bh = 46, gap = 4
     const gx = PAD + bw + 24, gw = 250
     let byL = 320
     let byR = 320
@@ -899,6 +900,13 @@
       var legendsSub = legendsActive ? 'resume your active campaign' : 'a rogue-lite campaign across escalating stages'
       widgets.push(UI.button('title.legends', gx, byR, gw, bh, {
         label: 'LEGENDS', action: 'goto', arg: 'legends', sub: legendsSub
+      }))
+      byR += bh + gap
+    }
+    if (OP.BossEvent && OP.Boss) {
+      var bossSub = 'weekly rotating boss fights with tier rewards'
+      widgets.push(UI.button('title.bossEvent', gx, byR, gw, bh, {
+        label: 'BOSS EVENT', action: 'goto', arg: 'boss-event', sub: bossSub
       }))
       byR += bh + gap
     }

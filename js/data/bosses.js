@@ -150,6 +150,32 @@
     return null
   }
 
+  /* ---------- weekly event rotation ----------
+
+     The Boss Event features one boss per week, cycling through the roster in a
+     fixed order — the same "which boss is on the poster this week" idea BTD6
+     runs. The order is explicit (rather than derived from insertion) so it is a
+     single, reviewable sentence, and it is deep-frozen with the rest of the
+     registry. The rotation arithmetic lives in OP.BossEvent (js/core/bossevent.js),
+     which reads this order lazily at call time. */
+
+  OP.BOSS_ORDER = ['elder-worm', 'storm-drake', 'void-maw']
+
+  /** The boss keys in weekly rotation order. */
+  OP.bossOrder = function () {
+    return OP.BOSS_ORDER.slice()
+  }
+
+  /** The full boss roster as an array of definitions, in rotation order. */
+  OP.bossRoster = function () {
+    const out = []
+    for (const key of OP.BOSS_ORDER) {
+      const def = OP.bossByKey(key)
+      if (def) out.push(def)
+    }
+    return out
+  }
+
   /** HP of a boss at a given tier, elite or normal. */
   OP.bossHP = function (boss, tier, elite) {
     let hp = boss.baseHP
@@ -195,4 +221,5 @@
   }
 
   deepFreeze(OP.BOSSES)
+  Object.freeze(OP.BOSS_ORDER)
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

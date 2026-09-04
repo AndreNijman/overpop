@@ -60,6 +60,7 @@ export function run (t, OP) {
   OP.Boss.damage(restored, { damage: restored.boss.hp, dmgType: OP.DMG.VOID, sourceId: -1 })
   t.eq(restored.boss, null, 'the active boss slot clears')
   t.eq(restored.byId.get(id), undefined, 'the shared lookup no longer holds the dead boss')
+  t.eq(restored.stats.bossTiersKilled, 1, 'the kill is counted for the Boss Event reward recorder')
 
   t.section('a resumed boss fight stays in lockstep with the never-saved run')
   // Regression: a saved boss battle must resume onto the exact same board. If the

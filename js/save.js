@@ -240,6 +240,7 @@
       powers: {},         // power key -> remaining uses
       daily: {},          // dateKey -> { won, bestRound, pops, cash }
       dailyStreak: 0,     // best daily challenge streak
+      bossEvent: { roster: {}, weekly: {} }, // Boss Event progression ledger
       raceBests: {},       // mapKey -> difficulty -> { won, time, pops, cash }
       expedition: null,     // active expedition state or null
       completedExpeditions: {}, // expeditionKey -> completion count
@@ -292,6 +293,7 @@
     out.powers = powerInventory(raw.powers)
     out.daily = normaliseDaily(raw.daily)
     out.dailyStreak = counter(raw.dailyStreak)
+    out.bossEvent = normaliseBossEvent(raw.bossEvent)
     out.raceBests = normaliseRaceBests(raw.raceBests)
     out.expedition = normaliseExpedition(raw.expedition)
     out.completedExpeditions = normaliseCompletedExpeditions(raw.completedExpeditions)
@@ -320,6 +322,47 @@
         bestRound: counter(entry.bestRound),
         pops: counter(entry.pops),
         cash: counter(entry.cash)
+      }
+    }
+    return out
+  }
+
+  /**
+   * Normalise the Boss Event progression ledger.
+   * shape: { roster: { bossKey: { normal: {tiers}, elite: {tiers} } },
+   *          weekly:  { weekKey: { bossKey, elite, won, bestTier } } }
+   * Tiers are clamped to the shipped tier count when the roster is present, so a
+   * ledger from a future build downgrades cleanly rather than over-claiming.
+   */
+  function normaliseBossEvent (raw) {
+    const out = { roster: {}, weekly: {} }
+    if (!isPlainObject(raw)) return out
+
+    if (isPlainObject(raw.roster)) {
+      for (const key in raw.roster) {
+        if (!own(raw.roster, key) || !safeKey(key)) continue
+        const rec = raw.roster[key]
+        if (!isPlainObject(rec)) continue
+        for (const diff of ['normal', 'elite']) {
+          const cell = rec[diff]
+          if (!isPlainObject(cell)) continue
+          out.roster[key] = out.roster[key] || {}
+          out.roster[key][diff] = { tiers: counter(cell.tiers) }
+        }
+      }
+    }
+
+    if (isPlainObject(raw.weekly)) {
+      for (const key in raw.weekly) {
+        if (!own(raw.weekly, key) || typeof key !== 'string' || key === '' || key === '__proto__') continue
+        const entry = raw.weekly[key]
+        if (!isPlainObject(entry)) continue
+        out.weekly[key] = {
+          bossKey: safeKey(entry.bossKey) ? entry.bossKey : '',
+          elite: !!entry.elite,
+          won: !!entry.won,
+          bestTier: counter(entry.bestTier)
+        }
       }
     }
     return out
@@ -666,6 +709,9 @@
     p.powers = powerInventory(p.powers)
     if (!isPlainObject(p.daily)) p.daily = {}
     if (typeof p.dailyStreak !== 'number' || p.dailyStreak < 0) p.dailyStreak = 0
+    if (!isPlainObject(p.bossEvent) || p.bossEvent === null) p.bossEvent = { roster: {}, weekly: {} }
+    if (!isPlainObject(p.bossEvent.roster)) p.bossEvent.roster = {}
+    if (!isPlainObject(p.bossEvent.weekly)) p.bossEvent.weekly = {}
     if (!isPlainObject(p.raceBests)) p.raceBests = {}
     if (p.expedition !== null && !isPlainObject(p.expedition)) p.expedition = null
     if (!isPlainObject(p.completedExpeditions)) p.completedExpeditions = {}

@@ -101,6 +101,7 @@
     if (OP.KnowledgeScreen && OP.KnowledgeScreen.install) OP.KnowledgeScreen.install(App)
     if (OP.Bestiary && OP.Bestiary.install) OP.Bestiary.install(App)
     if (OP.LegendsScreen && OP.LegendsScreen.install) OP.LegendsScreen.install(App)
+    if (OP.EventScreen && OP.EventScreen.install) OP.EventScreen.install(App)
     if (OP.Results && OP.Results.install) OP.Results.install(App)
 
     // Something must be on screen even with no menu module built yet.
@@ -272,6 +273,7 @@
     S.expeditionResult = null
     S.trialResult = null
     S.legendsResult = null
+    S.bossEventResult = null
     S.sim = OP.Sim.create({
       map: map,
       seed: opts.seed === undefined ? String(Date.now()) : opts.seed,
@@ -535,6 +537,39 @@
     })
   }
 
+  /**
+   * Start a Boss Event fight against the chosen boss.
+   *
+   * Runs the boss-event / boss-event-elite mode (which spawns the configured boss
+   * every 20 rounds) on this week's deterministic map, injecting the chosen boss
+   * via a rules override so the same mode keeps working for any roster member.
+   * @param {string} bossKey  a key into OP.BOSSES
+   * @param {boolean} elite   fight the elite variant (gated on normal progress)
+   * @returns {object|null}   the sim, or null if the choice is invalid
+   */
+  App.startBossEvent = function (bossKey, elite) {
+    const S = App.state
+    if (!S.profile || !OP.BossEvent || !OP.Boss) return null
+    bossKey = OP.BossEvent.validBoss(bossKey)
+    if (!bossKey) return null
+    if (elite && !OP.BossEvent.eliteUnlocked(S.profile, bossKey)) return null
+
+    var date = new Date()
+    var mapKey = OP.BossEvent.mapKey(date)
+    if (!mapKey) return null
+    var seed = OP.BossEvent.seed(date, bossKey)
+    var mode = elite ? 'boss-event-elite' : 'boss-event'
+    // The elite variant is a hard-tier challenge (modes.js gates it so); start it
+    // on hard so difficulty scaling matches its billing.
+    var difficulty = elite ? 'hard' : 'medium'
+
+    S.bossEventResult = null
+    return App.startGame(mapKey, difficulty, mode, {
+      seed: seed,
+      rules: { bossKey: bossKey }
+    })
+  }
+
   function onGameOver () {
     const S = App.state
     S.screen = 'results'
@@ -579,6 +614,13 @@
     if (OP.Race && OP.Race.isActive && OP.Race.isActive(S.sim) && S.profile) {
       var raceResult = OP.Race.resultFromSim(S.sim, S.sim.outcome === 'won')
       OP.Race.record(S.profile, S.mapKey, S.difficulty, raceResult)
+    }
+    // Record Boss Event result (per-tier progression + KP rewards). Mirrors the
+    // daily/race hooks: only fires when this run was actually a boss-event run
+    // (sim.rules.bossKey set), so no ordinary game touches the ledger.
+    if (OP.BossEvent && S.profile && S.sim && S.sim.rules &&
+        S.sim.rules.bossKey && !S.sim.freeplay) {
+      S.bossEventResult = OP.BossEvent.recordResult(S.profile, S.sim)
     }
     // Handle expedition map transition
     if (OP.Expedition && OP.Expedition.isActive(S.profile) && S.sim.outcome === 'won') {
