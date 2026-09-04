@@ -28,7 +28,7 @@ export function run (t, OP, env) {
   const DIFF_KEYS = ['easy', 'medium', 'hard', 'relentless']
   const MODE_KEYS = ['standard', 'primary-only', 'military-only', 'magic-only', 'deflation',
     'onslaught', 'half-cash', 'double-hp-blimps', 'alternate-waves', 'reverse', 'purist', 'grim', 'rampart',
-    'boss-event', 'boss-event-elite', 'tag-team', 'rush-trial']
+    'no-mercy', 'boss-event', 'boss-event-elite', 'tag-team', 'rush-trial']
 
   /** A readable label for the junk values fed to the fallback paths below. */
   function fmtJunk (v) {
@@ -52,17 +52,17 @@ export function run (t, OP, env) {
   t.ok(D && typeof D === 'object', 'OP.DIFFICULTIES exists')
   t.ok(M && typeof M === 'object', 'OP.MODES exists')
   t.eq(Object.keys(D).length, 4, 'exactly four difficulties')
-  t.eq(Object.keys(M).length, 17, 'exactly seventeen modes')
+  t.eq(Object.keys(M).length, 18, 'exactly eighteen modes')
   t.deep(OP.DIFFICULTY_ORDER, DIFF_KEYS, 'DIFFICULTY_ORDER is easiest-first')
-  t.eq(OP.MODE_ORDER.length, 17, 'MODE_ORDER lists seventeen modes')
+  t.eq(OP.MODE_ORDER.length, 18, 'MODE_ORDER lists eighteen modes')
 
   // The order arrays are what the menus render. A mode missing from one is a mode
   // the player can never pick; a mode listed twice renders twice.
   t.deep(OP.MODE_ORDER.slice().sort(), Object.keys(M).sort(), 'MODE_ORDER is a permutation of the registry')
-  t.eq(new Set(OP.MODE_ORDER).size, 17, 'MODE_ORDER has no duplicates')
+  t.eq(new Set(OP.MODE_ORDER).size, 18, 'MODE_ORDER has no duplicates')
   t.deep(OP.DIFFICULTY_ORDER.slice().sort(), Object.keys(D).sort(), 'DIFFICULTY_ORDER is a permutation of the registry')
   t.eq(new Set(OP.DIFFICULTY_ORDER).size, 4, 'DIFFICULTY_ORDER has no duplicates')
-  t.deep(OP.MODE_ORDER, MODE_KEYS, 'the seventeen modes are exactly the ones §8 names, in menu order')
+  t.deep(OP.MODE_ORDER, MODE_KEYS, 'the eighteen modes are exactly the ones §8 names, in menu order')
 
   t.section('every entry agrees with the key it is registered under')
   for (const k of DIFF_KEYS) {
@@ -411,7 +411,7 @@ export function run (t, OP, env) {
   t.eq(S.resolveRules({ difficulty: 'nope' }).startLives, defaults.startLives, 'an unknown difficulty applies nothing')
   t.eq(S.resolveRules({ difficulty: 'medium', mode: 'nope' }).allowSell, true, 'an unknown mode applies nothing')
 
-  /* ================= the 64 combinations ================= */
+  /* ================= the 72 combinations ================= */
 
   t.section('every difficulty x mode resolves to internally consistent rules')
   const bad = { lives: [], cost: [], rounds: [], pop: [], families: [], sell: [], cash: [], keys: [] }
@@ -432,7 +432,7 @@ export function run (t, OP, env) {
       if (unknownKeys(r).length) bad.keys.push(label + ': ' + unknownKeys(r).join(','))
     }
   }
-  t.eq(combos, 68, 'there are 68 combinations')
+  t.eq(combos, 72, 'there are 72 combinations')
   t.eq(bad.lives.length, 0, 'startLives >= 1 everywhere', bad.lives.join('; '))
   t.eq(bad.cost.length, 0, 'costMul > 0 everywhere', bad.cost.join('; '))
   t.eq(bad.rounds.length, 0, 'firstRound <= lastRound everywhere', bad.rounds.join('; '))
@@ -442,7 +442,7 @@ export function run (t, OP, env) {
   t.eq(bad.cash.length, 0, 'startCash is a finite non-negative number everywhere', bad.cash.join('; '))
   t.eq(bad.keys.length, 0, 'no resolved ruleset carries a field the engine ignores', bad.keys.join('; '))
 
-  t.section('Sim.create succeeds for all 64 combinations')
+  t.section('Sim.create succeeds for all 72 combinations')
   for (const dk of DIFF_KEYS) {
     for (const mk of MODE_KEYS) {
       const r = S.resolveRules({ difficulty: dk, mode: mk })
@@ -514,6 +514,27 @@ export function run (t, OP, env) {
   t.gt(impSim.rules.costMul, 1, 'towers cost more')
   t.ok(impSim.rules.allowSell, 'selling is still allowed')
   t.ok(impSim.rules.allowIncome, 'income is still allowed')
+
+  t.section('NO MERCY: the full no-safety-net contract')
+  for (const dk of DIFF_KEYS) {
+    const r = S.resolveRules({ difficulty: dk, mode: 'no-mercy' })
+    t.eq(r.startLives, 1, `NO MERCY on ${dk} resolves to one life`)
+    t.eq(r.allowSell, false, `NO MERCY on ${dk} forbids selling`)
+    t.eq(r.allowIncome, false, `NO MERCY on ${dk} forbids income`)
+    t.eq(r.allowContinue, false, `NO MERCY on ${dk} forbids continues`)
+    t.eq(r.allowPowers, false, `NO MERCY on ${dk} forbids powers`)
+    t.eq(r.livesRegain, false, `NO MERCY on ${dk} forbids regaining lives`)
+    t.eq(r.noKnowledge, true, `NO MERCY on ${dk} forbids the skill tree`)
+  }
+  const noMercySim = simFor('hard', 'no-mercy')
+  t.eq(noMercySim.lives, 1, 'a NO MERCY sim starts on one life')
+  t.eq(noMercySim.rules.noKnowledge, true, 'the resolved rules carry noKnowledge')
+  t.eq(noMercySim.knowledge.length, 0, 'the sim carries no knowledge nodes')
+  t.ok(noMercySim.rules.allowAbilities, 'tower abilities stay available')
+
+  const mercySim = simFor('hard', 'standard', { knowledge: ['gen-start-cash'] })
+  t.gt(mercySim.knowledge.length, 0, 'Standard still registers its skill tree')
+  t.close(mercySim.rules.startCash, 700, 1e-9, 'and the buff applies to it')
 
   t.section('a PURIST save cannot come back with selling switched on')
   const purSnap = JSON.parse(JSON.stringify(S.serialize(simFor('relentless', 'purist'))))
@@ -621,10 +642,10 @@ export function run (t, OP, env) {
     for (const dk of DIFF_KEYS) if (!OP.modeAllowedOn(mk, dk)) restricted.push(`${mk}/${dk}`)
   }
   t.deep(restricted, ['purist/easy', 'purist/medium', 'grim/easy', 'grim/medium', 'rampart/easy', 'rampart/medium',
-    'boss-event/easy', 'boss-event-elite/easy', 'boss-event-elite/medium'],
-    'PURIST, GRIM, RAMPART, BOSS-EVENT and BOSS-EVENT-ELITE on lower difficulties are the only restrictions')
+    'no-mercy/easy', 'no-mercy/medium', 'boss-event/easy', 'boss-event-elite/easy', 'boss-event-elite/medium'],
+    'PURIST, GRIM, RAMPART, NO MERCY, BOSS-EVENT and BOSS-EVENT-ELITE on lower difficulties are the only restrictions')
   t.ok(MODE_KEYS.every(mk => DIFF_KEYS.some(dk => OP.modeAllowedOn(mk, dk))), 'every mode is playable somewhere')
-    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'relentless')).length, 17, 'Relentless offers all seventeen')
+    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'relentless')).length, 18, 'Relentless offers all eighteen')
     t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'easy')).length, 12, 'Easy offers twelve')
   t.notOk(OP.modeAllowedOn('nope', 'medium'), 'an unknown mode is refused')
   t.notOk(OP.modeAllowedOn('standard', 'nope'), 'an unknown difficulty is refused')

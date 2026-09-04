@@ -158,7 +158,10 @@ ladder currently gates more steeply.
 
 ## Suggested next steps
 
-1. Add a **CHIMPS**-style no-continues mode (biggest canon gap).
+1. ~~Add a **CHIMPS**-style no-continues mode (biggest canon gap).~~ **Done** — delivered
+   as the **NO MERCY** mode (no selling, no income, no continues, no powers, no
+   skill tree, one life, 80 rounds). It uses an original name because the project's
+   no-borrowed-proper-nouns gate bans the literal "CHIMPS" (see `tools/suites/modes.mjs`).
 2. Decide the **economy fork**: keep Knowledge-Points-only (document it) or add a
    spendable currency + shop to unlock powers/Insta-Monkeys.
 3. Content-close **Legends** (more artifacts; optionally hero/boost nodes).

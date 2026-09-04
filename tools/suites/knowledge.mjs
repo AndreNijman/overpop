@@ -81,10 +81,21 @@ export function run (t, OP) {
     'PURIST stays one life - extra life does not break the contract')
   t.eq(rawSim('hard', 'grim', ['gen-extra-life']).lives, 1, 'GRIM stays one life')
   t.eq(rawSim('hard', 'rampart', ['gen-extra-life']).lives, 1, 'RAMPART stays one life')
+  t.eq(rawSim('hard', 'no-mercy', ['gen-extra-life']).lives, 1, 'NO MERCY stays one life')
   t.eq(rawSim('relentless', 'standard', ['gen-extra-life']).lives, 1,
     'a one-life difficulty stays one life')
   t.eq(rawSim('medium', 'standard', ['gen-extra-life']).lives, 151,
     'but a multi-life mode still gets the extra life')
+
+  t.section('NO MERCY forbids the skill tree entirely')
+  t.eq(rawSim('hard', 'no-mercy', ['gen-start-cash']).knowledge.length, 0,
+    'no knowledge nodes are registered on a NO MERCY run')
+  t.eq(rawSim('hard', 'no-mercy', ['gen-extra-life']).lives, 1,
+    'and an extra-life node cannot even grant its intended effect')
+  t.eq(rawSim('hard', 'no-mercy', []).rules.noKnowledge, true,
+    'the resolved rules carry the noKnowledge flag')
+  t.eq(rawSim('hard', 'standard', ['gen-start-cash']).rules.noKnowledge, false,
+    'and Standard does not')
 
   t.section('family stat bonuses apply through the buff engine')
   const base = sim([])

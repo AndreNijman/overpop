@@ -473,7 +473,7 @@
       'primary-only': 1, 'military-only': 1, 'magic-only': 1,
       'deflation': 1, 'onslaught': 1, 'half-cash': 2,
       'double-hp-blimps': 1, 'alternate-waves': 1, 'reverse': 1,
-      'purist': 2, 'grim': 3, 'rampart': 3,
+      'purist': 2, 'grim': 3, 'rampart': 3, 'no-mercy': 3,
       'boss-event': 2, 'boss-event-elite': 3
     }
     kp += modeBonus[result.mode] || 0

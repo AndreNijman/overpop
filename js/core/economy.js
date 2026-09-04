@@ -28,6 +28,7 @@
       allowAbilities: true,
       allowPowers: true,    // PURIST and GRIM forbid consumables
       livesRegain: true,    // PURIST forbids regaining lives
+      noKnowledge: false,   // NO MERCY forbids the skill tree
       families: null,       // null = all; ['primary'] for Primary Only
       allowedTowerKeys: null, // null = unrestricted; profile snapshot for new runs
       firstRound: 1,

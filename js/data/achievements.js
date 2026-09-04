@@ -88,6 +88,17 @@
         )
       }
     },
+    'clear-no-mercy': {
+      key: 'clear-no-mercy',
+      name: 'No Quarter',
+      blurb: 'Win a NO MERCY run — no selling, no income, no skill tree, and one life.',
+      kp: 5,
+      check: function (p) {
+        return p.completions && Object.values(p.completions).some(
+          d => d && Object.values(d).some(m => m && m['no-mercy'] === true)
+        )
+      }
+    },
     'clear-boss': {
       key: 'clear-boss',
       name: 'Boss Slayer',

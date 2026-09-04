@@ -32,7 +32,9 @@
 
     const rules = Sim.resolveRules(config)
 
-    // Apply knowledge rule overrides (persistent skill tree bonuses)
+    // Apply knowledge rule overrides (persistent skill tree bonuses). Skipped
+    // when the resolved mode forbids the skill tree (NO MERCY).
+    if (rules.noKnowledge) config.knowledge = []
     if (OP.Knowledge && OP.Knowledge.applyRules && config.knowledge && config.knowledge.length) {
       OP.Knowledge.applyRules(rules, config.knowledge)
     }
@@ -98,7 +100,9 @@
 
       grid: OP.Grid.create(OP.FIELD_W, OP.FIELD_H),
 
-      // Knowledge: the set of unlocked skill tree nodes for this run
+      // Knowledge: the set of unlocked skill tree nodes for this run. It is
+      // emptied above when the mode forbids the tree, so no node applies and the
+      // field records an empty set for the run.
       knowledge: Array.isArray(config.knowledge)
         ? config.knowledge.filter(k => OP.KNOWLEDGE && OP.KNOWLEDGE[k]).slice().sort()
         : [],

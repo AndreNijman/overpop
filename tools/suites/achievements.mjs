@@ -8,7 +8,7 @@ export function run (t, OP) {
   t.section('the registry is complete and ordered')
   t.ok(defs && typeof defs === 'object', 'OP.ACHIEVEMENTS exists')
   t.ok(Array.isArray(order), 'OP.ACHIEVEMENTS_ORDER exists')
-  t.eq(Object.keys(defs).length, 15, 'fifteen achievements ship')
+  t.eq(Object.keys(defs).length, 16, 'sixteen achievements ship')
   t.deep(order.slice().sort(), Object.keys(defs).sort(), 'the order is a registry permutation')
   t.eq(new Set(order).size, order.length, 'the order has no duplicates')
 
@@ -62,12 +62,12 @@ export function run (t, OP) {
   completion.completions = {
     glade: {
       medium: { 'boss-event': true },
-      hard: { purist: true, grim: true },
+      hard: { purist: true, grim: true, 'no-mercy': true },
       relentless: { standard: true }
     }
   }
   const earned = OP.achievementsCheck(completion, OP)
-  for (const key of ['clear-hard', 'clear-relentless', 'clear-purist', 'clear-grim', 'clear-boss']) {
+  for (const key of ['clear-hard', 'clear-relentless', 'clear-purist', 'clear-grim', 'clear-no-mercy', 'clear-boss']) {
     t.ok(earned.indexOf(key) >= 0, key + ' recognises its completion')
   }
 

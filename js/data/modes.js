@@ -174,6 +174,21 @@
       }
     },
 
+    'no-mercy': {
+      key: 'no-mercy',
+      name: 'NO MERCY',
+      blurb: 'No selling, no income, no lives regained, no powers, and no skill tree. One life, eighty honest rounds — the purest measure of a build.',
+      rules: {
+        startLives: 1,
+        allowSell: false,
+        allowIncome: false,
+        allowContinue: false,
+        allowPowers: false,
+        livesRegain: false,
+        noKnowledge: true
+      }
+    },
+
     'boss-event': {
       key: 'boss-event',
       name: 'Boss Event',
@@ -253,6 +268,7 @@
     'purist',
     'grim',
     'rampart',
+    'no-mercy',
     'boss-event',
     'boss-event-elite',
     'tag-team',
@@ -279,7 +295,7 @@
      This is a MENU gate. The sim never consults it: OP.Sim.create honours whatever
      difficulty and mode it is handed, because a save from a future ruleset must
      still load. */
-  const MODE_MIN_DIFFICULTY = { purist: 'hard', grim: 'hard', rampart: 'hard', 'boss-event': 'medium', 'boss-event-elite': 'hard' }
+  const MODE_MIN_DIFFICULTY = { purist: 'hard', grim: 'hard', rampart: 'hard', 'no-mercy': 'hard', 'boss-event': 'medium', 'boss-event-elite': 'hard' }
 
   /**
    * May this mode be started on this difficulty?
