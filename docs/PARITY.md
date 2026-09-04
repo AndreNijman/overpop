@@ -117,7 +117,7 @@ Legends* (BTD6 v47 paid DLC):
 | 4-stage escalating campaign | ✓ (canon is 4 stages w/ escalating rules) |
 | Tiled node board (Battle / Elite / Chest / Merchant / Boss / Mini-game) | ✓ (canon hex-tile map with encounters) |
 | Final boss per stage gating your run | ✓ |
-| Artifacts = passive buffs that stack over the run | ✓ (9 local vs ~85 canon) |
+| Artifacts = passive buffs that stack over the run | ✓ (28 local vs ~85 canon) |
 | Cash/lives carry between battles | ✓ |
 | Mini-game tiles (Least Cash, Race, Endurance) | ✓ (canon has mini challenges) |
 | Rarity weighting (common/rare/legendary) rising over stages | ✓ |
@@ -125,7 +125,7 @@ Legends* (BTD6 v47 paid DLC):
 | Merchant tile | ✓ (canon lets you buy/sell/markup) |
 
 The broad architecture maps cleanly; the local build is a smaller content slice
-(9 artifacts vs 85+; no heroes/boosts inside Legends). No Frontier-Legends /
+(28 artifacts vs 85+; no heroes/boosts inside Legends). No Frontier-Legends /
 ranch-hands content.
 
 ## 8. Playthrough observation (triangle split)
@@ -164,6 +164,10 @@ ladder currently gates more steeply.
    no-borrowed-proper-nouns gate bans the literal "CHIMPS" (see `tools/suites/modes.mjs`).
 2. Decide the **economy fork**: keep Knowledge-Points-only (document it) or add a
    spendable currency + shop to unlock powers/Insta-Monkeys.
-3. Content-close **Legends** (more artifacts; optionally hero/boost nodes).
+3. ~~Content-close **Legends** (more artifacts; optionally hero/boost nodes).~~
+   **Artifacts done** — the pool grew from 9 to 28 (13 common / 9 rare / 6
+   legendary), every one riding the engine's real buff + rules vocabularies, with
+   a suite gate keeping new entries honest. **Still open:** hero and boost nodes
+   inside Legends (the `–` rows in §7).
 4. Rebalance the **medium+ reference curve** so a competent generic build can
    hold at least Medium Standard (currently 0/4 maps).

@@ -67,20 +67,44 @@
      uses, so they ride the tower buff + rules machinery with zero engine work.
      `rarity` drives how common the drop is, weighted up over the campaign. */
   var ARTIFACTS = [
+    /* ---- common: modest, broadly useful ---- */
     { key: 'sharpen', name: 'Sharpen', rarity: 'common', blurb: 'All critters deal one more damage for the rest of the campaign.', mods: { damageAdd: 1 } },
     { key: 'pinpoint', name: 'Pinpoint', rarity: 'common', blurb: 'All critters gain 12 range for the rest of the campaign.', mods: { rangeAdd: 12 } },
     { key: 'buckshot', name: 'Buckshot', rarity: 'common', blurb: 'All critters pierce one extra target for the rest of the campaign.', mods: { pierceAdd: 2 } },
     { key: 'deep-pockets', name: 'Deep Pockets', rarity: 'common', blurb: 'Start the next battle with $250 extra cash.', ruleOverrides: { startCash: 250 } },
     { key: 'greed', name: 'Greed', rarity: 'common', blurb: 'Earn 25% more cash from every pop this battle.', ruleOverrides: { cashPerPopMul: 0.25 } },
     { key: 'vigor', name: 'Vigor', rarity: 'common', blurb: 'Carry 10 bonus lives into every battle.', ruleOverrides: { startLives: 10 } },
+    { key: 'rapid', name: 'Rapidfire', rarity: 'common', blurb: 'All critters fire 8% faster for the rest of the campaign.', mods: { cooldownMul: 0.92 } },
+    { key: 'longshot', name: 'Longshot', rarity: 'common', blurb: 'All critters gain 10% more range for the rest of the campaign.', mods: { rangeMul: 1.1 } },
+    { key: 'hollowpoint', name: 'Hollowpoint', rarity: 'common', blurb: 'All critters hurl their attacks 45 speed faster for the rest of the campaign.', mods: { projSpeedAdd: 45 } },
+    { key: 'foundry', name: 'Foundry', rarity: 'common', blurb: 'Start the next battle with $150 extra cash to spend on towers.', ruleOverrides: { startCash: 150 } },
+    { key: 'stipend', name: 'Round Stipend', rarity: 'common', blurb: 'Bank 25% more bonus cash at the end of every round.', ruleOverrides: { roundBonusMul: 0.25 } },
+    { key: 'hawkeye', name: 'Hawkeye', rarity: 'common', blurb: 'All critters can detect the sneaky balloons for the rest of the campaign.', mods: { camoDetect: true } },
+    { key: 'truesight', name: 'True Sight', rarity: 'common', blurb: 'All critters hit balloons behind walls for the rest of the campaign.', mods: { ignoresLOS: true } },
+
+    /* ---- rare: stronger, with a visible edge ---- */
     { key: 'scope', name: 'Scope', rarity: 'rare', blurb: 'All critters gain 20 range for the rest of the campaign.', mods: { rangeAdd: 20 } },
     { key: 'razor', name: 'Razor Coating', rarity: 'rare', blurb: 'All critters deal 2 more damage for the rest of the campaign.', mods: { damageAdd: 2 } },
-    { key: 'annihilation', name: 'Annihilation', rarity: 'legendary', blurb: 'Ferocious power: all critters deal 3 more damage and pierce 3 targets.', mods: { damageAdd: 3, pierceAdd: 3 } }
+    { key: 'deadeye', name: 'Deadeye', rarity: 'rare', blurb: 'All critters loose one extra projectile per volley for the rest of the campaign.', mods: { shotsAdd: 1 } },
+    { key: 'density', name: 'Density', rarity: 'rare', blurb: 'All critters deal 25% more damage for the rest of the campaign.', mods: { damageMul: 1.25 } },
+    { key: 'surge', name: 'Overcharge', rarity: 'rare', blurb: 'All critters gain 30 range and 1 extra damage for the rest of the campaign.', mods: { rangeAdd: 30, damageAdd: 1 } },
+    { key: 'overdrive', name: 'Overdrive', rarity: 'rare', blurb: 'All critters fire 15% faster for the rest of the campaign.', mods: { cooldownMul: 0.85 } },
+    { key: 'slowcoach', name: 'Slowcoach', rarity: 'rare', blurb: 'Balloons move 12% slower on every battlefield for the rest of the campaign.', ruleOverrides: { speedScale: -0.12 } },
+    { key: 'soften', name: 'Soften', rarity: 'rare', blurb: 'Balloons are 15% easier to burst on every battlefield for the rest of the campaign.', ruleOverrides: { hpScale: -0.15 } },
+    { key: 'windfall', name: 'Windfall', rarity: 'rare', blurb: 'Earn 35% more cash from every pop until the end of the campaign.', ruleOverrides: { cashPerPopMul: 0.35 } },
+
+    /* ---- legendary: build-defining power ---- */
+    { key: 'annihilation', name: 'Annihilation', rarity: 'legendary', blurb: 'Ferocious power: all critters deal 3 more damage and pierce 3 targets.', mods: { damageAdd: 3, pierceAdd: 3 } },
+    { key: 'colossus', name: 'Colossus', rarity: 'legendary', blurb: 'All critters tower up: 4 extra damage, 25 range and 2 extra pierce.', mods: { damageAdd: 4, rangeAdd: 25, pierceAdd: 2 } },
+    { key: 'masterwork', name: 'Masterwork', rarity: 'legendary', blurb: 'Refined craft: all critters deal 50% more damage and reach 15% further.', mods: { damageMul: 1.5, rangeMul: 1.15 } },
+    { key: 'epoch', name: 'Epoch', rarity: 'legendary', blurb: 'An age of war: all critters gain 3 damage, 20 range and faster attacks.', mods: { damageAdd: 3, rangeAdd: 20, projSpeedAdd: 60 } },
+    { key: 'godhand', name: 'God Hand', rarity: 'legendary', blurb: 'The track bows: balloons are 25% slower and 25% easier to burst everywhere.', ruleOverrides: { speedScale: -0.25, hpScale: -0.25 } },
+    { key: 'jackpot', name: 'Jackpot', rarity: 'legendary', blurb: 'Cash flows: earn 50% more per pop and bank 50% more each round end.', ruleOverrides: { cashPerPopMul: 0.5, roundBonusMul: 0.5 } }
   ]
 
   /* First battle grants a free pick from the starter pool so every run opens
      with a real artifact. */
-  var STARTERS = ['sharpen', 'pinpoint', 'buckshot', 'greed', 'vigor']
+  var STARTERS = ['sharpen', 'pinpoint', 'buckshot', 'greed', 'vigor', 'rapid', 'stipend']
 
   /* Drop weighting by stage (index 0..last): how likely a loot roll lands on
      each rarity. Later stages lean on rares and legendaries. */
@@ -159,4 +183,4 @@
 
   OP.LegendsData = LegendsData
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))
-// build-epoch 2026-09-04B (mini-game type tables)
+// build-epoch 2026-09-04C (expanded artifact pool)

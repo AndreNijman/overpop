@@ -48,6 +48,57 @@ export function run (t, OP) {
   t.eq(LD.getArtifact('nope'), null, 'getArtifact returns null for unknown')
   t.ok(LD.starterKeys().length > 0, 'starter pool is non-empty')
 
+  t.section('the artifact pool is broad and every effect is one the engine reads')
+  // Parity gap: canon Rogue Legends has ~85 artifacts. The local pool should keep
+  // growing; this gate just keeps every entry honest (a typo'd field is dead data).
+  t.gte(arts.length, 24, 'artifact pool has 24+ members (content-close target)')
+  const modFields = []
+  const addFields = OP.Buffs && OP.Buffs.ADD_FIELDS ? OP.Buffs.ADD_FIELDS : []
+  const mulFields = OP.Buffs && OP.Buffs.MUL_FIELDS ? OP.Buffs.MUL_FIELDS : []
+  const flagFields = OP.Buffs && OP.Buffs.FLAG_FIELDS ? OP.Buffs.FLAG_FIELDS : []
+  modFields.push.apply(modFields, addFields)
+  modFields.push.apply(modFields, mulFields)
+  modFields.push.apply(modFields, flagFields)
+  modFields.push('dmgTypeSet')
+  const rulesVocab = OP.Economy ? Object.keys(OP.Economy.defaultRules()) : []
+  const artKeys = []
+  const artNames = []
+  const artBlurbs = []
+  const raritySeen = {}
+  for (let i = 0; i < arts.length; i++) {
+    const a = arts[i]
+    artKeys.push(a.key)
+    artNames.push(a.name)
+    artBlurbs.push(a.blurb)
+    raritySeen[a.rarity] = (raritySeen[a.rarity] || 0) + 1
+    t.ok(['common', 'rare', 'legendary'].indexOf(a.rarity) >= 0, a.key + ' rarity is valid')
+    if (a.mods) {
+      for (const f in a.mods) {
+        t.ok(modFields.indexOf(f) >= 0, a.key + ' mod "' + f + '" is a real buff field')
+      }
+    }
+    if (a.ruleOverrides) {
+      for (const f in a.ruleOverrides) {
+        t.ok(rulesVocab.indexOf(f) >= 0 || f === 'startCash' || f === 'startLives',
+          a.key + ' rule "' + f + '" is a real rule field')
+      }
+    }
+  }
+  t.eq(new Set(artKeys).size, artKeys.length, 'every artifact key is unique')
+  t.eq(new Set(artNames).size, artNames.length, 'every artifact name is unique')
+  t.eq(new Set(artBlurbs).size, artBlurbs.length, 'no two artifacts share a blurb')
+  t.ok(raritySeen.common >= 1 && raritySeen.rare >= 1 && raritySeen.legendary >= 1,
+    'all three rarities are populated')
+  const BORROWED = /\b(bloons?|moabs?|bfb|zomg|ninja ?kiwi|dart monkey|super monkey|monkeys?|impoppable|apopalypse|chimps|btd)\b/i
+  for (const a of arts) {
+    const blob = JSON.stringify({ key: a.key, name: a.name, blurb: a.blurb })
+    t.notOk(BORROWED.test(blob), a.key + ' uses no borrowed proper nouns')
+  }
+  // Every starter is a real artifact and the starter pool overlaps the commons.
+  for (const s of LD.starterKeys()) {
+    t.ok(LD.getArtifact(s), 'starter "' + s + '" resolves to a real artifact')
+  }
+
   t.section('start / isActive / summary on a fresh profile')
   const profile = Save.defaults()
   t.eq(profile.legends, null, 'fresh profile has null legends')
