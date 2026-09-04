@@ -173,20 +173,46 @@
       defaultAction = 'results.title'
       hint = 'EXPEDITION COMPLETE · ESC returns to the title'
     } else if (legendsResult) {
-      // Legends battle result — a won battle offers CONTINUE (advance the run);
-      // a lost battle ends the run.
+      // Legends battle result — a won battle already advanced the campaign in
+      // onGameOver; CONTINUE just routes to the next step (next battle, the next
+      // stage's board, or the title once the campaign is fully cleared).
       var runActive = OP.Legends && OP.Legends.isActive(profile)
       if (legendsResult.won && runActive) {
-        widgets.push(U.button('results.legCont', P.x + 40, by, 250, 48, {
-          label: 'CONTINUE LEGENDS', tone: 'primary', align: 'center',
-          action: 'results-legends-continue',
-          sub: 'advance through the campaign'
-        }))
-        widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
-          label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
-        }))
-        defaultAction = 'results.legCont'
-        hint = 'ENTER continues the campaign · ESC returns to the title'
+        var legendStage = (typeof legendsResult.clearedStage === 'number')
+          ? legendsResult.clearedStage + 1 : 0
+        if (legendsResult.campaignComplete) {
+          // The final boss fell and the whole campaign is banked.
+          widgets.push(U.button('results.legWin', P.x + 40, by, 250, 48, {
+            label: 'CAMPAIGN COMPLETE', tone: 'primary', align: 'center',
+            action: 'results-title', sub: 'victory is banked to your record'
+          }))
+          widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
+            label: 'TITLE', align: 'center', action: 'results-title',
+            sub: legendsResult.completions == null ? 'back to the menu' : (legendsResult.completions + ' completion' + (legendsResult.completions === 1 ? '' : 's'))
+          }))
+          defaultAction = 'results.title'
+          hint = 'THE CAMPAIGN IS CLEAR · ENTER returns to the title'
+        } else if (legendsResult.stageComplete) {
+          widgets.push(U.button('results.legStage', P.x + 40, by, 250, 48, {
+            label: 'ENTER STAGE ' + (legendStage + 1), tone: 'primary', align: 'center',
+            action: 'results-legends-stage', sub: 'continue to the next board'
+          }))
+          widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
+            label: 'TITLE', align: 'center', action: 'results-title', sub: 'abandon the run'
+          }))
+          defaultAction = 'results.legStage'
+          hint = 'ENTER enters the next stage · ESC returns to the title'
+        } else {
+          widgets.push(U.button('results.legCont', P.x + 40, by, 250, 48, {
+            label: 'CONTINUE LEGENDS', tone: 'primary', align: 'center',
+            action: 'results-legends-continue', sub: 'advance through the campaign'
+          }))
+          widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
+            label: 'TITLE', align: 'center', action: 'results-title', sub: 'abandon the run'
+          }))
+          defaultAction = 'results.legCont'
+          hint = 'ENTER continues the campaign · ESC returns to the title'
+        }
       } else {
         widgets.push(U.button('results.title', P.x + 40, by, 250, 48, {
           label: 'RUN OVER', tone: 'primary', align: 'center',

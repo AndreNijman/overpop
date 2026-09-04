@@ -38,18 +38,52 @@
     marks.push(U.tracked(PAD, 90, 'LEGENDS', { size: 30, colour: C.ink, track: 0.2, weight: '600' }))
 
     if (!sum || !sum.active) {
-      marks.push(U.text(PAD, 148, 'No campaign in progress.', { size: 15, colour: C.dim }))
-      marks.push(U.rule(PAD, 178, FIELD_W - PAD * 2))
-      marks.push(U.text(PAD, 200, 'Rogue-Legends-style campaign. Beat battles to advance',
+      // Entry screen — build a Starter Party (up to 3 artifacts), then begin.
+      var starters = (OP.LegendsData && OP.LegendsData.starterKeys)
+        ? OP.LegendsData.starterKeys() : []
+      var pickState = (OP.Menus && OP.Menus.state && OP.Menus.state.legendsStart) || null
+      var picks = (pickState && Array.isArray(pickState.picks)) ? pickState.picks.slice() : []
+      var maxParty = OP.Legends && OP.Legends.STARTING_PARTY ? OP.Legends.STARTING_PARTY : 3
+
+      marks.push(U.text(PAD, 140, 'No campaign in progress. Build a Starter Party, then begin.',
         { size: 11, colour: C.dim }))
-      marks.push(U.text(PAD, 218, 'across escalating stages, collect artifacts, and keep',
-        { size: 11, colour: C.dim }))
-      marks.push(U.text(PAD, 236, 'your cash and lives between battles. Lose a battle and',
-        { size: 11, colour: C.dim }))
-      marks.push(U.text(PAD, 254, 'the run is over.', { size: 11, colour: C.dim }))
-      widgets.push(U.button('legends.start', PAD, 300, 360, 58, {
-        label: 'START NEW RUN', tone: 'primary', action: 'legends-start',
-        sub: 'begin a fresh campaign'
+      marks.push(U.tracked(PAD, 176, 'STARTER PARTY', { size: 18, colour: C.moss, track: 0.24, weight: '600' }))
+      marks.push(U.text(PAD + 2, 200, 'Pick up to ' + maxParty + ' artifacts to carry into the campaign.',
+        { size: 10, colour: C.dim }))
+      marks.push(U.rule(PAD, 218, FIELD_W - PAD * 2))
+
+      var cardW = 360
+      var cardH = 78
+      var gap = 24
+      var rowY0 = 252
+      for (var a = 0; a < starters.length; a++) {
+        var artKey = starters[a]
+        var art = (OP.LegendsData && OP.LegendsData.getArtifact)
+          ? OP.LegendsData.getArtifact(artKey) : null
+        if (!art) continue
+        var col = a % 3
+        var row = Math.floor(a / 3)
+        var ax = PAD + col * (cardW + gap)
+        var ay = rowY0 + row * (cardH + 16)
+        var sel = picks.indexOf(art.key) >= 0
+        widgets.push(U.button('legends.pick.' + art.key, ax, ay, cardW, cardH, {
+          label: art.name, action: 'legends-pick', arg: art.key, selected: sel,
+          sub: art.blurb, align: 'left'
+        }))
+      }
+
+      var vy = rowY0 + 2 * (cardH + 16) + 8
+      marks.push(U.text(PAD, vy, picks.length + ' / ' + maxParty + ' selected' +
+        (picks.length === maxParty ? '  (party full)' : ''),
+        { size: 11, colour: picks.length ? C.moss : C.dim }))
+
+      widgets.push(U.button('legends.start', PAD, vy + 24, 360, 54, {
+        label: 'BEGIN RUN', tone: 'primary', action: 'legends-start',
+        sub: picks.length ? 'start with your chosen artifacts' : 'start with a random artifact'
+      }))
+      widgets.push(U.button('legends.quick', PAD + 384, vy + 24, 360, 54, {
+        label: 'CLEAR PICKS', action: 'legends-clear',
+        sub: 'clear the party, begin with a random artifact'
       }))
       widgets.push(U.button('legends.back', FIELD_W - PAD - 120, 60, 120, 38, {
         label: '< BACK', action: 'back'
@@ -136,6 +170,27 @@
     if (w.action === 'legends-fight' || w.action === 'legends-start') {
       if (app && app.startLegends) { app.startLegends() }
       else if (OP.Menus) OP.Menus.go(app, 'maps')
+      return true
+    }
+    if (w.action === 'legends-pick') {
+      // Starter Party toggle: add/remove the clicked artifact (max 3).
+      var ms = OP.Menus && OP.Menus.state
+      if (!ms) return false
+      var pickState = ms.legendsStart = (ms.legendsStart || { picks: [] })
+      if (!Array.isArray(pickState.picks)) pickState.picks = []
+      var key = w.arg
+      var at = pickState.picks.indexOf(key)
+      var maxParty = OP.Legends && OP.Legends.STARTING_PARTY ? OP.Legends.STARTING_PARTY : 3
+      if (at >= 0) {
+        pickState.picks.splice(at, 1)
+      } else if (pickState.picks.length < maxParty) {
+        pickState.picks.push(key)
+      }
+      return true
+    }
+    if (w.action === 'legends-clear') {
+      var sc = OP.Menus && OP.Menus.state
+      if (sc) sc.legendsStart = null
       return true
     }
     if (w.action === 'legends-abandon') {

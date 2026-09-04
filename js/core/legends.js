@@ -24,6 +24,10 @@
   Legends.START_CASH = 900
   Legends.START_LIVES = 40
 
+  /* How many artifacts the player may select for a Starter Party (Rogue
+     Legends lets you bring up to three). */
+  Legends.STARTING_PARTY = 3
+
   /* Battle rounds per stage, and how the tier ramp is tuned. `frontier` is a
      0..1 position across the whole campaign used to scale battle size. */
   Legends.BASE_ROUNDS = 12
@@ -235,19 +239,32 @@
 
   /* ---------- campaign lifecycle ---------- */
 
-  /* Start a fresh campaign. Picks a starter artifact so every run opens with
-     power. Returns true on success. */
-  Legends.start = function (profile, seed) {
+  /* Start a fresh campaign. Opts may pass `picks`, an array of up to 3 starter
+     artifact keys chosen by the player for their starting party (mirrors Rogue
+     Legends' Starter Party); without it a seed-derived random starter is granted
+     so a quick start always opens with power. Returns true on success. */
+  Legends.start = function (profile, seed, opts) {
     if (!profile || !(OP.LegendsData && OP.LegendsData.starterKeys)) return false
     var rng = new OP.RNG(seed === undefined ? String(Date.now()) : seed)
-    var starter = rng.pick(OP.LegendsData.starterKeys())
+    var starters = OP.LegendsData.starterKeys()
+    var picks = []
+    if (opts && Array.isArray(opts.picks)) {
+      for (var i = 0; i < opts.picks.length && picks.length < Legends.STARTING_PARTY; i++) {
+        var k = opts.picks[i]
+        if (starters.indexOf(k) >= 0 && picks.indexOf(k) < 0) picks.push(k)
+      }
+    }
+    if (!picks.length) {
+      var starter = rng.pick(starters)
+      if (starter) picks.push(starter)
+    }
     profile.legends = {
       seed: rng.seed,
       stage: 0,
       nodeIndex: 0,
       cash: Legends.START_CASH,
       lives: Legends.START_LIVES,
-      artifacts: starter ? [starter] : [],
+      artifacts: picks,
       wonStages: 0
     }
     return true
@@ -273,6 +290,7 @@
       result.chest = picked
     }
 
+    result.clearedStage = l.stage || 0
     l.nodeIndex = (l.nodeIndex || 0) + 1
     var board = Legends.board(profile)
 
@@ -283,6 +301,7 @@
       var stages = (OP.LegendsData && OP.LegendsData.stages) ? OP.LegendsData.stages() : []
       if (l.stage + 1 >= stages.length) {
         result.campaignComplete = true
+        result.nextStageIndex = stages.length
         l.stage = stages.length
         Legends.finish(profile)
       } else {
@@ -292,6 +311,7 @@
         l.cash += 200
         l.lives += 10
         result.nextStage = true
+        result.nextStageIndex = l.stage
       }
     }
     return result

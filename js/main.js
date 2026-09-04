@@ -431,7 +431,12 @@
     const S = App.state
     if (!S.profile || !OP.Legends) return null
     if (!OP.Legends.isActive(S.profile)) {
-      if (!OP.Legends.start(S.profile)) return null
+      // The entry screen's Starter Party picker stores its selections here;
+      // hand them through so the campaign opens with the player's starter relics.
+      var picks = (OP.Menus && OP.Menus.state && OP.Menus.state.legendsStart)
+        ? OP.Menus.state.legendsStart.picks : null
+      if (OP.Menus && OP.Menus.state) OP.Menus.state.legendsStart = null
+      if (!OP.Legends.start(S.profile, null, picks ? { picks: picks } : null)) return null
       if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     }
     var launched = App.launchLegendsBattle()
@@ -445,18 +450,22 @@
    */
   App.advanceLegends = function () {
     const S = App.state
-    if (!S.profile || !OP.Legends || !OP.Legends.isActive(S.profile)) return null
-    var res = OP.Legends.recordWin(S.profile, S.sim)
-    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    if (!S.profile || !OP.Legends) return null
+    // The run's state was already advanced when the battle was won (recordWin
+    // ran in onGameOver so the results screen could reflect the outcome). Here
+    // we only decide where the campaign goes next.
+    var res = S.legendsResult || {}
     S.legendsResult = null
-    if (res && res.campaignComplete) {
+    if (res.campaignComplete) {
       App.quitToMenu()
       return null
     }
-    if (res && res.nextStage) {
+    if (res.stageComplete) {
       App.quitToMenu()
+      if (OP.Menus && OP.Menus.go) OP.Menus.go(App, 'legends')
       return { nextStage: true }
     }
+    if (!OP.Legends.isActive(S.profile)) return null
     return App.launchLegendsBattle()
   }
 
@@ -570,13 +579,16 @@
       var trialResult = OP.Trial.recordGameOver(S.profile, S.sim.outcome === 'won', S.sim.roundIndex)
       S.trialResult = trialResult
     }
-    // Handle a Legends battle ending. Winning records the advance lazily — the
-    // results screen offers "CONTINUE" which calls advanceLegends(); losing ends
-    // the run here. `isLegends` is a non-serialised marker set on the live sim so
-    // a stray expedition/trial never cross-fires into it.
+    // Handle a Legends battle ending. A won battle advances the campaign here so
+    // the results screen can reflect what actually happened (a chest picked up,
+    // a stage cleared, the whole campaign finished). `isLegends` is a
+    // non-serialised marker set on the live sim so a stray expedition/trial
+    // never cross-fires into it, and the advanced profile state is persisted by
+    // the normal game-over save below. Losing ends the run.
     if (OP.Legends && OP.Legends.isActive(S.profile) && S.sim && S.sim.isLegends) {
       if (S.sim.outcome === 'won') {
-        S.legendsResult = { won: true }
+        var legendsWin = OP.Legends.recordWin(S.profile, S.sim) || {}
+        S.legendsResult = Object.assign({ won: true }, legendsWin)
       } else {
         OP.Legends.recordLoss(S.profile)
         S.legendsResult = { won: false }

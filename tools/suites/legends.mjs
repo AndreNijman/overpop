@@ -66,6 +66,27 @@ export function run (t, OP) {
   sum = L.summary(profile)
   t.eq(sum.active, true, 'summary reports active')
 
+  t.section('Starter Party picks open the campaign with the chosen artifacts')
+  const sp = Save.defaults()
+  const picked = ['sharpen', 'greed', 'vigor']
+  t.ok(L.start(sp, 'party-seed', { picks: picked }), 'start accepts a starter party')
+  t.deep(sp.legends.artifacts.slice().sort(), picked.slice().sort(),
+    'the chosen starters are carried into the run')
+  t.ok(sp.legends.artifacts.length <= L.STARTING_PARTY, 'party is capped at the party size')
+  const tooBig = Save.defaults()
+  L.start(tooBig, 'big-seed', { picks: ['sharpen', 'pinpoint', 'buckshot', 'greed'] })
+  t.eq(tooBig.legends.artifacts.length, L.STARTING_PARTY,
+    'excess picks beyond the party size are dropped')
+  const dupes = Save.defaults()
+  L.start(dupes, 'dupe-seed', { picks: ['sharpen', 'sharpen'] })
+  t.eq(dupes.legends.artifacts.length, 1, 'duplicate picks are deduped')
+  const nonStarter = Save.defaults()
+  L.start(nonStarter, 'deep-seed', { picks: ['deep-pockets'] })
+  t.eq(nonStarter.legends.artifacts.length, 1,
+    'a non-starter pick falls back to one random starter')
+  t.neq(nonStarter.legends.artifacts[0], 'deep-pockets',
+    'deep-pockets never leaks in as a starter')
+
   t.section('board is deterministic for a seed + stage')
   const seed = 'board-seed'
   const p1 = Save.defaults(); L.start(p1, seed)

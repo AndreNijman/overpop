@@ -44,7 +44,7 @@
   var ARTIFACTS = [
     { key: 'sharpen', name: 'Sharpen', blurb: 'All critters deal one more damage for the rest of the campaign.', mods: { damageAdd: 1 } },
     { key: 'pinpoint', name: 'Pinpoint', blurb: 'All critters gain 12 range for the rest of the campaign.', mods: { rangeAdd: 12 } },
-    { key: 'buckshot', name: 'Buckshot', blurb: 'All critters pierce one extra bloon for the rest of the campaign.', mods: { pierceAdd: 2 } },
+    { key: 'buckshot', name: 'Buckshot', blurb: 'All critters pierce one extra target for the rest of the campaign.', mods: { pierceAdd: 2 } },
     { key: 'deep-pockets', name: 'Deep Pockets', blurb: 'Start the next battle with $250 extra cash.', ruleOverrides: { startCash: 250 } },
     { key: 'greed', name: 'Greed', blurb: 'Earn 25% more cash from every pop this battle.', ruleOverrides: { cashPerPopMul: 0.25 } },
     { key: 'vigor', name: 'Vigor', blurb: 'Carry 10 bonus lives into every battle.', ruleOverrides: { startLives: 10 } }

@@ -367,6 +367,31 @@ export function run (t, OP, env) {
       OP.LegendsScreen.activate(startApp, startWidget)
       t.eq(started, 1, 'the START NEW RUN button launches the campaign')
     }
+    // Starter Party picker: toggling an artifact updates the pending party.
+    const pickWidgets = (entryModel.widgets || []).filter(w => w && w.action === 'legends-pick')
+    t.ok(pickWidgets.length >= 3, 'the entry screen offers artifact picker buttons for a Starter Party')
+    if (pickWidgets.length) {
+      const pickApp = stubApp()
+      Menus.install(pickApp)
+      if (OP.LegendsScreen.install) OP.LegendsScreen.install(pickApp)
+      Menus.go(pickApp, 'legends')
+      const first = pickWidgets[0]
+      OP.LegendsScreen.activate(pickApp, first)
+      const stateAfter = OP.Menus && OP.Menus.state
+      t.ok(stateAfter && stateAfter.legendsStart && Array.isArray(stateAfter.legendsStart.picks),
+        'picking an artifact records a pending starter')
+      t.eq(stateAfter && stateAfter.legendsStart && stateAfter.legendsStart.picks[0], first.arg,
+        'the picked artifact key is stored')
+      // Toggling again removes it.
+      OP.LegendsScreen.activate(pickApp, first)
+      t.eq((OP.Menus.state.legendsStart.picks || []).length, 0,
+        'clicking a picked artifact removes it from the party')
+      // max 3 cap enforced by the picker
+      const many = pickWidgets.slice(0, 4)
+      for (const w of many) OP.LegendsScreen.activate(pickApp, w)
+      t.ok((OP.Menus.state.legendsStart.picks || []).length <=
+        (OP.Legends.STARTING_PARTY || 3), 'the party respects its size cap')
+    }
 
     // Active state: an in-progress campaign with a board + artifacts.
     if (OP.Legends && OP.Legends.start) {
