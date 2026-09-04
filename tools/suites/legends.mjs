@@ -227,6 +227,170 @@ export function run (t, OP) {
       t.ok(true, 'skipped: this seed had no mini-game (still fine)')
     }
 
+  t.section('mini-game types are defined, named and goalled')
+    t.eq(LD.LEAST_CASH, 'least-cash', 'least-cash constant exists')
+    t.eq(LD.RACE, 'race', 'race constant exists')
+    t.eq(LD.ENDURANCE, 'endurance', 'endurance constant exists')
+    t.eq(LD.MINI_TYPES.length, 3, 'there are exactly three mini-game types')
+    t.eq(LD.miniName(LD.LEAST_CASH), 'Least Cash', 'least-cash name')
+    t.eq(LD.miniName(LD.RACE), 'Race', 'race name')
+    t.eq(LD.miniName(LD.ENDURANCE), 'Endurance Race', 'endurance name')
+    t.eq(LD.miniName('nope'), 'Mini-game', 'unknown type falls back to Mini-game')
+    t.ok(typeof LD.miniGoal(LD.LEAST_CASH, 0) === 'number', 'least-cash goal is a number')
+    t.ok(typeof LD.miniGoal(LD.RACE, 0) === 'number', 'race goal is a number')
+    t.ok(typeof LD.miniGoal(LD.ENDURANCE, 0) === 'number', 'endurance goal is a number')
+    t.ok(LD.miniGoal(LD.LEAST_CASH, 0) <= LD.miniGoal(LD.LEAST_CASH, 3),
+      'least-cash budget grows across stages')
+    t.ok(LD.miniGoal(LD.RACE, 0) <= LD.miniGoal(LD.RACE, 3), 'race time target grows')
+    t.ok(LD.miniGoal(LD.ENDURANCE, 0) <= LD.miniGoal(LD.ENDURANCE, 3), 'endurance pop goal grows')
+
+  t.section('mini-game tiles carry one of the three types onto the board')
+    const tt = {}
+    for (let s = 0; s < LD.stages().length; s++) {
+      const bp = Save.defaults(); L.start(bp, 'type-roll-' + s)
+      bp.legends.stage = s
+      const bb = L.board(bp)
+      for (const no of bb) {
+        if (no.kind === LD.MINIGAME) {
+          t.ok(LD.MINI_TYPES.indexOf(no.miniType) >= 0,
+            'mini-game node on stage ' + s + ' has a valid type: ' + no.miniType)
+          tt[no.miniType] = (tt[no.miniType] || 0) + 1
+        }
+      }
+    }
+    t.ok(Object.keys(tt).length >= 1,
+      'at least one mini-game rolls a type across the seeds/stages scanned')
+
+  t.section('battleConfig carries the mini-game type and goal')
+    let miniSample = null
+    for (let s = 0; s < LD.stages().length && !miniSample; s++) {
+      const bp = Save.defaults(); L.start(bp, 'mini-cfg-' + s)
+      bp.legends.stage = s
+      const bb = L.board(bp)
+      const pos = bb.findIndex(n => n.kind === LD.MINIGAME)
+      if (pos >= 0) { bp.legends.nodeIndex = pos; miniSample = bp }
+    }
+    if (miniSample) {
+      const cfg = L.battleConfig(miniSample)
+      t.ok(cfg && cfg.miniType && LD.MINI_TYPES.indexOf(cfg.miniType) >= 0,
+        'battleConfig reports a valid miniType')
+      t.ok(cfg && typeof cfg.miniGoal === 'number', 'battleConfig reports a miniGoal')
+    } else {
+      t.ok(true, 'skipped: no mini-game found across seeds (still fine)')
+    }
+
+  t.section('least-cash: reaching the budget goal pays, overspending does not')
+    for (let s = 0; s < LD.stages().length; s++) {
+      const bp = Save.defaults(); L.start(bp, 'lc-' + s)
+      bp.legends.stage = s
+      const bb = L.board(bp)
+      const pos = bb.findIndex(n => n.kind === LD.MINIGAME && n.miniType === LD.LEAST_CASH)
+      if (pos < 0) continue
+      const goal = LD.miniGoal(LD.LEAST_CASH, s)
+      bp.legends.nodeIndex = pos
+      const had = bp.legends.artifacts.length
+      const spendSim = makeSim(OP, { cash: 500, lives: 20 })
+      spendSim.stats.cashSpent = Math.floor(goal / 2)
+      const okRes = L.recordWin(bp, spendSim)
+      t.ok(okRes && okRes.chest, 'stage ' + s + ': spending within budget reaches the goal')
+      t.ok(bp.legends.artifacts.length >= had + 1, 'stage ' + s + ': relic granted on budget met')
+      // Overspend on a fresh run of the same node.
+      const bp2 = Save.defaults(); L.start(bp2, 'lc-' + s)
+      bp2.legends.stage = s
+      bp2.legends.nodeIndex = pos
+      const had2 = bp2.legends.artifacts.length
+      const overSim = makeSim(OP, { cash: 500, lives: 20 })
+      overSim.stats.cashSpent = goal + 1000
+      const overRes = L.recordWin(bp2, overSim)
+      t.ok(overRes && !overRes.chest, 'stage ' + s + ': overspending misses the goal')
+      t.eq(bp2.legends.artifacts.length, had2, 'stage ' + s + ': no relic when over budget')
+    }
+    t.ok(true, 'least-cash goal gating exercised')
+
+  t.section('race: beating the clock pays, slow clears do not')
+    for (let s = 0; s < LD.stages().length; s++) {
+      const bp = Save.defaults(); L.start(bp, 'rc-' + s)
+      bp.legends.stage = s
+      const bb = L.board(bp)
+      const pos = bb.findIndex(n => n.kind === LD.MINIGAME && n.miniType === LD.RACE)
+      if (pos < 0) continue
+      const goal = LD.miniGoal(LD.RACE, s)
+      bp.legends.nodeIndex = pos
+      const had = bp.legends.artifacts.length
+      const fastSim = makeSim(OP, { cash: 500, lives: 20 })
+      fastSim.time = Math.floor(goal / 2)
+      const fastRes = L.recordWin(bp, fastSim)
+      t.ok(fastRes && fastRes.chest, 'stage ' + s + ': fast clear reaches the goal')
+      t.ok(bp.legends.artifacts.length >= had + 1, 'stage ' + s + ': relic granted on quick clear')
+      const bp2 = Save.defaults(); L.start(bp2, 'rc-' + s)
+      bp2.legends.stage = s
+      bp2.legends.nodeIndex = pos
+      const had2 = bp2.legends.artifacts.length
+      const slowSim = makeSim(OP, { cash: 500, lives: 20 })
+      slowSim.time = goal + 100
+      const slowRes = L.recordWin(bp2, slowSim)
+      t.ok(slowRes && !slowRes.chest, 'stage ' + s + ': a slow clear misses the goal')
+      t.eq(bp2.legends.artifacts.length, had2, 'stage ' + s + ': no relic when the clock is beaten')
+    }
+    t.ok(true, 'race goal gating exercised')
+
+  t.section('endurance: hitting the pop goal pays, falling short does not')
+    for (let s = 0; s < LD.stages().length; s++) {
+      const bp = Save.defaults(); L.start(bp, 'en-' + s)
+      bp.legends.stage = s
+      const bb = L.board(bp)
+      const pos = bb.findIndex(n => n.kind === LD.MINIGAME && n.miniType === LD.ENDURANCE)
+      if (pos < 0) continue
+      const goal = LD.miniGoal(LD.ENDURANCE, s)
+      bp.legends.nodeIndex = pos
+      const had = bp.legends.artifacts.length
+      const popSim = makeSim(OP, { cash: 500, lives: 20 })
+      popSim.stats.popped = goal + 50
+      const popRes = L.recordWin(bp, popSim)
+      t.ok(popRes && popRes.chest, 'stage ' + s + ': reaching the pop goal earns a relic')
+      t.ok(bp.legends.artifacts.length >= had + 1, 'stage ' + s + ': relic granted on pop goal met')
+      const bp2 = Save.defaults(); L.start(bp2, 'en-' + s)
+      bp2.legends.stage = s
+      bp2.legends.nodeIndex = pos
+      const had2 = bp2.legends.artifacts.length
+      const lowSim = makeSim(OP, { cash: 500, lives: 20 })
+      lowSim.stats.popped = Math.floor(goal / 3)
+      const lowRes = L.recordWin(bp2, lowSim)
+      t.ok(lowRes && !lowRes.chest, 'stage ' + s + ': missing the pop goal earns nothing')
+      t.eq(bp2.legends.artifacts.length, had2, 'stage ' + s + ': no relic below the pop goal')
+    }
+    t.ok(true, 'endurance goal gating exercised')
+
+  t.section('miniGameReward reports type, goal, value and reached flag')
+    for (let s = 0; s < LD.stages().length; s++) {
+      const bp = Save.defaults(); L.start(bp, 'mgr-' + s)
+      bp.legends.stage = s
+      const bb = L.board(bp)
+      const pos = bb.findIndex(n => n.kind === LD.MINIGAME)
+      if (pos < 0) continue
+      bp.legends.nodeIndex = pos
+      const node = bb[pos]
+      const sim = makeSim(OP, { cash: 100, lives: 20 })
+      if (node.miniType === LD.LEAST_CASH) sim.stats.cashSpent = 1
+      else if (node.miniType === LD.RACE) sim.time = 1
+      else sim.stats.popped = 1
+      const r = L.miniGameReward(bp, sim)
+      t.ok(r && r.type === node.miniType, 'stage ' + s + ': miniGameReward reports the type')
+      t.ok(r && typeof r.goal === 'number', 'stage ' + s + ': miniGameReward reports a goal')
+      t.ok(r && typeof r.value === 'number', 'stage ' + s + ': miniGameReward reports a value')
+      // A trivial run beats the Least Cash / Race goals (spent a dollar, cleared
+      // in a second) but cannot meet the Endurance pop target on one balloon.
+      t.eq(r && r.reached, node.miniType === LD.ENDURANCE ? false : true,
+        'stage ' + s + ': trivial run reaches the goal only for non-Endurance types')
+    }
+    t.ok(true, 'miniGameReward exercised')
+
+  t.section('non-mini-game nodes report no miniGameReward')
+    const bpNo = Save.defaults(); L.start(bpNo, 'mgr-none')
+    const noMiniFirst = L.currentNode(bpNo)
+    t.ok(noMiniFirst.kind === LD.BATTLE, 'first node is a battle')
+    t.eq(L.miniGameReward(bpNo, makeSim(OP)), null, 'a battle node returns null from miniGameReward')
+
   t.section('artifact rarities are attributed and weighted')
     const byRarity = {}
     for (const a of LD.allArtifacts()) {

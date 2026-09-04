@@ -347,6 +347,34 @@
     marks.push(U.text(FIELD_W - 20, 34, ((mode && mode.name) || sim.mode || '?').toUpperCase(),
       { size: 9, colour: C.moss, align: 'right' }))
 
+    /* ----- mini-game goal ----- */
+    // A Legends Mini-game battle shows its objective live: the cash budget for
+    // Least Cash, a running clock against the time target for Race, or a pop
+    // counter toward the Endurance Race goal. Reached goals tint gold.
+    if (sim.isLegends && sim.legendsMini && OP.LegendsData) {
+      const mini = sim.legendsMini
+      const name = (OP.LegendsData.miniName && OP.LegendsData.miniName(mini.type)) || 'Mini-game'
+      let readout
+      if (mini.type === OP.LegendsData.LEAST_CASH) {
+        const spent = (sim.stats && sim.stats.cashSpent) || 0
+        readout = name.toUpperCase() + '  $' + spent + ' / $' + mini.goal
+      } else if (mini.type === OP.LegendsData.RACE) {
+        const now = OP.Race && OP.Race.elapsed ? OP.Race.elapsed(sim) : (sim.time || 0)
+        const fmt = OP.Race && OP.Race.formatTime
+          ? OP.Race.formatTime
+          : function (s) { return Math.floor(s) + 's' }
+        readout = name.toUpperCase() + '  ' + fmt(now) + ' / ' + fmt(mini.goal)
+      } else {
+        const popped = (sim.stats && sim.stats.popped) || 0
+        readout = name.toUpperCase() + '  ' + popped + ' / ' + mini.goal
+      }
+      const ok = (mini.type === OP.LegendsData.LEAST_CASH || mini.type === OP.LegendsData.RACE)
+        ? false
+        : ((sim.stats && sim.stats.popped) || 0) >= mini.goal
+      marks.push(U.text(FIELD_W - 20, 46, readout,
+        { size: 9, colour: ok ? C.gold : C.dim, align: 'right' }))
+    }
+
     /* ----- race timer ----- */
     if (OP.Race && OP.Race.isActive && OP.Race.isActive(sim)) {
       var raceTime = OP.Race.elapsed(sim)

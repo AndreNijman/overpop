@@ -499,6 +499,9 @@
     if (cfg.roundSet) sim.roundSet = cfg.roundSet
     // Non-serialised marker so onGameOver can tell a Legends battle apart.
     sim.isLegends = true
+    // Mini-game goal contract: surface the type + target on the live sim so the
+    // HUD shows the constraint and recordWin can judge it. Not serialised.
+    if (cfg.miniType) sim.legendsMini = { type: cfg.miniType, goal: cfg.miniGoal }
     // Resource/artifact carry-over.
     sim.cash = cfg.startCash != null ? cfg.startCash : sim.cash
     if (cfg.startLives != null) sim.lives = cfg.startLives

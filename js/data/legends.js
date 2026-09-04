@@ -40,6 +40,23 @@
   LegendsData.MERCHANT = 'merchant'
   LegendsData.MINIGAME = 'minigame'
 
+  /* The three official Rogue Legends mini-games. A Mini-game tile is one of
+     these, rolled deterministically per seed+node; each has its own goal that
+     must be reached for the win to pay out an artifact. */
+  LegendsData.LEAST_CASH = 'least-cash'
+  LegendsData.RACE = 'race'
+  LegendsData.ENDURANCE = 'endurance'
+  LegendsData.MINI_TYPES = [LegendsData.LEAST_CASH, LegendsData.RACE, LegendsData.ENDURANCE]
+
+  /* Goal scalars for each mini-game type, by stage index (0..last). Budgets and
+     times grow a little per stage so a later mini-game is a bit harder to hit
+     than an early one, mirroring Rogue Legends' difficulty scaling. */
+  var MINI_GOALS = {
+    leastCashBudget: [1200, 1500, 1800, 2200],
+    raceSeconds: [60, 70, 80, 90],
+    endurancePops: [1200, 2000, 3000, 4500]
+  }
+
   /* Artifact rarities, ordered common < rare < legendary. */
   LegendsData.COMMON = 'common'
   LegendsData.RARE = 'rare'
@@ -104,6 +121,24 @@
     return MERCHANT_PRICE[s]
   }
 
+  /* The goal value for a mini-game type at a stage: a cash budget (Least Cash),
+     a time-in-seconds target (Race) or a pop target (Endurance Race). */
+  LegendsData.miniGoal = function (type, stage) {
+    var s = Math.max(0, Math.min(stage || 0, MINI_GOALS.leastCashBudget.length - 1))
+    if (type === LegendsData.LEAST_CASH) return MINI_GOALS.leastCashBudget[s]
+    if (type === LegendsData.RACE) return MINI_GOALS.raceSeconds[s]
+    if (type === LegendsData.ENDURANCE) return MINI_GOALS.endurancePops[s]
+    return null
+  }
+
+  /* The player-facing label for a mini-game type. */
+  LegendsData.miniName = function (type) {
+    if (type === LegendsData.LEAST_CASH) return 'Least Cash'
+    if (type === LegendsData.RACE) return 'Race'
+    if (type === LegendsData.ENDURANCE) return 'Endurance Race'
+    return 'Mini-game'
+  }
+
   /* ---------- deep freeze ---------- */
 
   function deepFreeze (obj) {
@@ -120,6 +155,7 @@
   deepFreeze(STARTERS)
   deepFreeze(RARITY_WEIGHTS)
   deepFreeze(MERCHANT_PRICE)
+  deepFreeze(MINI_GOALS)
 
   OP.LegendsData = LegendsData
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

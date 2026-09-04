@@ -72,7 +72,7 @@
     }
     mid = rng.shuffle(mid)
     for (var j = 0; j < mid.length; j++) {
-      nodes.push(nodeOf(mid[j]))
+      nodes.push(nodeOf(mid[j], rng))
     }
     nodes.push({ kind: bos.BOSS, name: 'Boss' })
     return nodes
@@ -87,15 +87,23 @@
     return bos.BATTLE
   }
 
-  function nodeOf (kind) {
+  function nodeOf (kind, rng) {
     var bos = OP.LegendsData
     var name = 'Encounter'
+    var type
     if (kind === bos.CHEST) name = 'Loot Chest'
     else if (kind === bos.MERCHANT) name = 'Merchant'
-    else if (kind === bos.MINIGAME) name = 'Mini-game'
+    else if (kind === bos.MINIGAME) {
+      // Roll which of the three official mini-games this tile is. Deterministic
+      // because `rng` is seeded from the stage; the type gates the reward goal.
+      type = rng ? rng.pick(bos.MINI_TYPES) : bos.MINI_TYPES[0]
+      name = bos.miniName(type)
+    }
     else if (kind === bos.ELITE) name = 'Elite Encounter'
     else if (kind === bos.BOSS) name = 'Boss'
-    return { kind: kind, name: name }
+    var node = { kind: kind, name: name }
+    if (type) node.miniType = type
+    return node
   }
 
   /* The node list for the current stage. Deterministic for a given seed+stage. */
@@ -151,6 +159,7 @@
     var isBoss = node && node.kind === bos.BOSS
     var isElite = node && node.kind === bos.ELITE
     var isMini = node && node.kind === bos.MINIGAME
+    var miniType = isMini ? node.miniType : null
 
     // A pool of playable maps in the stage's tier band.
     var tier = def.tier || 'beginner'
@@ -173,6 +182,10 @@
       difficulty: def.difficulty || 'medium',
       mode: 'standard',
       roundSet: Legends.buildRounds(l, frontier, node, isBoss, isElite, isMini),
+      // Mini-game goal contract: the type + target handed to the battle, and a
+      // hint the UI uses to enforce the special end conditions / read-outs.
+      miniType: miniType,
+      miniGoal: miniType ? OP.LegendsData.miniGoal(miniType, l.stage) : null,
       startCash: Math.max(0, l.cash) + (boosts.cash || 0),
       startLives: Math.max(1, l.lives) + (boosts.lives || 0)
     }
@@ -199,11 +212,25 @@
      an artifact for clearing it. */
   Legends.buildRounds = function (l, frontier, node, isBoss, isElite, isMini) {
     var bos = OP.LegendsData
+    var isMiniType = function (t) {
+      return isMini && node && node.miniType === t
+    }
     var dens = isBoss ? 1.35 : isElite ? 1.2 : isMini ? 0.75 : 1
     var topIdx = Math.min(TIER_LADDER.length - 1,
       Math.floor(frontier * (TIER_LADDER.length - 1)) + (isBoss ? 3 : isElite ? 2 : isMini ? 0 : 1))
-    var rounds = isMini
-      ? Math.max(4, Math.floor(Legends.BASE_ROUNDS * 0.55))
+    // Round count by node type. A mini-game is short and light; Endurance Race
+    // stretches long so the pop goal builds up, Race stays quick to beat the
+    // clock, Least Cash is a fixed ~10 (canon).
+    var rounds = isBoss
+      ? (Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE))
+      : isElite
+      ? (Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE))
+      : isMiniType(bos.ENDURANCE)
+      ? Math.max(6, Math.floor(Legends.BASE_ROUNDS * 0.8))
+      : isMiniType(bos.RACE)
+      ? Math.max(5, Math.floor(Legends.BASE_ROUNDS * 0.6))
+      : isMiniType(bos.LEAST_CASH)
+      ? 10
       : (Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE))
     var table = {}
     for (var r = 1; r <= rounds; r++) {
@@ -309,11 +336,19 @@
     }
     var result = { won: true, chest: null, stageComplete: false, campaignComplete: false }
 
-    // A loot node (Loot Chest, or a cleared Mini-game) grants a random artifact
-    // in addition to the resource carry.
-    if (node && (node.kind === bos.CHEST || node.kind === bos.MINIGAME)) {
-      var picked = Legends.grantRandomArtifact(profile, node.kind === bos.MINIGAME ? 'minigame' : 'chest')
-      result.chest = picked
+    // A loot node (Loot Chest) grants a random artifact in addition to the
+    // resource carry. A clear Mini-game pays only when its goal is reached;
+    // reaching no goal still advances but hands out nothing (canon).
+    if (node && node.kind === bos.CHEST) {
+      var pickedChest = Legends.grantRandomArtifact(profile, 'chest')
+      result.chest = pickedChest
+    } else if (node && node.kind === bos.MINIGAME) {
+      var miniPayout = Legends.miniGameReward(profile, sim)
+      result.mini = miniPayout
+      if (miniPayout && miniPayout.reached && miniPayout.artifact) {
+        l.artifacts.push(miniPayout.artifact)
+        result.chest = miniPayout.artifact
+      }
     }
 
     result.clearedStage = l.stage || 0
@@ -392,6 +427,62 @@
     if (!byRarity.length) byRarity = unowned
     var rng = new OP.RNG(seed)
     return byRarity[rng.int(byRarity.length)]
+  }
+
+  /* Evaluate whether a completed Mini-game reached its goal and, if so, pick an
+     artifact reward for it. Returns a plain descriptor (reached / goal / value
+     and the chosen artifact key), or null if the node is not a Mini-game. The
+     caller decides whether to actually grant the artifact. */
+  Legends.miniGameReward = function (profile, sim) {
+    var l = Legends.get(profile)
+    if (!l) return null
+    var bos = OP.LegendsData
+    var node = Legends.currentNode(profile)
+    if (!node || node.kind !== bos.MINIGAME || !node.miniType) return null
+    var type = node.miniType
+    var goal = OP.LegendsData.miniGoal(type, l.stage)
+    var value
+    var reached = false
+    if (type === bos.LEAST_CASH) {
+      // Spend at most the budget on towers/upgrades across the whole node.
+      value = (sim && sim.stats && sim.stats.cashSpent) ? sim.stats.cashSpent : 0
+      reached = value <= goal
+    } else if (type === bos.RACE) {
+      // Clear the node within the time goal.
+      value = (sim && typeof sim.time === 'number') ? sim.time : 9999
+      reached = value <= goal
+    } else if (type === bos.ENDURANCE) {
+      // Pop at least the goal balloons across the long fight.
+      value = (sim && sim.stats && sim.stats.popped) ? sim.stats.popped : 0
+      reached = value >= goal
+    }
+    return {
+      type: type,
+      goal: goal,
+      value: value,
+      reached: reached,
+      artifact: reached ? pickMiniArtifact(profile, type) : null
+    }
+  }
+
+  /* Choose an artifact key for a reached mini-game goal without mutating the
+     profile (recordWin applies the grant). Mirrors grantRandomArtifact but leaves
+     the bump to the caller so a payout is a single, explicit push. */
+  function pickMiniArtifact (profile, salt) {
+    var l = Legends.get(profile)
+    if (!l || !OP.LegendsData) return null
+    if (!Array.isArray(l.artifacts)) l.artifacts = []
+    var bos = OP.LegendsData
+    var all = bos.allArtifacts()
+    var owned = l.artifacts
+    var unowned = []
+    for (var i = 0; i < all.length; i++) {
+      if (owned.indexOf(all[i].key) < 0) unowned.push(all[i])
+    }
+    if (!unowned.length) return null
+    var seed = l.seed + ':loot-' + l.stage + '-' + l.nodeIndex + '-' + (salt || '')
+    var pickedArt = pickWeighted(profile, unowned, all, seed)
+    return pickedArt ? pickedArt.key : null
   }
 
   /* The cash a Merchant node charges for an artifact at the current stage. */

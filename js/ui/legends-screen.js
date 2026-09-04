@@ -156,12 +156,12 @@
       var fightLabel = isBoss ? 'FACE THE BOSS'
         : isElite ? 'ELITE ENCOUNTER'
         : isChest ? 'OPEN THE CHEST'
-        : isMini ? 'PLAY MINI-GAME'
+        : isMini ? miniActionLabel(currentNode)
         : 'FIGHT'
       var fightSub = isChest
         ? 'a battle, then a random artifact'
         : isMini
-        ? 'a short battle, win to earn a relic'
+        ? miniActionSub(currentNode, OP.LegendsData)
         : 'win a battle to advance'
       widgets.push(U.button('legends.fight', PAD, 430, 300, 58, {
         label: fightLabel, tone: 'primary', action: 'legends-fight', arg: 'next',
@@ -180,6 +180,32 @@
 
   function nodeLabel (node) { return (node && node.name) || 'Node' }
   function nodeKind (node) { return node ? String(node.kind).toUpperCase() : '' }
+
+  /* Action-button copy for a Mini-game node: name + the goal to reach. Stays in
+     generic Rogue-Legends language (no borrowed proper nouns). */
+  function miniActionLabel (node) {
+    var t = node && node.miniType
+    if (t === 'least-cash') return 'SPEND UNDER THE BUDGET'
+    if (t === 'race') return 'BEAT THE CLOCK'
+    if (t === 'endurance') return 'ENDURANCE: OUTRUN'
+    return 'PLAY MINI-GAME'
+  }
+
+  function miniActionSub (node, LD) {
+    if (!node || !node.miniType || !LD) return 'win the node to earn a relic'
+    var goal = LD.miniGoal ? LD.miniGoal(node.miniType, 0) : null
+    var verb = 'win the node to earn a relic; beat the goal for a loot roll'
+    if (node.miniType === 'least-cash') {
+      return 'keep tower spending within the budget to earn a relic'
+    }
+    if (node.miniType === 'race') {
+      return 'clear the node fast to earn a relic'
+    }
+    if (node.miniType === 'endurance') {
+      return 'pop as many as you can to earn a relic'
+    }
+    return verb
+  }
 
   function paint (ctx, app) {
     var U = ui()
