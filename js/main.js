@@ -445,6 +445,18 @@
   }
 
   /**
+   * Resolve the current Merchant node from the board screen: buy an artifact
+   * (spend cash) or skip, then advance to the next tile. Stays on the board.
+   */
+  App.legendsMerchant = function (buy) {
+    const S = App.state
+    if (!S.profile || !OP.Legends) return null
+    const res = OP.Legends.resolveMerchant(S.profile, !!buy)
+    if (res && OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    return res
+  }
+
+  /**
    * Advance a won Legends battle to the next node, then launch it (or return
    * to the board when a battle just opened a chest / the run finished).
    */

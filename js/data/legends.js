@@ -37,22 +37,45 @@
   LegendsData.CHEST = 'chest'
   LegendsData.ELITE = 'elite'
   LegendsData.BOSS = 'boss'
+  LegendsData.MERCHANT = 'merchant'
+  LegendsData.MINIGAME = 'minigame'
+
+  /* Artifact rarities, ordered common < rare < legendary. */
+  LegendsData.COMMON = 'common'
+  LegendsData.RARE = 'rare'
+  LegendsData.LEGENDARY = 'legendary'
 
   /* Artifacts. `mods` becomes a global tower buff; `ruleOverrides` is folded
      into sim.rules at battle start — the exact same shapes Monkey Knowledge
-     uses, so they ride the tower buff + rules machinery with zero engine work. */
+     uses, so they ride the tower buff + rules machinery with zero engine work.
+     `rarity` drives how common the drop is, weighted up over the campaign. */
   var ARTIFACTS = [
-    { key: 'sharpen', name: 'Sharpen', blurb: 'All critters deal one more damage for the rest of the campaign.', mods: { damageAdd: 1 } },
-    { key: 'pinpoint', name: 'Pinpoint', blurb: 'All critters gain 12 range for the rest of the campaign.', mods: { rangeAdd: 12 } },
-    { key: 'buckshot', name: 'Buckshot', blurb: 'All critters pierce one extra target for the rest of the campaign.', mods: { pierceAdd: 2 } },
-    { key: 'deep-pockets', name: 'Deep Pockets', blurb: 'Start the next battle with $250 extra cash.', ruleOverrides: { startCash: 250 } },
-    { key: 'greed', name: 'Greed', blurb: 'Earn 25% more cash from every pop this battle.', ruleOverrides: { cashPerPopMul: 0.25 } },
-    { key: 'vigor', name: 'Vigor', blurb: 'Carry 10 bonus lives into every battle.', ruleOverrides: { startLives: 10 } }
+    { key: 'sharpen', name: 'Sharpen', rarity: 'common', blurb: 'All critters deal one more damage for the rest of the campaign.', mods: { damageAdd: 1 } },
+    { key: 'pinpoint', name: 'Pinpoint', rarity: 'common', blurb: 'All critters gain 12 range for the rest of the campaign.', mods: { rangeAdd: 12 } },
+    { key: 'buckshot', name: 'Buckshot', rarity: 'common', blurb: 'All critters pierce one extra target for the rest of the campaign.', mods: { pierceAdd: 2 } },
+    { key: 'deep-pockets', name: 'Deep Pockets', rarity: 'common', blurb: 'Start the next battle with $250 extra cash.', ruleOverrides: { startCash: 250 } },
+    { key: 'greed', name: 'Greed', rarity: 'common', blurb: 'Earn 25% more cash from every pop this battle.', ruleOverrides: { cashPerPopMul: 0.25 } },
+    { key: 'vigor', name: 'Vigor', rarity: 'common', blurb: 'Carry 10 bonus lives into every battle.', ruleOverrides: { startLives: 10 } },
+    { key: 'scope', name: 'Scope', rarity: 'rare', blurb: 'All critters gain 20 range for the rest of the campaign.', mods: { rangeAdd: 20 } },
+    { key: 'razor', name: 'Razor Coating', rarity: 'rare', blurb: 'All critters deal 2 more damage for the rest of the campaign.', mods: { damageAdd: 2 } },
+    { key: 'annihilation', name: 'Annihilation', rarity: 'legendary', blurb: 'Ferocious power: all critters deal 3 more damage and pierce 3 targets.', mods: { damageAdd: 3, pierceAdd: 3 } }
   ]
 
   /* First battle grants a free pick from the starter pool so every run opens
      with a real artifact. */
   var STARTERS = ['sharpen', 'pinpoint', 'buckshot', 'greed', 'vigor']
+
+  /* Drop weighting by stage (index 0..last): how likely a loot roll lands on
+     each rarity. Later stages lean on rares and legendaries. */
+  var RARITY_WEIGHTS = [
+    [{ rarity: LegendsData.COMMON, w: 80 }, { rarity: LegendsData.RARE, w: 20 }],
+    [{ rarity: LegendsData.COMMON, w: 55 }, { rarity: LegendsData.RARE, w: 35 }, { rarity: LegendsData.LEGENDARY, w: 10 }],
+    [{ rarity: LegendsData.COMMON, w: 30 }, { rarity: LegendsData.RARE, w: 50 }, { rarity: LegendsData.LEGENDARY, w: 20 }],
+    [{ rarity: LegendsData.COMMON, w: 15 }, { rarity: LegendsData.RARE, w: 55 }, { rarity: LegendsData.LEGENDARY, w: 30 }]
+  ]
+
+  /* Merchant price by stage (scaled up so buying stays a real choice). */
+  var MERCHANT_PRICE = [250, 400, 550, 700]
 
   /* ---------- lookup ---------- */
 
@@ -71,6 +94,16 @@
 
   LegendsData.stages = function () { return CAMPAIGN.stages }
 
+  LegendsData.dropWeights = function (stage) {
+    var s = Math.max(0, Math.min(stage || 0, RARITY_WEIGHTS.length - 1))
+    return RARITY_WEIGHTS[s]
+  }
+
+  LegendsData.merchantPrice = function (stage) {
+    var s = Math.max(0, Math.min(stage || 0, MERCHANT_PRICE.length - 1))
+    return MERCHANT_PRICE[s]
+  }
+
   /* ---------- deep freeze ---------- */
 
   function deepFreeze (obj) {
@@ -85,6 +118,8 @@
   deepFreeze(CAMPAIGN)
   deepFreeze(ARTIFACTS)
   deepFreeze(STARTERS)
+  deepFreeze(RARITY_WEIGHTS)
+  deepFreeze(MERCHANT_PRICE)
 
   OP.LegendsData = LegendsData
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

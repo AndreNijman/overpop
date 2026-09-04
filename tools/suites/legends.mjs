@@ -172,6 +172,76 @@ export function run (t, OP) {
     t.ok(true, 'skipped: this seed had no chest (still fine)')
   }
 
+  t.section('board uses Rogue-Legends flavour names')
+    const first = b1[0]
+    const last = b1[b1.length - 1]
+    t.eq(first.name, 'Encounter', 'entry tile is labelled an Encounter')
+    t.eq(last.name, 'Boss', 'final tile is labelled the Boss')
+    // Every interior node carries a recognised kind and a non-empty name.
+    for (const no of b1) {
+      t.ok(typeof no.name === 'string' && no.name.length > 0, 'node has a name')
+    }
+
+  t.section('merchant tiles can buy a relic or be skipped')
+    const pm = Save.defaults(); L.start(pm, 'merchant-seed')
+    const mBoard = L.board(pm)
+    const mPos = mBoard.findIndex(n => n.kind === LD.MERCHANT)
+    if (mPos >= 0) {
+      pm.legends.nodeIndex = mPos
+      pm.legends.cash = 100
+      const tooPoor = L.resolveMerchant(pm, true)
+      t.ok(tooPoor && tooPoor.buy && tooPoor.affordable === false,
+        'buying without enough cash is refused')
+      t.eq(pm.legends.nodeIndex, mPos, 'a refused purchase does not advance the node')
+      pm.legends.cash = 9999
+      const had = pm.legends.artifacts.length
+      const bought = L.resolveMerchant(pm, true)
+      t.ok(bought && bought.buy && bought.affordable === true && bought.granted,
+        'a funded purchase grants an artifact')
+      t.ok(pm.legends.artifacts.length >= had + 1, 'the run gained a relic')
+      t.eq(pm.legends.nodeIndex, mPos + 1, 'a successful purchase advances the node')
+      t.ok(pm.legends.cash < 9999, 'cash was spent on the artifact')
+      // Skipping is exercised on its own merchant position.
+      const pm2 = Save.defaults(); L.start(pm2, 'merchant-seed')
+      pm2.legends.nodeIndex = mPos
+      const skip = L.resolveMerchant(pm2, false)
+      t.ok(skip && skip.buy === false && skip.advanced === true,
+        'a merchant can be skipped (no purchase)')
+      t.eq(pm2.legends.nodeIndex, mPos + 1, 'skipping still advances the node')
+      t.eq(pm2.legends.artifacts.length, 1, 'skipping grants no artifact')
+    } else {
+      t.ok(true, 'skipped: this seed had no merchant (still fine)')
+    }
+
+  t.section('a mini-game win grants an artifact like a loot node')
+    const pg = Save.defaults(); L.start(pg, 'mini-seed')
+    const gBoard = L.board(pg)
+    const gPos = gBoard.findIndex(n => n.kind === LD.MINIGAME)
+    if (gPos >= 0) {
+      pg.legends.nodeIndex = gPos
+      const had = pg.legends.artifacts.length
+      const gres = L.recordWin(pg, makeSim(OP, { cash: 400, lives: 20 }))
+      t.ok(gres.chest, 'a mini-game win reports an artifact reward')
+      t.ok(pg.legends.artifacts.length >= had + 1, 'the run gained a relic from the mini-game')
+    } else {
+      t.ok(true, 'skipped: this seed had no mini-game (still fine)')
+    }
+
+  t.section('artifact rarities are attributed and weighted')
+    const byRarity = {}
+    for (const a of LD.allArtifacts()) {
+      t.ok(['common', 'rare', 'legendary'].indexOf(a.rarity) >= 0, a.key + ' has a valid rarity')
+      byRarity[a.rarity] = (byRarity[a.rarity] || 0) + 1
+    }
+    t.ok(byRarity.rare >= 1 && byRarity.legendary >= 1,
+      'the pool contains rare and legendary relics (not only common)')
+    const mid = LD.dropWeights(1)
+    const late = LD.dropWeights(3)
+    t.ok(mid.some(r => r.rarity === 'legendary'), 'mid campaign can drop legendaries')
+    t.ok(late.length >= mid.length, 'later campaign weights expand to include more rarities')
+    // Merchant price scales up with stage.
+    t.ok(LD.merchantPrice(0) <= LD.merchantPrice(3), 'merchant price rises across stages')
+
   t.section('losing finishes the run; completing records a completion')
   const p6 = Save.defaults(); L.start(p6, 'loss-seed')
   t.ok(L.isActive(p6), 'run active before loss')

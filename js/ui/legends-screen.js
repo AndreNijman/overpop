@@ -137,18 +137,40 @@
     var isBoss = currentNode && currentNode.kind === 'boss'
     var isElite = currentNode && currentNode.kind === 'elite'
     var isChest = currentNode && currentNode.kind === 'chest'
-    var fightLabel = isBoss ? 'FACE THE BOSS' : isElite ? 'ELITE BATTLE' : isChest ? 'OPEN THE CHEST' : 'FIGHT'
-    var fightSub = isChest
-      ? 'a battle, then a random artifact'
-      : 'win a battle to advance'
+    var isMerchant = currentNode && currentNode.kind === 'merchant'
+    var isMini = currentNode && currentNode.kind === 'minigame'
 
-    widgets.push(U.button('legends.fight', PAD, 430, 300, 58, {
-      label: fightLabel, tone: 'primary', action: 'legends-fight', arg: 'next',
-      sub: fightSub
-    }))
-    widgets.push(U.button('legends.abandon', PAD, 430 + 72, 300, 46, {
-      label: 'ABANDON RUN', action: 'legends-abandon', sub: 'lose everything, keep nothing'
-    }))
+    if (isMerchant) {
+      var mPrice = (OP.Legends && OP.Legends.merchantPrice) ? OP.Legends.merchantPrice(profile) : 250
+      var canAfford = sum.cash >= mPrice
+      marks.push(U.text(PAD, 474, 'A travelling merchant offers a relic for $' + mPrice + '.',
+        { size: 11, colour: C.dim }))
+      widgets.push(U.button('legends.buy', PAD, 430, 300, 58, {
+        label: 'BUY ARTIFACT', tone: 'primary', action: 'legends-buy',
+        sub: canAfford ? 'spend $' + mPrice + ' on a random relic' : 'not enough cash'
+      }))
+      widgets.push(U.button('legends.skip', PAD, 430 + 72, 300, 46, {
+        label: 'SKIP', action: 'legends-skip', sub: 'pass on this merchant'
+      }))
+    } else {
+      var fightLabel = isBoss ? 'FACE THE BOSS'
+        : isElite ? 'ELITE ENCOUNTER'
+        : isChest ? 'OPEN THE CHEST'
+        : isMini ? 'PLAY MINI-GAME'
+        : 'FIGHT'
+      var fightSub = isChest
+        ? 'a battle, then a random artifact'
+        : isMini
+        ? 'a short battle, win to earn a relic'
+        : 'win a battle to advance'
+      widgets.push(U.button('legends.fight', PAD, 430, 300, 58, {
+        label: fightLabel, tone: 'primary', action: 'legends-fight', arg: 'next',
+        sub: fightSub
+      }))
+      widgets.push(U.button('legends.abandon', PAD, 430 + 72, 300, 46, {
+        label: 'ABANDON RUN', action: 'legends-abandon', sub: 'lose everything, keep nothing'
+      }))
+    }
     widgets.push(U.button('legends.back', FIELD_W - PAD - 120, 60, 120, 38, {
       label: '< BACK', action: 'back'
     }))
@@ -191,6 +213,10 @@
     if (w.action === 'legends-clear') {
       var sc = OP.Menus && OP.Menus.state
       if (sc) sc.legendsStart = null
+      return true
+    }
+    if (w.action === 'legends-buy' || w.action === 'legends-skip') {
+      if (app && app.legendsMerchant) app.legendsMerchant(w.action === 'legends-buy')
       return true
     }
     if (w.action === 'legends-abandon') {

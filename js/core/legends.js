@@ -50,31 +50,52 @@
   /* ---------- campaign / board structure ---------- */
 
   /* Turn a campaign definition + RNG into a stage board: an array of nodes,
-     index 0 is the entrance, the last is the boss, and the rest are a shuffle
-     of battles and chests (one elite for the tougher stages). */
+     index 0 is the entrance, the last is the boss, and the rest are a weighted
+     mix of Bloon Encounters, Loot Chests, Merchants and Mini-games (one Elite
+     for the tougher stages). Node kinds stay code-level; the UI labels them
+     with Rogue-Legends flavour names. */
   Legends.generateBoard = function (stageDef, rng) {
     var bos = OP.LegendsData
     var n = Math.max(3, stageDef.boardLength || 6)
-    var nodes = [{ kind: bos.BATTLE, name: 'Entry' }]
+    var nodes = [{ kind: bos.BATTLE, name: 'Encounter' }]
     var mid = []
     for (var i = 0; i < n - 2; i++) {
-      mid.push(rng.chance(0.22) ? bos.CHEST : bos.BATTLE)
+      mid.push(pickMidKind(bos, rng))
     }
-    // One elite per stage, at a random interior slot, if the stage calls for it.
+    // One elite per stage, replacing an interior battle slot, if the stage calls for it.
     if (stageDef.elite && mid.length >= 2) {
-      var e = rng.int(mid.length)
-      mid[e] = bos.ELITE
+      var battleIdx = -1
+      for (var el = mid.length - 1; el >= 0; el--) {
+        if (mid[el] === bos.BATTLE) { battleIdx = el; break }
+      }
+      if (battleIdx >= 0) mid[battleIdx] = bos.ELITE
     }
     mid = rng.shuffle(mid)
     for (var j = 0; j < mid.length; j++) {
-      nodes.push(nodeOf(mid[j], j))
+      nodes.push(nodeOf(mid[j]))
     }
-    nodes.push({ kind: bos.BOSS, name: stageDef.boss || 'Boss' })
+    nodes.push({ kind: bos.BOSS, name: 'Boss' })
     return nodes
   }
 
-  function nodeOf (kind, j) {
-    return { kind: kind, name: kind === OP.LegendsData.CHEST ? 'Chest ' + (j + 1) : 'Battle ' + (j + 1) }
+  /* A weighted pick for an interior slot: leaning encounter, with loot,
+     merchant and mini-game tiles sprinkled in. */
+  function pickMidKind (bos, rng) {
+    if (rng.chance(0.14)) return bos.MERCHANT
+    if (rng.chance(0.22)) return bos.CHEST
+    if (rng.chance(0.14)) return bos.MINIGAME
+    return bos.BATTLE
+  }
+
+  function nodeOf (kind) {
+    var bos = OP.LegendsData
+    var name = 'Encounter'
+    if (kind === bos.CHEST) name = 'Loot Chest'
+    else if (kind === bos.MERCHANT) name = 'Merchant'
+    else if (kind === bos.MINIGAME) name = 'Mini-game'
+    else if (kind === bos.ELITE) name = 'Elite Encounter'
+    else if (kind === bos.BOSS) name = 'Boss'
+    return { kind: kind, name: name }
   }
 
   /* The node list for the current stage. Deterministic for a given seed+stage. */
@@ -129,6 +150,7 @@
     var frontier = Legends.frontier(profile)
     var isBoss = node && node.kind === bos.BOSS
     var isElite = node && node.kind === bos.ELITE
+    var isMini = node && node.kind === bos.MINIGAME
 
     // A pool of playable maps in the stage's tier band.
     var tier = def.tier || 'beginner'
@@ -150,7 +172,7 @@
       mapKey: map.key,
       difficulty: def.difficulty || 'medium',
       mode: 'standard',
-      roundSet: Legends.buildRounds(l, frontier, node, isBoss, isElite),
+      roundSet: Legends.buildRounds(l, frontier, node, isBoss, isElite, isMini),
       startCash: Math.max(0, l.cash) + (boosts.cash || 0),
       startLives: Math.max(1, l.lives) + (boosts.lives || 0)
     }
@@ -172,14 +194,17 @@
   }
 
   /* Generate the escalating round table for a battle. Pure + deterministic.
-     A boss/elite battle is denser and reaches a higher tier than a normal one
-     at the same frontier. */
-  Legends.buildRounds = function (l, frontier, node, isBoss, isElite) {
+     A boss/elite battle is denser and reaches a higher tier than a normal one at
+     the same frontier; a mini-game is a short, relatively light lure that pays
+     an artifact for clearing it. */
+  Legends.buildRounds = function (l, frontier, node, isBoss, isElite, isMini) {
     var bos = OP.LegendsData
-    var dens = isBoss ? 1.35 : isElite ? 1.2 : 1
+    var dens = isBoss ? 1.35 : isElite ? 1.2 : isMini ? 0.75 : 1
     var topIdx = Math.min(TIER_LADDER.length - 1,
-      Math.floor(frontier * (TIER_LADDER.length - 1)) + (isBoss ? 3 : isElite ? 2 : 1))
-    var rounds = Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE)
+      Math.floor(frontier * (TIER_LADDER.length - 1)) + (isBoss ? 3 : isElite ? 2 : isMini ? 0 : 1))
+    var rounds = isMini
+      ? Math.max(4, Math.floor(Legends.BASE_ROUNDS * 0.55))
+      : (Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE))
     var table = {}
     for (var r = 1; r <= rounds; r++) {
       var frac = r / rounds
@@ -284,9 +309,10 @@
     }
     var result = { won: true, chest: null, stageComplete: false, campaignComplete: false }
 
-    // A chest node grants a random artifact in addition to the resource carry.
-    if (node && node.kind === bos.CHEST) {
-      var picked = Legends.grantRandomArtifact(profile, 'chest')
+    // A loot node (Loot Chest, or a cleared Mini-game) grants a random artifact
+    // in addition to the resource carry.
+    if (node && (node.kind === bos.CHEST || node.kind === bos.MINIGAME)) {
+      var picked = Legends.grantRandomArtifact(profile, node.kind === bos.MINIGAME ? 'minigame' : 'chest')
       result.chest = picked
     }
 
@@ -323,21 +349,76 @@
     return { won: false }
   }
 
-  /* Grant a random artifact not already owned. Returns its key or null. */
+  /* Grant a random artifact not already owned. Rarity is weighted by stage so
+     later stages hand out more Rare/Legendary relics. Returns its key or null. */
   Legends.grantRandomArtifact = function (profile, salt) {
     var l = Legends.get(profile)
     if (!l || !OP.LegendsData) return null
     if (!Array.isArray(l.artifacts)) l.artifacts = []
-    var pool = []
-    var all = OP.LegendsData.allArtifacts()
+    var bos = OP.LegendsData
+    var all = bos.allArtifacts()
+    var owned = l.artifacts
+    var unowned = []
     for (var i = 0; i < all.length; i++) {
-      if (l.artifacts.indexOf(all[i].key) < 0) pool.push(all[i].key)
+      if (owned.indexOf(all[i].key) < 0) unowned.push(all[i])
     }
-    if (!pool.length) return null
-    var rng = new OP.RNG(l.seed + ':loot-' + l.stage + '-' + l.nodeIndex + '-' + (salt || ''))
-    var key = rng.pick(pool)
-    l.artifacts.push(key)
-    return key
+    if (!unowned.length) return null
+    var seed = l.seed + ':loot-' + l.stage + '-' + l.nodeIndex + '-' + (salt || '')
+    var pickedArt = pickWeighted(profile, unowned, all, seed)
+    if (!pickedArt) return null
+    l.artifacts.push(pickedArt.key)
+    return pickedArt.key
+  }
+
+  /* Choose an artifact from `unowned` honouring the stage rarity weights; falls
+     back to uniform-picking across unowned when the weighted rarity is sold out. */
+  function pickWeighted (profile, unowned, all, seed) {
+    var l = Legends.get(profile)
+    var bos = OP.LegendsData
+    var weights = bos.dropWeights(l ? l.stage : 0)
+    var cands = []
+    for (var w = 0; w < weights.length; w++) {
+      var r = weights[w].rarity
+      for (var c = 0; c < weights[w].w; c++) cands.push(r)
+    }
+    var rng0 = new OP.RNG(seed + ':rarity')
+    var rarity = cands.length ? cands[rng0.int(cands.length)] : null
+    var byRarity = []
+    if (rarity) {
+      for (var u = 0; u < unowned.length; u++) {
+        if (unowned[u].rarity === rarity) byRarity.push(unowned[u])
+      }
+    }
+    if (!byRarity.length) byRarity = unowned
+    var rng = new OP.RNG(seed)
+    return byRarity[rng.int(byRarity.length)]
+  }
+
+  /* The cash a Merchant node charges for an artifact at the current stage. */
+  Legends.merchantPrice = function (profile) {
+    var l = Legends.get(profile)
+    if (!l || !OP.LegendsData || !OP.LegendsData.merchantPrice) return 250
+    return OP.LegendsData.merchantPrice(l.stage)
+  }
+
+  /* Resolve a Merchant node: buy the artifact (spin cash) or skip it (pay
+     nothing). Either way the node is passed so the campaign advances to the
+     next tile. Returns what happened. */
+  Legends.resolveMerchant = function (profile, buy) {
+    var l = Legends.get(profile)
+    var bos = OP.LegendsData
+    if (!l) return null
+    var node = Legends.currentNode(profile)
+    if (!node || node.kind !== bos.MERCHANT) return null
+    var price = Legends.merchantPrice(profile)
+    var granted = null
+    if (buy) {
+      if ((l.cash || 0) < price) return { buy: true, affordable: false, price: price }
+      l.cash = Math.max(0, (l.cash || 0) - price)
+      granted = Legends.grantRandomArtifact(profile, 'merchant')
+    }
+    l.nodeIndex = (l.nodeIndex || 0) + 1
+    return { buy: !!buy, granted: granted, price: price, affordable: true, advanced: true }
   }
 
   /* Clear the active campaign and record a completion. */
