@@ -283,3 +283,4 @@
 
   OP.LegendsScreen = LegendsScreen
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))
+// build-epoch 2026-09-04B (mini-game tile labels)
