@@ -6,7 +6,7 @@
 
 export const name = 'legends'
 export const needs = [
-  'js/data/legends.js',
+  'js/legends/legends-data.js',
   'js/core/legends.js',
   'js/core/rng.js',
   'js/core/maps.js',
