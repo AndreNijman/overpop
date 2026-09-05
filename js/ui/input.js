@@ -39,6 +39,7 @@
       mode: 'idle',           // 'idle' | 'placing' | 'aiming'
       placingKey: null,       // tower or hero key being placed
       placingIsHero: false,
+      placingDraft: null,     // { key, level } when placing a Draft Token, else null
       aimingTowerId: -1,      // for towers that target a point
 
       selectedId: -1,
@@ -289,6 +290,19 @@
     io.mode = 'placing'
     io.placingKey = key
     io.placingIsHero = !!isHero
+    io.placingDraft = null
+    io.selectedId = -1
+    return io
+  }
+
+  /** Begin placing a collected Draft Token. The same placing mode as a buy, but
+      `placingDraft` carries the slot (key + level) so the confirm handler can
+      spend the token instead of charging cash. */
+  Input.beginPlacingDraft = function (io, key, level) {
+    io.mode = 'placing'
+    io.placingKey = key
+    io.placingIsHero = false
+    io.placingDraft = { key: key, level: level }
     io.selectedId = -1
     return io
   }
@@ -304,6 +318,7 @@
     io.mode = 'idle'
     io.placingKey = null
     io.placingIsHero = false
+    io.placingDraft = null
     io.aimingTowerId = -1
     if (had) fire(io, 'cancel')
     return io
@@ -320,7 +335,7 @@
     const b = toBoard(x, y)
 
     if (io.mode === 'placing' && io.placingKey) {
-      fire(io, 'place', io.placingKey, b.x, b.y, io.placingIsHero)
+      fire(io, 'place', io.placingKey, b.x, b.y, io.placingIsHero, io.placingDraft)
       return 'place'
     }
     if (io.mode === 'aiming' && io.aimingTowerId >= 0) {
@@ -403,7 +418,9 @@
     // only know world coordinates.
     const check = io.placingIsHero
       ? OP.Heroes.canPlace(sim, io.placingKey, io.bx, io.by)
-      : OP.Towers.canPlace(sim, io.placingKey, io.bx, io.by)
+      : io.placingDraft
+        ? OP.Towers.canPlaceShape(sim, def, io.bx, io.by)  // a token is free
+        : OP.Towers.canPlace(sim, io.placingKey, io.bx, io.by)
     return {
       x: io.bx, y: io.by,
       range: def.base.range,

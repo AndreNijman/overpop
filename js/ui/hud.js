@@ -790,14 +790,14 @@
         if (typeof prev.select === 'function') prev.select(id)
       }
 
-      next.place = function (key, x, y, isHero) {
+      next.place = function (key, x, y, isHero, draft) {
         // Placing mode never runs the lookup, so ask directly. The selection is
         // intact on this path, which is why no restore is needed.
         // Same space conversion as the lookup hook above: x, y arrive in board
         // space and the router works in field space.
         const f = fieldOf(x, y)
         if (gameActive(app) && HUD.chromeAt(app, f[0], f[1])) { HUD.route(app, f[0], f[1]); return }
-        if (typeof prev.place === 'function') prev.place(key, x, y, isHero)
+        if (typeof prev.place === 'function') prev.place(key, x, y, isHero, draft)
       }
 
       OP.Input.setHandlers(io, next)

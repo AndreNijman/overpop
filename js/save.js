@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 9
+  Save.SCHEMA_VERSION = 10
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -248,7 +248,8 @@
       completedTrials: {},   // trialKey -> { completed, bestTime, completedAt }
       towerXp: {},            // towerKey -> banked tower XP from completed runs
       legends: null,          // active Legends campaign state or null
-      legendsCompletions: 0   // completed Legends campaigns
+      legendsCompletions: 0,  // completed Legends campaigns
+      drafts: []              // Draft Tokens: { key, level, count } slots
     }
   }
 
@@ -301,6 +302,7 @@
     out.completedTrials = normaliseCompletedTrials(raw.completedTrials)
     out.legends = normaliseLegends(raw.legends)
     out.legendsCompletions = counter(raw.legendsCompletions)
+    out.drafts = normaliseDrafts(raw.drafts)
     out.towerXp = normaliseTowerXp(raw.towerXp)
     out.schemaVersion = Save.SCHEMA_VERSION
     return out
@@ -492,6 +494,22 @@
     return out
   }
 
+  /* Draft Token slots as a canonical array of { key, level, count }. One slot per
+     (tower key, level); a malformed or overlapping entry is repaired into shape
+     rather than dropped, because a slot is earned content the player owns. */
+  function normaliseDrafts (raw) {
+    if (!Array.isArray(raw)) return []
+    const out = []
+    for (const entry of raw) {
+      if (!entry || typeof entry !== 'object') continue
+      if (!safeKey(entry.key)) continue
+      const level = Number.isInteger(entry.level) && entry.level > 0 ? Math.min(entry.level, 3) : 0
+      const count = Number.isInteger(entry.count) && entry.count > 0 ? entry.count : 1
+      out.push({ key: entry.key, level: level, count: count })
+    }
+    return out
+  }
+
   /** mapKey -> difficulty -> mode -> true. Only literal `true` leaves survive,
       and a branch with no surviving leaf is dropped rather than left empty.
       Every key is safeKey()-screened and every "does this branch exist?" test is
@@ -588,6 +606,12 @@
     8: function (p) {
       if (typeof p.legends !== 'object' || p.legends === null) p.legends = null
       if (typeof p.legendsCompletions !== 'number') p.legendsCompletions = 0
+      return p
+    },
+    // Version 9 → 10: add Draft Tokens. Nothing to derive — tokens are earned
+    // from Boss Event tiers, Rush Trial bests and exhausted Legends chests.
+    9: function (p) {
+      if (!Array.isArray(p.drafts)) p.drafts = []
       return p
     }
   }
@@ -718,6 +742,8 @@
     if (p.activeTrial !== null && !isPlainObject(p.activeTrial)) p.activeTrial = null
     if (!isPlainObject(p.completedTrials)) p.completedTrials = {}
     if (!isPlainObject(p.towerXp)) p.towerXp = {}
+    if (!Array.isArray(p.drafts)) p.drafts = []
+    p.drafts = normaliseDrafts(p.drafts)
     return p
   }
 

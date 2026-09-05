@@ -865,6 +865,16 @@
       label: 'TOWERS', action: 'goto', arg: 'towers', sub: 'upgrades, costs and tower XP'
     }))
     byR += bh + gap
+    if (OP.Drafts && OP.Drafts.list) {
+      var draftsOwned = OP.Drafts.count(profileOf(app))
+      if (draftsOwned > 0) {
+        widgets.push(UI.button('title.drafts', gx, byR, gw, bh, {
+          label: 'DRAFTS', action: 'goto', arg: 'drafts',
+          sub: draftsOwned + ' token' + (draftsOwned === 1 ? '' : 's') + ' — free placed towers'
+        }))
+        byR += bh + gap
+      }
+    }
     widgets.push(UI.button('title.knowledge', gx, byR, gw, bh, {
       label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'spend knowledge points on permanent bonuses'
     }))

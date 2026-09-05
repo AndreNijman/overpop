@@ -143,6 +143,17 @@
         rows.push(['Knowledge Points', '—'])
       }
     }
+    // Boss Event Draft Tokens pay out alongside the KP.
+    if (beResult && beResult.draftsEarned > 0) {
+      rows.push(['Draft Tokens', '+' + beResult.draftsEarned])
+    }
+    // Legends: a chest that found the artifact pool exhausted pays a Draft Token.
+    var legendsResult = app && app.state ? app.state.legendsResult : null
+    if (legendsResult && legendsResult.draft) {
+      var draftDef = OP.TOWERS ? OP.TOWERS[legendsResult.draft.key] : null
+      var draftName = (draftDef && draftDef.name) || legendsResult.draft.key
+      rows.push(['Draft Token', '+1 ' + draftName + (legendsResult.draft.level > 0 ? ' L' + legendsResult.draft.level : '')])
+    }
     for (let i = 0; i < rows.length; i++) {
       const y = P.y + 158 + i * 26
       marks.push(U.text(P.x + 40, y, rows[i][0], { size: 11, colour: C.dim }))

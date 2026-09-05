@@ -102,6 +102,7 @@
     if (OP.Bestiary && OP.Bestiary.install) OP.Bestiary.install(App)
     if (OP.LegendsScreen && OP.LegendsScreen.install) OP.LegendsScreen.install(App)
     if (OP.EventScreen && OP.EventScreen.install) OP.EventScreen.install(App)
+    if (OP.DraftScreen && OP.DraftScreen.install) OP.DraftScreen.install(App)
     if (OP.Results && OP.Results.install) OP.Results.install(App)
 
     // Something must be on screen even with no menu module built yet.
@@ -695,15 +696,24 @@
     return S.sim && S.io.hoverId >= 0 ? S.sim.towerById.get(S.io.hoverId) : null
   }
 
-  function onPlace (key, x, y, isHero) {
+  function onPlace (key, x, y, isHero, draft) {
     const S = App.state
     if (!S.sim) return
-    const placed = isHero
-      ? OP.Heroes.place(S.sim, key, x, y)
-      : OP.Towers.place(S.sim, key, x, y)
-    if (placed) {
+    const draftSlot = draft && !isHero ? draft : null
+    let placed = null
+    if (draftSlot && OP.Drafts && OP.Drafts.place) {
+      placed = OP.Drafts.place(S.sim, S.profile, draftSlot.key, draftSlot.level, x, y)
+    } else {
+      placed = isHero
+        ? OP.Heroes.place(S.sim, key, x, y)
+        : OP.Towers.place(S.sim, key, x, y)
+    }
+    if (placed && Number.isInteger(placed.id)) {
       S.io.selectedId = placed.id
       OP.Input.cancel(S.io)
+    } else if (placed && placed.reason) {
+      if (OP.Audio) OP.Audio.play('deny')
+      OP.FX.say(x, y - 20, placed.reason, '#e06a5a')
     } else {
       const why = isHero ? OP.Heroes.canPlace(S.sim, key, x, y) : OP.Towers.canPlace(S.sim, key, x, y)
       if (OP.Audio) OP.Audio.play('deny')

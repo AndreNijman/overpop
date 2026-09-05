@@ -3,7 +3,7 @@
 // immediately and the clear time is the score.
 
 export const name = 'race'
-export const needs = ['js/data/modes.js', 'js/core/race.js']
+export const needs = ['js/data/modes.js', 'js/core/race.js', 'js/core/drafts.js']
 
 import { makeSim, straightTrack } from './_fixture.mjs'
 
@@ -109,6 +109,24 @@ export function run (t, OP, env) {
 
   const noSummary = R.summary(profile, 'fernway-hollow', 'relentless')
   t.notOk(noSummary.done, 'not done for unplayed')
+
+  t.section('an improved winning best pays a Draft Token')
+  const pr = OP.Save.defaults()
+  R.record(pr, 'fernway-hollow', 'standard', { won: true, time: 90, pops: 3000, cash: 4000 }, new OP.RNG('draft-race-1'))
+  t.eq(OP.Drafts.count(pr), 1, 'a first win pays one token')
+  const had = OP.Drafts.count(pr)
+  R.record(pr, 'fernway-hollow', 'standard', { won: true, time: 80, pops: 3000, cash: 4000 }, new OP.RNG('draft-race-2'))
+  t.eq(OP.Drafts.count(pr), had + 1, 'a faster win pays again')
+  const had2 = OP.Drafts.count(pr)
+  R.record(pr, 'fernway-hollow', 'standard', { won: true, time: 99, pops: 3000, cash: 4000 }, new OP.RNG('draft-race-3'))
+  t.eq(OP.Drafts.count(pr), had2, 'a slower win changes nothing and pays nothing')
+  R.record(pr, 'fernway-hollow', 'standard', { won: false, time: 50, pops: 1000, cash: 500 }, new OP.RNG('draft-race-4'))
+  t.eq(OP.Drafts.count(pr), had2, 'a loss pays nothing')
+  const pl = OP.Save.defaults()
+  R.record(pl, 'fernway-hollow', 'standard', { won: false, time: 60, pops: 1500, cash: 2000 }, new OP.RNG('draft-race-5'))
+  t.eq(OP.Drafts.count(pl), 0, 'a pure loss never pays')
+  R.record(pl, 'fernway-hollow', 'standard', { won: true, time: 70, pops: 2000, cash: 3000 }, new OP.RNG('draft-race-6'))
+  t.eq(OP.Drafts.count(pl), 1, 'a win that overturns a stored loss pays')
 
   t.section('save integration — raceBests survive migration')
   const migrated = OP.Save.migrate({

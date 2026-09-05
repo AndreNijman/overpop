@@ -461,6 +461,10 @@
     // reaching no goal still advances but hands out nothing (canon).
     if (node && node.kind === bos.CHEST) {
       var pickedChest = Legends.grantRandomArtifact(profile, 'chest')
+      if (!pickedChest && OP.Drafts && OP.Drafts.grantRandom) {
+        var chestDraft = OP.Drafts.grantRandom(profile)
+        if (chestDraft) result.draft = chestDraft
+      }
       result.chest = pickedChest
     } else if (node && node.kind === bos.MINIGAME) {
       var miniPayout = Legends.miniGameReward(profile, sim)
@@ -468,6 +472,9 @@
       if (miniPayout && miniPayout.reached && miniPayout.artifact) {
         l.artifacts.push(miniPayout.artifact)
         result.chest = miniPayout.artifact
+      } else if (miniPayout && miniPayout.reached && OP.Drafts && OP.Drafts.grantRandom) {
+        var miniDraft = OP.Drafts.grantRandom(profile)
+        if (miniDraft) result.draft = miniDraft
       }
     } else if (node && node.kind === bos.BOOST) {
       var allBoosts = bos.allBoosts()

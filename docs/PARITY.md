@@ -8,7 +8,7 @@ and feature checklist rather than a balance audit.
   difficulty/mode matrix (`node tools/playthroughs.mjs`), (2) local inventory
   read straight out of the data files, (3) cross-reference against the official
   BTD6 wiki (Blooncyclopedia + Fandom) and the Rogue Legends wiki.
-- **Date:** 2026-09-04. Commit `2bcc814`.
+- **Date:** 2026-09-05. Commit `8a76b99` (Draft Tokens patch follows).
 - **Legend:** `✓` direct parity · `~` present but renamed/original-name spin ·
   `–` absent · `Δ` divergence worth a decision.
 
@@ -54,7 +54,12 @@ tilts down, mirroring canon. BTD6's **Impoppable** is expressed here as the
   mirroring canon's paragon meta-absorption of same-type towers.
 - **Tower XP / upgrades** — `✓`. Per-tower XP is earned in-match and spent on
   persistent upgrade paths outside matches; heroes level up during gameplay.
-- **Insta-Monkeys** — `–`. Not present. (See economy gap below.)
+- **Insta-Monkeys** — `~` present as **Draft Tokens**. A token binds one tower
+  to a starting upgrade tier (0–3) and is spent as a *free* placement — no cash,
+  no mode/XP gate, exactly canon Insta-Monkeys. They are earned rather than
+  bought: each newly-beaten Boss Event tier, each improved Rush Trial best, and
+  any Legends chest that finds the artifact pool exhausted pays one out. Slots
+  are collected on the **Drafts** screen (`OP.DraftScreen`).
 
 ## 4. Modes — `✓` most canon modes, plus originals
 
@@ -90,8 +95,9 @@ is the most-cited gap.
   gates powers, Insta-Monkeys, and per-tower upgrades behind spendable currency
   and daily/race rewards; Overpop spends **Knowledge Points** and **Tower XP** on
   those meta-progression hooks instead. This is a design fork, not a bug — but it
-  means powers are free inventory pickups and there is no shop, so **Insta-Monkeys
-  and Monkey Teams are absent** as a consequence.
+  means powers are free inventory pickups and there is no shop. The Insta-Monkey
+  slot is now filled by the **Draft Tokens** earn economy (§3); a spendable
+  currency-and-shop for powers is still an open decision.
 
 ## 6. Boss Bloon Event — `✓` recently implemented to canon shape
 
@@ -121,13 +127,14 @@ Legends* (BTD6 v47 paid DLC):
 | Cash/lives carry between battles | ✓ |
 | Mini-game tiles (Least Cash, Race, Endurance) | ✓ (canon has mini challenges) |
 | Rarity weighting (common/rare/legendary) rising over stages | ✓ |
-| Start-with-a-Hero + Boosts meta | `–` (no insta monkey; hero + boost nodes delivered) |
+| Start-with-a-Hero + Boosts meta | ✓ (hero + boost nodes delivered; Draft Tokens fill the insta-monkey slot) |
 | Merchant tile | ✓ (canon lets you buy/sell/markup) |
 
 The broad architecture maps cleanly; the local build is a smaller content slice
-(28 artifacts vs 85+; no insta-monkey mechanic). Hero auto-deploy and campaign-wide
-boost surges are now implemented inside Legends. No Frontier-Legends / ranch-hands
-content.
+(28 artifacts vs 85+; the insta-monkey slot is filled by the Draft Tokens earn
+economy — §3/§5). Hero auto-deploy and campaign-wide boost surges are now
+implemented inside Legends, and an exhausted artifact pool starts paying Draft
+Tokens instead. No Frontier-Legends / ranch-hands content.
 
 ## 8. Playthrough observation (triangle split)
 
@@ -164,7 +171,10 @@ ladder currently gates more steeply.
    skill tree, one life, 80 rounds). It uses an original name because the project's
    no-borrowed-proper-nouns gate bans the literal "CHIMPS" (see `tools/suites/modes.mjs`).
 2. Decide the **economy fork**: keep Knowledge-Points-only (document it) or add a
-   spendable currency + shop to unlock powers/Insta-Monkeys.
+   spendable currency + shop to unlock powers. The Insta-Monkey half of that fork
+   is **done** — delivered as the **Draft Tokens** earn economy: free placements
+   collected from Boss Event tiers, improved Rush Trial bests and exhausted
+   Legends chests.
 3. ~~Content-close **Legends** (more artifacts; hero/boost nodes).~~
    **Done** — artifacts grew from 9 to 28, heroes auto-deploy on each battle
    (player picks one at campaign start), and Boost tiles grant 3-battle temporary

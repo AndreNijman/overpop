@@ -69,6 +69,7 @@ function completeProfile (OP, p) {
   if (p.activeTrial !== null && !isObj(p.activeTrial)) return false
   if (!isObj(p.completedTrials)) return false
   if (!isObj(p.towerXp)) return false
+  if (!Array.isArray(p.drafts)) return false
   return true
 }
 
@@ -114,7 +115,7 @@ export function run (t, OP, env) {
 
   t.section('a fresh profile is complete and storable')
   const d = S.defaults()
-  t.eq(S.SCHEMA_VERSION, 9, 'the schema starts at version 9')
+  t.eq(S.SCHEMA_VERSION, 10, 'the schema starts at version 10')
   t.ok(Number.isInteger(S.SCHEMA_VERSION) && S.SCHEMA_VERSION >= 1, 'and is a positive integer')
   t.ok(completeProfile(OP, d), 'defaults() has every field the game reads')
   t.eq(d.settings.gameSpeed, 1, 'the game starts at normal speed')
@@ -292,6 +293,45 @@ export function run (t, OP, env) {
   t.eq(S.SCHEMA_VERSION, realVersion, 'the real schema version is restored')
   t.eq(S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 5 } }).stats.gamesPlayed, 5,
     'and the real migration path still works')
+
+  t.section('Draft Tokens join the profile at schema v10 and survive walking up')
+  t.gte(S.SCHEMA_VERSION, 10, 'the schema is at least v10')
+  t.deep(S.defaults().drafts, [], 'defaults ship an empty drafts list')
+  const from9 = S.migrate({
+    schemaVersion: 9,
+    stats: { gamesPlayed: 1 },
+    drafts: [{ key: 'acorn-fox', level: 2, count: 3 }]
+  })
+  t.deep(from9.drafts, [{ key: 'acorn-fox', level: 2, count: 3 }],
+    'the v9→v10 step keeps a well-formed drafts list verbatim')
+  t.eq(from9.schemaVersion, S.SCHEMA_VERSION, 'and stamps the current version')
+
+  const from8 = S.migrate({
+    schemaVersion: 8,
+    stats: { gamesPlayed: 1 },
+    drafts: [{ key: 'acorn-fox', level: 5, count: -2 }, { level: 1, count: 9 }]
+  })
+  t.deep(from8.drafts, [{ key: 'acorn-fox', level: 3, count: 1 }],
+    'the 8→9→10 walk clamps levels, fixes counts and drops junk slots')
+  t.eq(from8.schemaVersion, S.SCHEMA_VERSION, 'and the whole walk lands on the current version')
+
+  const noDrafts = S.migrate({ schemaVersion: 9, stats: { gamesPlayed: 2 } })
+  t.deep(noDrafts.drafts, [], 'a profile with no drafts field gains an empty list')
+
+  const garbage = S.migrate({ schemaVersion: 9, stats: { gamesPlayed: 2 }, drafts: 'nope' })
+  t.deep(garbage.drafts, [], 'a mangled drafts field degrades to empty, not junk')
+
+  const poisoned = S.migrate({
+    schemaVersion: 9,
+    stats: { gamesPlayed: 2 },
+    drafts: JSON.parse('[{"key":"__proto__","level":1,"count":1},{"key":"constructor","level":1,"count":1},{"key":"toString","level":1,"count":1}]')
+  })
+  t.notOk(poisoned.drafts.some(d => d.key === '__proto__'), 'the reserved key is refused outright')
+  t.eq(poisoned.drafts.length, 2, 'inherited-name keys survive as honest own entries (they are just bad tower keys)')
+  t.eq(jsonUnsafe(poisoned), '', 'the migrated profile stays pure JSON')
+  t.eq(S.defaults().drafts.length, 0, 'and nothing ever leaks onto fresh profiles')
+  t.ok(completeProfile(OP, S.migrate({ schemaVersion: 9, stats: { gamesPlayed: 2 } })),
+    'a migrated profile is complete — including the drafts array')
 
   t.section('an unknown-shaped object degrades field by field, not all at once')
   const partial = S.migrate({ schemaVersion: 1, stats: { gamesPlayed: 3 }, settings: 'broken', completions: [1, 2] })

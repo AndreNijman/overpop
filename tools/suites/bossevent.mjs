@@ -1,5 +1,5 @@
 export const name = 'bossevent'
-export const needs = ['js/data/bosses.js', 'js/core/bossevent.js', 'js/save.js',
+export const needs = ['js/data/bosses.js', 'js/core/bossevent.js', 'js/core/drafts.js', 'js/save.js',
   'js/data/maps-intermediate.js', 'js/data/maps-advanced.js']
 
 export function run (t, OP) {
@@ -111,4 +111,36 @@ export function run (t, OP) {
   t.eq(BE.KP_NORMAL, 2, 'normal tier KP is 2')
   t.eq(BE.KP_ELITE, 3, 'elite tier KP is 3')
   t.eq(BE.KP_FULL_CLEAR, 5, 'the full-clear bonus is 5')
+  t.eq(BE.DRAFT_NORMAL, 1, 'normal tiers pay one token each')
+  t.eq(BE.DRAFT_ELITE, 2, 'elite tiers pay two tokens each')
+  t.eq(BE.DRAFT_FULL_CLEAR, 2, 'a full clear pays a two-token bonus')
+
+  t.section('newly-beaten tiers pay Draft Tokens onto the profile')
+  let pd = freshProfile()
+  let dr = BE.recordResult(pd, runLike('elder-worm', 2, true, false), undefined, new OP.RNG('draft-boss-1'))
+  t.eq(dr.draftsEarned, 2, 'two new normal tiers earn exactly two tokens')
+  t.ok(dr.draftsEarned > 0 && OP.Drafts.count(pd) === 2, 'the profile owns two tokens after the win')
+
+  t.section('a full clear pays its bonus once, like KP')
+  const fc2 = freshProfile()
+  const fcFirst = BE.recordResult(fc2, runLike('void-maw', 5, true, false), undefined, new OP.RNG('draft-boss-2'))
+  t.eq(fcFirst.draftsEarned, 5 * BE.DRAFT_NORMAL + BE.DRAFT_FULL_CLEAR, 'first clear counts tiers plus the bonus')
+  const fcAgain = BE.recordResult(fc2, runLike('void-maw', 5, true, false), undefined, new OP.RNG('draft-boss-3'))
+  t.eq(fcAgain.draftsEarned, 0, 'a repeat clear pays nothing more')
+
+  t.section('elite tiers pay the elite token rate only for newly-beaten tiers')
+  const fd = freshProfile()
+  BE.recordResult(fd, runLike('storm-drake', 3, true, true), undefined, new OP.RNG('draft-boss-4'))
+  t.eq(OP.Drafts.count(fd), 3 * BE.DRAFT_ELITE, 'three new elite tiers pay the elite rate')
+  const fd2 = freshProfile()
+  BE.recordResult(fd2, runLike('storm-drake', 2, true, true), undefined, new OP.RNG('draft-boss-5'))
+  t.eq(OP.Drafts.count(fd2), 2 * BE.DRAFT_ELITE, 'an elite run pays tokens even while elite stays locked')
+
+  t.section('a worse loss pays nothing for tiers already on the rack')
+  const pl = freshProfile()
+  const preWin = BE.recordResult(pl, runLike('elder-worm', 2, true, false), undefined, new OP.RNG('draft-boss-6'))
+  t.eq(preWin.draftsEarned, 2, 'the win paid two tokens')
+  const lr = BE.recordResult(pl, runLike('elder-worm', 1, false, false), undefined, new OP.RNG('draft-boss-7'))
+  t.eq(lr.draftsEarned, 0, 'a worse loss pays nothing')
+  t.eq(OP.Drafts.count(pl), 2, 'the earlier tokens are untouched')
 }

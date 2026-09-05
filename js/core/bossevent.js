@@ -155,6 +155,12 @@
   BossEvent.KP_ELITE = 3
   BossEvent.KP_FULL_CLEAR = 5
 
+  /* Draft Tokens granted per newly-beaten tier (elite pays more), plus a bonus
+     for a one-run full clear. */
+  BossEvent.DRAFT_NORMAL = 1
+  BossEvent.DRAFT_ELITE = 2
+  BossEvent.DRAFT_FULL_CLEAR = 2
+
   /** Build a result object from a finished sim. Tiers killed is tracked on the
       sim's stats as the run plays (see js/core/boss.js); default 0. */
   BossEvent.resultFromSim = function (sim) {
@@ -175,9 +181,10 @@
    * @param {object} profile
    * @param {object} sim       the finished sim
    * @param {Date}   [d]       the event date (defaults to now), for the weekly stamp
+   * @param {object} [rng]     a seeded RNG for the draft lottery (tests)
    * @returns {object|null}    result descriptor, or null when this was not a boss-event run
    */
-  BossEvent.recordResult = function (profile, sim, d) {
+  BossEvent.recordResult = function (profile, sim, d, rng) {
     if (!profile) return null
     var res = BossEvent.resultFromSim(sim)
     if (!res.bossKey) return null  // not a boss-event run — leave it alone
@@ -209,6 +216,18 @@
     if (res.won && res.tiersKilled >= 5 && prev < 5) kp += BossEvent.KP_FULL_CLEAR
     profile.knowledgePoints = (profile.knowledgePoints || 0) + kp
 
+    // Drafts: one token per newly-beaten tier (elite pays a richer rate) plus a
+    // bonus for a one-run full clear. A token is a lottery pick, so an RNG can be
+    // passed to keep tests deterministic.
+    var draftCount = newTiers * (res.elite ? BossEvent.DRAFT_ELITE : BossEvent.DRAFT_NORMAL)
+    if (res.won && res.tiersKilled >= 5 && prev < 5) draftCount += BossEvent.DRAFT_FULL_CLEAR
+    var draftsEarned = 0
+    if (OP.Drafts && OP.Drafts.grantRandom && draftCount > 0) {
+      for (var di = 0; di < draftCount; di++) {
+        if (OP.Drafts.grantRandom(profile, rng)) draftsEarned++
+      }
+    }
+
     // Weekly stamp (best-of ratchet, like the Daily).
     var weekKey = BossEvent.weekKey(d)
     var existing = profile.bossEvent.weekly[weekKey]
@@ -230,6 +249,7 @@
       tiersNow: now,
       newTiers: newTiers,
       kpEarned: kp,
+      draftsEarned: draftsEarned,
       fullClear: res.won && res.tiersKilled >= 5 && prev < 5
     }
   }

@@ -88,9 +88,10 @@
    * @param {string} mapKey
    * @param {string} difficulty
    * @param {object} result    { won, time, pops, cash }
+   * @param {object} [rng]     a seeded RNG for the draft lottery (tests)
    * @returns {object} the updated profile
    */
-  Race.record = function (profile, mapKey, difficulty, result) {
+  Race.record = function (profile, mapKey, difficulty, result, rng) {
     if (!profile || !mapKey || !difficulty || !result) return profile
     if (typeof profile.raceBests !== 'object' || profile.raceBests === null) profile.raceBests = {}
 
@@ -124,6 +125,14 @@
     }
 
     profile.raceBests[mapKey][difficulty] = entry
+
+    // A first beat that sets a WINNING best earns a Draft Token; nothing that
+    // merely matches or loses does. `entry !== prev` is true exactly when this
+    // attempt actually replaced the stored record.
+    if (entry.won && prev !== entry && OP.Drafts && OP.Drafts.grantRandom) {
+      OP.Drafts.grantRandom(profile, rng)
+    }
+
     return profile
   }
 

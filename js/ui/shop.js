@@ -50,6 +50,7 @@
   }
 
   function simOf (app) { return app && app.state ? app.state.sim : null }
+  function profileOf (app) { return app && app.state ? app.state.profile : null }
   function ioOf (app) {
     if (app && app.state && app.state.io) return app.state.io
     return OP.Input ? OP.Input.state : null
@@ -185,6 +186,38 @@
   }
   Shop.entryState = entryState
 
+  /* ---------- Draft Tokens ----------
+     A token card is the tower it holds, marked with a level and a count, and it
+     is always FREE when the tower is legal in this mode. Tokens never have an
+     upgrade-tree strip: opening the tree of the base tower from the same slot
+     would collide on widget id with the roster card for that tower. */
+
+  function draftState (sim, def) {
+    const block = towerBlock(sim, def)
+    if (block) return { state: 'blocked', price: 0, reason: block, free: true }
+    return { state: 'ok', price: 0, reason: '', free: true }
+  }
+
+  /** A pseudo group for whatever Draft Tokens the player owns, or one with an
+      empty `defs` list. Cards keep the real tower key for sprites and details. */
+  function draftsGroup (app) {
+    const profile = profileOf(app)
+    const owned = OP.Drafts && OP.Drafts.list ? OP.Drafts.list(profile) : []
+    const defs = []
+    for (let i = 0; i < owned.length; i++) {
+      const slot = owned[i]
+      const base = OP.TOWERS ? OP.TOWERS[slot.key] : null
+      if (!base) continue
+      defs.push(Object.assign({}, base, {
+        draft: true,
+        draftLevel: slot.level,
+        draftCount: slot.count,
+        name: base.name + (slot.level > 0 ? ' L' + slot.level : '')
+      }))
+    }
+    return { key: 'drafts', label: 'Drafts', draft: true, hero: false, defs: defs }
+  }
+
   /* ============================================================================
      BUILD
      ============================================================================ */
@@ -236,7 +269,8 @@
        control that lives in a hover-driven panel has to outlive the hover that
        summoned it, or it cannot be used with a mouse at all. */
     detailKey: null,
-    detailHero: false
+    detailHero: false,
+    detailDraft: false
   }
   Shop.state = state
 
@@ -278,6 +312,10 @@
     marks.push(U.rule(x0, S.y + 30, innerW, { colour: C.line }))
 
     const list = groups()
+    // Token cards sit at the top, above the roster: they are owned content, the
+    // first thing a player is here to spend.
+    const draftGroup = draftsGroup(app)
+    if (draftGroup.defs.length) list.unshift(draftGroup)
 
     /* ----- the detail strip, reserved before the grid so the grid can size to fit ----- */
     const detailH = 96
@@ -333,7 +371,7 @@
       let groupReason = ''
       const states = []
       for (let i = 0; i < group.defs.length; i++) {
-        const st = entryState(sim, group.defs[i], group.hero)
+        const st = group.draft ? draftState(sim, group.defs[i]) : entryState(sim, group.defs[i], group.hero)
         states.push(st)
         if (!groupReason && st.state === 'blocked') groupReason = st.reason
       }
@@ -344,7 +382,7 @@
           listOver.push(U.text(x0 + cardW, y + 13, U.clipText(groupReason, 8, cardW - 84),
             { size: 8, colour: C.warn, align: 'right' }))
         } else {
-          listOver.push(U.text(x0 + cardW, y + 13, group.defs.length + (group.hero ? ' heroes' : ' towers'),
+          listOver.push(U.text(x0 + cardW, y + 13, group.defs.length + (group.draft ? ' drafts' : (group.hero ? ' heroes' : ' towers')),
             { size: 8, colour: C.faint, align: 'right' }))
         }
         listMarks.push(U.rule(x0, y + 18, cardW, { colour: C.line, alpha: 0.6 }))
@@ -366,7 +404,7 @@
         // The buy area STOPS where the tree strip starts, rather than sitting under
         // it. No overlap means the hit test does not depend on push order, and the
         // panel keeps the "no two widgets overlap" invariant the suite enforces.
-        const hasTree = !!(def.paths && def.paths.length)
+        const hasTree = !!(def.paths && def.paths.length) && !group.draft
         const buyW = cardW - (hasTree ? TREE_W : 0)
         const w = U.button('shop.' + def.key, x0, cy, buyW, cardH, {
           label: '',
@@ -381,6 +419,9 @@
         w.state = st.state
         w.hero = group.hero
         w.price = st.price
+        w.free = !!st.free
+        w.draft = !!group.draft
+        w.draftLevel = def.draftLevel
         widgets.push(w)
 
         /* THE UPGRADE-TREE BUTTON LIVES ON THE CARD.
@@ -405,7 +446,7 @@
           widgets.push(tw)
         }
 
-        card(sim, listOver, def, st, x0, cy, cardW, cardH, group.hero)
+        card(sim, listOver, def, st, x0, cy, cardW, cardH, group.hero, group.draft)
       }
     }
 
@@ -442,9 +483,11 @@
     if (placingKey) {
       state.detailKey = placingKey
       state.detailHero = !!(io && io.placingIsHero)
+      state.detailDraft = !!(io && io.placingDraft)
     } else if (hoveredDef) {
       state.detailKey = hoveredDef.arg
       state.detailHero = !!hoveredDef.hero
+      state.detailDraft = !!hoveredDef.draft
     }
 
     // `detail` appends the upgrade-tree button to `widgets`, so hit testing sees
@@ -467,10 +510,11 @@
      actually decides on: whether it can see camo. Everything else is in the
      detail strip — a card that tries to say everything says nothing at 44px. */
 
-  function card (sim, out, def, st, x, y, w, h, isHero) {
+  function card (sim, out, def, st, x, y, w, h, isHero, isDraft) {
     const U = ui(); const C = colours()
-    // Leave the tree strip its own column so text never runs under it.
-    const hasTree = !!(def.paths && def.paths.length)
+    // Leave the tree strip its own column so text never runs under it. Tokens
+    // have no strip — see draftsGroup — so their card spans the full width.
+    const hasTree = !!(def.paths && def.paths.length) && !isDraft
     if (hasTree) w -= TREE_W
     const dim = st.state !== 'ok'
     const nameColour = st.state === 'ok' ? C.ink : (st.state === 'poor' ? C.dim : C.faint)
@@ -485,6 +529,8 @@
 
     if (st.state === 'blocked') {
       out.push(U.text(x + w - 8, y + 15, 'LOCKED', { size: 8, colour: C.warn, align: 'right' }))
+    } else if (st.free) {
+      out.push(U.text(x + w - 8, y + 15, 'FREE', { size: 10, colour: C.gold, align: 'right', weight: '600' }))
     } else {
       out.push(U.text(x + w - 8, y + 15, M.money(st.price),
         { size: 10, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right', weight: '600' }))
@@ -493,6 +539,7 @@
     const traits = OP.Upgrades && OP.Upgrades.traits ? OP.Upgrades.traits(def, sim) : null
     const bits = []
     if (isHero) bits.push('HERO')
+    if (isDraft) bits.push('LEVEL ' + def.draftLevel, '\xD7' + def.draftCount)
     if (traits) {
       bits.push(String(traits.dmgType).toUpperCase())
       if (traits.camoNow) bits.push('SEES CAMO')
@@ -539,7 +586,7 @@
     const key = state.detailKey
     const isHero = !!state.detailHero
     const def = key ? ((isHero ? OP.HEROES : OP.TOWERS) || {})[key] : null
-    const st = def ? entryState(sim, def, isHero) : null
+    const st = def ? (state.detailDraft ? draftState(sim, def) : entryState(sim, def, isHero)) : null
     if (!def) {
       over.push(U.text(x0 + 10, y + 20, 'Point at a critter', { size: 11, colour: C.dim }))
       over.push(U.text(x0 + 10, y + 36, 'to see what it pops, what it', { size: 9, colour: C.faint }))
@@ -555,7 +602,7 @@
 
     over.push(U.text(x0 + 10, y + 18, U.clipText(def.name || def.key, 12, innerW - 80),
       { size: 12, colour: C.ink, weight: '600' }))
-    over.push(U.text(x0 + innerW - 10, y + 18, M.money(st.price),
+    over.push(U.text(x0 + innerW - 10, y + 18, st.free ? 'FREE' : M.money(st.price),
       { size: 11, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right' }))
     over.push(U.text(x0 + 10, y + 30, U.clipText(famLabel, 8, innerW - 20), { size: 8, colour: C.moss }))
 
@@ -840,8 +887,13 @@
     }
 
     // Placement itself is Input's job: it owns the preview, the legality check at
-    // the pointer, and the confirming tap.
-    OP.Input.beginPlacing(io, w.arg, !!w.hero)
+    // the pointer, and the confirming tap. A token opens the same placing mode
+    // but routes to beginPlacingDraft so the confirm spends the token.
+    if (w.draft && OP.Input.beginPlacingDraft) {
+      OP.Input.beginPlacingDraft(io, w.arg, w.draftLevel)
+    } else {
+      OP.Input.beginPlacing(io, w.arg, !!w.hero)
+    }
     click(true)
     return true
   }

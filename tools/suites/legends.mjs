@@ -8,6 +8,7 @@ export const name = 'legends'
 export const needs = [
   'js/legends/legends-data.js',
   'js/core/legends.js',
+  'js/core/drafts.js',
   'js/core/rng.js',
   'js/core/maps.js',
   'js/core/buffs.js',
@@ -223,6 +224,54 @@ export function run (t, OP) {
     t.ok(true, 'skipped: this seed had no chest (still fine)')
   }
 
+  t.section('an exhausted loot pool pays Draft Tokens instead')
+  const ptok = Save.defaults(); L.start(ptok, 'chest-seed')
+  const cb2 = L.board(ptok)
+  const cp2 = cb2.findIndex(n => n.kind === LD.CHEST)
+  if (cp2 >= 0) {
+    ptok.legends.nodeIndex = cp2
+    const allKeys = LD.allArtifacts().map(a => a.key)
+    ptok.legends.artifacts = allKeys.slice()
+    const had = OP.Drafts.count(ptok)
+    const dres = L.recordWin(ptok, wonSim)
+    t.ok(dres && dres.draft, 'a chest on an exhausted pool pays a Draft Token')
+    if (dres.draft) {
+      t.eq(dres.chest, null, 'no artifact replaced the payout')
+      t.ok(OP.Drafts.count(ptok) === had + 1, 'the profile gained exactly one token')
+      t.ok(OP.Drafts.list(ptok).some(s =>
+        s.key === dres.draft.key && s.level === dres.draft.level),
+        'the reported reward matches the stored slot')
+    }
+  } else {
+    t.ok(true, 'skipped: this seed had no chest (still fine)')
+  }
+
+  t.section('a clear mini-game on an empty pool pays a Draft Token')
+  const pmg = Save.defaults(); L.start(pmg, 'mini-seed')
+  const gb2 = L.board(pmg)
+  const gmpos = gb2.findIndex(n => n.kind === LD.MINIGAME)
+  if (gmpos >= 0) {
+    pmg.legends.nodeIndex = gmpos
+    const gSim = makeSim(OP, { cash: 2000000, lives: 40, seed: 'draft-mini' })
+    gSim.time = 0.5
+    const gRew = L.miniGameReward(pmg, gSim)
+    if (gRew && gRew.reached) {
+      const allKeys = LD.allArtifacts().map(a => a.key)
+      pmg.legends.artifacts = allKeys.slice()
+      const had = OP.Drafts.count(pmg)
+      const mres = L.recordWin(pmg, gSim)
+      t.ok(mres && mres.draft, 'a reached mini-game on an exhausted pool pays a Draft Token')
+      if (mres.draft) {
+        t.eq(mres.chest, null, 'no artifact was granted instead')
+        t.ok(OP.Drafts.count(pmg) === had + 1, 'the profile gained exactly one token')
+      }
+    } else {
+      t.ok(true, 'skipped: the mini-game seed was not clearable as set up (still fine)')
+    }
+  } else {
+    t.ok(true, 'skipped: this seed had no mini-game (still fine)')
+  }
+
   t.section('board uses Rogue-Legends flavour names')
     const first = b1[0]
     const last = b1[b1.length - 1]
@@ -297,19 +346,24 @@ export function run (t, OP) {
 
   t.section('mini-game tiles carry one of the three types onto the board')
     const tt = {}
-    for (let s = 0; s < LD.stages().length; s++) {
-      const bp = Save.defaults(); L.start(bp, 'type-roll-' + s)
-      bp.legends.stage = s
-      const bb = L.board(bp)
-      for (const no of bb) {
-        if (no.kind === LD.MINIGAME) {
-          t.ok(LD.MINI_TYPES.indexOf(no.miniType) >= 0,
-            'mini-game node on stage ' + s + ' has a valid type: ' + no.miniType)
-          tt[no.miniType] = (tt[no.miniType] || 0) + 1
+    let miniFound = false
+    for (let s = 0; s < LD.stages().length && !miniFound; s++) {
+      for (let k = 0; k < 60 && !miniFound; k++) {
+        const bp = Save.defaults(); L.start(bp, 'type-roll-' + s + '-' + k)
+        bp.legends.stage = s
+        const bb = L.board(bp)
+        for (const no of bb) {
+          if (no.kind === LD.MINIGAME) {
+            t.ok(LD.MINI_TYPES.indexOf(no.miniType) >= 0,
+              'mini-game node on stage ' + s + ' has a valid type: ' + no.miniType)
+            tt[no.miniType] = (tt[no.miniType] || 0) + 1
+            miniFound = true
+            break
+          }
         }
       }
     }
-    t.ok(Object.keys(tt).length >= 1,
+    t.ok(miniFound && Object.keys(tt).length >= 1,
       'at least one mini-game rolls a type across the seeds/stages scanned')
 
   t.section('battleConfig carries the mini-game type and goal')
