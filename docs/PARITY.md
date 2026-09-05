@@ -8,7 +8,7 @@ and feature checklist rather than a balance audit.
   difficulty/mode matrix (`node tools/playthroughs.mjs`), (2) local inventory
   read straight out of the data files, (3) cross-reference against the official
   BTD6 wiki (Blooncyclopedia + Fandom) and the Rogue Legends wiki.
-- **Date:** 2026-09-05. Commit `8a76b99` (Draft Tokens patch follows).
+- **Date:** 2026-09-05. Commit `357c616` (Draft Tokens: Insta-Monkey parity).
 - **Legend:** `✓` direct parity · `~` present but renamed/original-name spin ·
   `–` absent · `Δ` divergence worth a decision.
 
