@@ -63,6 +63,10 @@
 
     def.footprint = def.footprint === undefined ? 14 : def.footprint
     def.placement = def.placement || 'land'
+    // Heroes carry their own family tag so the buff system (knowledge trees,
+    // villages) can target them: a 'hero' family buff reaches every placed
+    // hero, the way tower families reach towers.
+    def.family = 'hero'
     def.base.shots = def.base.shots === undefined ? 1 : def.base.shots
     def.base.spread = def.base.spread || 0
     def.base.projLife = def.base.projLife === undefined ? 1.5 : def.base.projLife

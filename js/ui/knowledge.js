@@ -14,7 +14,8 @@
     if (!U) return { screen: 'knowledge', backdrop: 'solid', marks: [], widgets: [] }
     const C = colours()
     const profile = profileOf(app) || { knowledge: [], knowledgePoints: 0 }
-    const unlocked = new Set(profile.knowledge || [])
+      const unlocked = new Set(profile.knowledge || [])
+      const unlockedKeys = profile.knowledge || []
     const marks = []
     const widgets = []
 
@@ -47,8 +48,9 @@
         const node = nodes[i]
         const owned = unlocked.has(node.key)
         const prereqs = node.prereqs.every(k => unlocked.has(k))
+        const gated = prereqs && OP.knowledgeGateOpen && !OP.knowledgeGateOpen(node, unlockedKeys)
         const affordable = (profile.knowledgePoints || 0) >= node.cost
-        const available = !owned && prereqs
+        const available = !owned && prereqs && !gated
         let sub = owned ? 'UNLOCKED' : available ? node.cost + ' KP' : 'LOCKED'
         if (available && !affordable) sub = node.cost + ' KP / NEED MORE'
         widgets.push(U.button('knowledge.' + node.key, x, 168 + i * 78, 200, 66, {
@@ -58,7 +60,10 @@
           arg: node.key,
           selected: owned,
           disabled: owned || !available || !affordable,
-          reason: owned ? 'Already unlocked.' : !prereqs ? 'Unlock its prerequisites first.' : 'Not enough knowledge points.'
+          reason: owned ? 'Already unlocked.'
+            : !prereqs ? 'Unlock its prerequisites first.'
+            : gated ? 'Invest more knowledge points in this branch first.'
+            : 'Not enough knowledge points.'
         }))
       }
     }

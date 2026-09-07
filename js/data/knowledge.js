@@ -108,6 +108,7 @@
       tier: 3,
       cost: 4,
       prereqs: ['gen-extra-life', 'gen-sell-rate'],
+      gate: 4,
       mods: {},
       ruleOverrides: { heroXpMul: 0.10 }
     },
@@ -166,6 +167,7 @@
       tier: 3,
       cost: 4,
       prereqs: ['pri-cooldown'],
+      gate: 4,
       mods: { damageMul: 1.08 },
       family: 'primary'
     },
@@ -224,6 +226,7 @@
       tier: 3,
       cost: 4,
       prereqs: ['mil-camo'],
+      gate: 4,
       mods: { ignoresLOS: true },
       family: 'military'
     },
@@ -282,6 +285,7 @@
       tier: 3,
       cost: 4,
       prereqs: ['mag-cooldown'],
+      gate: 4,
       mods: { damageMul: 1.10 },
       family: 'magic'
     },
@@ -340,13 +344,221 @@
       tier: 3,
       cost: 4,
       prereqs: ['sup-damage'],
+      gate: 4,
       mods: { cooldownMul: 0.95 },
       family: 'support'
+    },
+
+    /* ==================== HEROES BRANCH ==================== */
+
+    'her-damage': {
+      key: 'her-damage',
+      name: 'War Stories',
+      blurb: 'Heroes deal a point of extra damage with every attack.',
+      branch: 'heroes',
+      tier: 0,
+      cost: 1,
+      prereqs: [],
+      mods: { damageAdd: 1 },
+      family: 'hero'
+    },
+    'her-range': {
+      key: 'her-range',
+      name: 'Legendary Reach',
+      blurb: 'Heroes see a little further down the track.',
+      branch: 'heroes',
+      tier: 1,
+      cost: 2,
+      prereqs: ['her-damage'],
+      mods: { rangeAdd: 8 },
+      family: 'hero'
+    },
+    'her-xp': {
+      key: 'her-xp',
+      name: 'Seasoned Mentor',
+      blurb: 'Every hero earns experience a tenth faster.',
+      branch: 'heroes',
+      tier: 1,
+      cost: 2,
+      prereqs: ['her-damage'],
+      mods: {},
+      ruleOverrides: { heroXpMul: 0.10 }
+    },
+    'her-cooldown': {
+      key: 'her-cooldown',
+      name: 'Battle Rhythm',
+      blurb: 'Hero abilities come back around sooner.',
+      branch: 'heroes',
+      tier: 2,
+      cost: 3,
+      prereqs: ['her-range', 'her-xp'],
+      mods: { cooldownMul: 0.90 },
+      family: 'hero'
+    },
+    'her-cost': {
+      key: 'her-cost',
+      name: 'Heavy Throwing',
+      blurb: 'Every hero projectile punches through one extra target.',
+      branch: 'heroes',
+      tier: 3,
+      cost: 4,
+      prereqs: ['her-cooldown'],
+      gate: 7,
+      mods: { pierceAdd: 1 },
+      family: 'hero'
+    },
+    'her-start-level': {
+      key: 'her-start-level',
+      name: 'Folk Hero',
+      blurb: 'Heroes arrive on the board already warmed up — level 3 from the first round.',
+      branch: 'heroes',
+      tier: 4,
+      cost: 6,
+      prereqs: ['her-cost'],
+      gate: 10,
+      mods: {},
+      ruleOverrides: { heroStartLevel: 2 }
+    },
+
+    /* ==================== POWERS BRANCH ==================== */
+
+    'pow-cash-drop': {
+      key: 'pow-cash-drop',
+      name: 'Deep Cache',
+      blurb: 'Every cash-drop power pays out more.',
+      branch: 'powers',
+      tier: 0,
+      cost: 1,
+      prereqs: [],
+      mods: {},
+      ruleOverrides: { powerEffectMul: 0.15 }
+    },
+    'pow-longer-boost': {
+      key: 'pow-longer-boost',
+      name: 'Endurance Training',
+      blurb: 'Boosts and slows from powers last longer.',
+      branch: 'powers',
+      tier: 1,
+      cost: 2,
+      prereqs: ['pow-cash-drop'],
+      mods: {},
+      ruleOverrides: { powerDurationMul: 0.20 }
+    },
+    'pow-lives': {
+      key: 'pow-lives',
+      name: 'Field Rations',
+      blurb: 'Life-granting powers hand out more lives.',
+      branch: 'powers',
+      tier: 1,
+      cost: 2,
+      prereqs: ['pow-cash-drop'],
+      mods: {},
+      ruleOverrides: { startLives: 2 }
+    },
+    'pow-free-inventory': {
+      key: 'pow-free-inventory',
+      name: 'Well Stocked',
+      blurb: 'Every run begins with one spare use of each owned power.',
+      branch: 'powers',
+      tier: 2,
+      cost: 3,
+      prereqs: ['pow-longer-boost', 'pow-lives'],
+      mods: {},
+      ruleOverrides: { powerStockBonus: 1 }
+    },
+    'pow-slow-boost': {
+      key: 'pow-slow-boost',
+      name: 'Sticky Business',
+      blurb: 'Slow powers grip harder and longer.',
+      branch: 'powers',
+      tier: 3,
+      cost: 4,
+      prereqs: ['pow-free-inventory'],
+      gate: 7,
+      mods: {},
+      ruleOverrides: { powerSlowAdd: 0.15, powerDurationMul: 0.10 }
+    },
+    'pow-big-boom': {
+      key: 'pow-big-boom',
+      name: 'Thunder Delivery',
+      blurb: 'Damage powers hit the whole field harder.',
+      branch: 'powers',
+      tier: 4,
+      cost: 5,
+      prereqs: ['pow-slow-boost'],
+      gate: 10,
+      mods: {},
+      ruleOverrides: { powerDamageAdd: 25 }
+    },
+
+    /* ==================== DEEPER NODES IN EXISTING BRANCHES ==================== */
+
+    'gen-achievement-kp': {
+      key: 'gen-achievement-kp',
+      name: 'Crit Curriculum',
+      blurb: 'Knowledge points come in a little faster from every completed run.',
+      branch: 'general',
+      tier: 4,
+      cost: 5,
+      prereqs: ['gen-hero-xp'],
+      gate: 10,
+      mods: {},
+      ruleOverrides: { kpMul: 0.25 }
+    },
+    'pri-rage': {
+      key: 'pri-rage',
+      name: 'Frontline Frenzy',
+      blurb: 'Primary towers wind up noticeably faster.',
+      branch: 'primary',
+      tier: 4,
+      cost: 5,
+      prereqs: ['pri-crit'],
+      gate: 10,
+      mods: { cooldownMul: 0.88 },
+      family: 'primary'
+    },
+    'mil-supply': {
+      key: 'mil-supply',
+      name: 'Wider Payload',
+      blurb: 'Military blasts cover a bigger footprint of the track.',
+      branch: 'military',
+      tier: 4,
+      cost: 5,
+      prereqs: ['mil-los'],
+      gate: 10,
+      mods: { blastRadiusAdd: 6 },
+      family: 'military'
+    },
+    'mag-resonance': {
+      key: 'mag-resonance',
+      name: 'Arcane Resonance',
+      blurb: 'Magic towers reach half a tile further down the track.',
+      branch: 'magic',
+      tier: 4,
+      cost: 5,
+      prereqs: ['mag-brittle'],
+      gate: 10,
+      mods: { rangeAdd: 10 },
+      family: 'magic'
+    },
+    'sup-tax': {
+      key: 'sup-tax',
+      name: 'Audited Books',
+      blurb: 'Selling anything recovers a bigger slice of its cost.',
+      branch: 'support',
+      tier: 4,
+      cost: 5,
+      prereqs: ['sup-cooldown'],
+      gate: 10,
+      mods: {},
+      ruleOverrides: { sellRate: 0.05 }
     }
   }
 
-  /** Display order for the five branches (left to right in the tree UI). */
-  const BRANCH_ORDER = ['primary', 'military', 'magic', 'support', 'general']
+  /** Display order for the branches (left to right in the tree UI). Six trees,
+      mirroring the canon shape: Primary, Military, Magic, Support, Heroes,
+      Powers — plus General, which is the local "everything else" branch. */
+  const BRANCH_ORDER = ['primary', 'military', 'magic', 'support', 'general', 'heroes', 'powers']
 
   /** Branch display names. */
   const BRANCH_NAMES = {
@@ -354,7 +566,9 @@
     military: 'Military',
     magic: 'Magic',
     support: 'Support',
-    general: 'General'
+    general: 'General',
+    heroes: 'Heroes',
+    powers: 'Powers'
   }
 
   /** Total KP cost of every node in the tree. */
@@ -392,8 +606,31 @@
   }
 
   /**
+   * KP already invested in one branch (the sum of costs of that branch's
+   * unlocked nodes). Tier gates are expressed against this number.
+   */
+  OP.knowledgeBranchInvested = function (unlocked, branch) {
+    let total = 0
+    for (const k of (unlocked || [])) {
+      const n = TREE[k]
+      if (n && n.branch === branch) total += n.cost
+    }
+    return total
+  }
+
+  /**
+   * Whether a node's tier gate is open: a node with `gate` set requires that
+   * many KP already invested in its own branch, the way canon gates deeper
+   * tiers behind commitment rather than just prerequisites.
+   */
+  OP.knowledgeGateOpen = function (node, unlocked) {
+    if (!node || !node.gate) return true
+    return OP.knowledgeBranchInvested(unlocked, node.branch) >= node.gate
+  }
+
+  /**
    * Given a set of unlocked node keys, return the set of keys that are
-   * purchasable (all prereqs met, not already unlocked).
+   * purchasable (all prereqs met, tier gate open, not already unlocked).
    */
   OP.knowledgeAvailable = function (unlocked) {
     const u = new Set(unlocked || [])
@@ -401,9 +638,29 @@
     for (const k in TREE) {
       if (u.has(k)) continue
       const n = TREE[k]
-      if (n.prereqs.every(p => u.has(p))) available.push(k)
+      if (!n.prereqs.every(p => u.has(p))) continue
+      if (!OP.knowledgeGateOpen(n, unlocked)) continue
+      available.push(k)
     }
     return available
+  }
+
+  /**
+   * Respec one branch: the keys to refund and how much KP comes back.
+   * Pure — the caller applies the result to the profile.
+   *
+   * @param {string[]} unlocked  currently unlocked node keys
+   * @param {string}  branch     the branch to clear
+   * @returns {{keys:string[], refund:number}} keys removed, KP refunded
+   */
+  OP.knowledgeRespec = function (unlocked, branch) {
+    const keys = []
+    let refund = 0
+    for (const k of (unlocked || [])) {
+      const n = TREE[k]
+      if (n && n.branch === branch) { keys.push(k); refund += n.cost }
+    }
+    return { keys: keys, refund: refund }
   }
 
   /**

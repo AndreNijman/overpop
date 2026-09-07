@@ -56,27 +56,35 @@
     const def = OP.POWERS[key]
     let affected = 0
 
+    // Knowledge's Powers tree strengthens effects through rule deltas. They are
+    // deltas (knowledge rules fold additively), so the multiplier is 1 + delta.
+    const r = sim.rules || {}
+    const effectMul = 1 + (r.powerEffectMul || 0)
+    const durationMul = 1 + (r.powerDurationMul || 0)
+
     if (def.effect === 'cash') {
-      OP.Economy.earn(sim, def.amount, -1)
-      affected = def.amount
+      const amount = Math.round(def.amount * effectMul)
+      OP.Economy.earn(sim, amount, -1)
+      affected = amount
     } else if (def.effect === 'lives') {
-      affected = OP.Economy.gainLives(sim, def.amount)
+      affected = OP.Economy.gainLives(sim, Math.round(def.amount * effectMul))
     } else if (def.effect === 'slow') {
       for (let i = 0; i < sim.balloons.length; i++) {
         const b = sim.balloons[i]
         if (!b.alive) continue
-        if (OP.Effects.apply(b, OP.Effects.make('glue', def.duration, def.magnitude, -1, OP.DMG.NORMAL))) affected++
+        if (OP.Effects.apply(b, OP.Effects.make('glue', def.duration * durationMul, def.magnitude + (r.powerSlowAdd || 0), -1, OP.DMG.NORMAL))) affected++
       }
     } else if (def.effect === 'damage') {
+      const dmg = def.damage + (r.powerDamageAdd || 0)
       const end = sim.balloons.length
       for (let i = 0; i < end; i++) {
         const b = sim.balloons[i]
         if (!b.alive) continue
-        OP.Damage.hit(sim, b, { damage: def.damage, dmgType: def.dmgType, sourceId: -1 })
+        OP.Damage.hit(sim, b, { damage: dmg, dmgType: def.dmgType, sourceId: -1 })
         affected++
       }
       if (sim.boss && sim.boss.alive && OP.Boss) {
-        OP.Boss.damage(sim, { damage: def.damage, dmgType: def.dmgType, sourceId: -1 })
+        OP.Boss.damage(sim, { damage: dmg, dmgType: def.dmgType, sourceId: -1 })
         affected++
       }
     }

@@ -84,6 +84,9 @@
     for (let i = 0; i < node.prereqs.length; i++) {
       if (unlocked.indexOf(node.prereqs[i]) < 0) return { ok: false, reason: 'Unlock its prerequisites first.' }
     }
+    if (OP.knowledgeGateOpen && !OP.knowledgeGateOpen(node, unlocked)) {
+      return { ok: false, reason: 'Invest more knowledge points in this branch first.' }
+    }
     const points = typeof profile.knowledgePoints === 'number' ? profile.knowledgePoints : 0
     if (points < node.cost) return { ok: false, reason: 'Not enough knowledge points.' }
     return { ok: true, reason: '', node: node }
