@@ -99,7 +99,7 @@
       blurb: 'The first blimp. Two hundred hits, then four ceramics.'
     },
     {
-      key: 'wraith', name: 'WRAITH', hp: 400, speed: 2.75, radius: 20,
+      key: 'wraith', name: 'WRAITH', hp: 400, speed: 1.4, radius: 20,
       colour: '#2f2b3a', shade: '#15131c', blimp: true,
       children: [{ tier: 'ceramic', count: 4 }],
       immune: ['sharp', 'explosive'], props: P.VEILED, cash: 25,

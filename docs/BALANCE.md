@@ -18,84 +18,84 @@ first would be satisfied by a game where nothing can ever leak.
 
 ## Results
 
-- reference builds that held: **4 of 72**
+- reference builds that held: **7 of 72**
 - inadequate builds that leaked (as they must): **16 of 16**
 - determinism: **stable**
 
 | map | difficulty | mode | reached | towers | lives | leaked | popped | earned |
 |---|---|---|---|---:|---:|---:|---:|---:|
-| thornwood-weir | easy | standard | 24/40 | 10 | 0/200 | 209 | 356 | 4835 |
-| thornwood-weir | easy | alternate-waves | 15/40 | 6 | 0/200 | 216 | 205 | 2674 |
-| thornwood-weir | easy | half-cash | 21/40 | 5 | 0/200 | 201 | 243 | 1721 |
-| thornwood-weir | easy | double-hp-blimps | 24/40 | 10 | 0/200 | 209 | 356 | 4835 |
-| thornwood-weir | medium | standard | 27/60 | 8 | 0/150 | 155 | 528 | 5614 |
-| thornwood-weir | medium | alternate-waves | 13/60 | 4 | 0/150 | 151 | 165 | 1971 |
-| thornwood-weir | medium | half-cash | 20/60 | 4 | 0/150 | 156 | 233 | 1624 |
-| thornwood-weir | medium | double-hp-blimps | 27/60 | 8 | 0/150 | 155 | 528 | 5614 |
-| thornwood-weir | hard | standard | 19/80 | 5 | 0/100 | 100 | 204 | 2530 |
-| thornwood-weir | hard | alternate-waves | 10/80 | 3 | 0/100 | 104 | 80 | 975 |
-| thornwood-weir | hard | half-cash | 15/80 | 3 | 0/100 | 102 | 127 | 932 |
-| thornwood-weir | hard | double-hp-blimps | 19/80 | 5 | 0/100 | 100 | 204 | 2530 |
-| thornwood-weir | hard | purist | 7/80 | 3 | 0/1 | 4 | 57 | 501 |
-| thornwood-weir | relentless | standard | 7/100 | 3 | 0/1 | 3 | 22 | 130 |
+| thornwood-weir | easy | standard | 27/40 | 10 | 0/200 | 206 | 524 | 7098 |
+| thornwood-weir | easy | alternate-waves | 15/40 | 9 | 0/200 | 204 | 208 | 2811 |
+| thornwood-weir | easy | half-cash | 21/40 | 6 | 0/200 | 203 | 248 | 1808 |
+| thornwood-weir | easy | double-hp-blimps | 27/40 | 10 | 0/200 | 206 | 524 | 7098 |
+| thornwood-weir | medium | standard | 24/60 | 8 | 0/150 | 159 | 364 | 4670 |
+| thornwood-weir | medium | alternate-waves | 12/60 | 6 | 0/150 | 150 | 147 | 1821 |
+| thornwood-weir | medium | half-cash | 19/60 | 4 | 0/150 | 153 | 209 | 1543 |
+| thornwood-weir | medium | double-hp-blimps | 24/60 | 8 | 0/150 | 159 | 364 | 4670 |
+| thornwood-weir | hard | standard | 20/80 | 5 | 0/100 | 103 | 228 | 2886 |
+| thornwood-weir | hard | alternate-waves | 10/80 | 5 | 0/100 | 100 | 84 | 1033 |
+| thornwood-weir | hard | half-cash | 15/80 | 3 | 0/100 | 101 | 125 | 964 |
+| thornwood-weir | hard | double-hp-blimps | 20/80 | 5 | 0/100 | 103 | 228 | 2886 |
+| thornwood-weir | hard | purist | 7/80 | 3 | 0/1 | 3 | 57 | 513 |
+| thornwood-weir | relentless | standard | 7/100 | 3 | 0/1 | 3 | 22 | 134 |
 | thornwood-weir | relentless | alternate-waves | 6/100 | 3 | 0/1 | 3 | 15 | 22 |
-| thornwood-weir | relentless | half-cash | 7/100 | 3 | 0/1 | 3 | 22 | 82 |
-| thornwood-weir | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 3 | 22 | 130 |
-| thornwood-weir | relentless | purist | 7/100 | 3 | 0/1 | 3 | 22 | 130 |
-| fernway-hollow | easy | standard | 40/40 | 18 | 64/200 | 136 | 1971 | 16063 |
-| fernway-hollow | easy | alternate-waves | 18/40 | 8 | 0/200 | 200 | 331 | 3708 |
-| fernway-hollow | easy | half-cash | 28/40 | 6 | 0/200 | 200 | 583 | 2995 |
-| fernway-hollow | easy | double-hp-blimps | 40/40 | 18 | 0/200 | 202 | 1885 | 15418 |
-| fernway-hollow | medium | standard | 37/60 | 16 | 0/150 | 154 | 1522 | 11452 |
-| fernway-hollow | medium | alternate-waves | 15/60 | 4 | 0/150 | 152 | 230 | 2494 |
-| fernway-hollow | medium | half-cash | 24/60 | 4 | 0/150 | 152 | 365 | 2219 |
-| fernway-hollow | medium | double-hp-blimps | 37/60 | 16 | 0/150 | 154 | 1522 | 11452 |
-| fernway-hollow | hard | standard | 27/80 | 7 | 0/100 | 108 | 523 | 4882 |
-| fernway-hollow | hard | alternate-waves | 10/80 | 3 | 0/100 | 102 | 84 | 990 |
-| fernway-hollow | hard | half-cash | 17/80 | 4 | 0/100 | 102 | 155 | 1156 |
-| fernway-hollow | hard | double-hp-blimps | 27/80 | 7 | 0/100 | 108 | 523 | 4882 |
-| fernway-hollow | hard | purist | 8/80 | 3 | 0/1 | 4 | 70 | 638 |
-| fernway-hollow | relentless | standard | 7/100 | 3 | 0/1 | 2 | 22 | 131 |
+| thornwood-weir | relentless | half-cash | 7/100 | 3 | 0/1 | 3 | 22 | 84 |
+| thornwood-weir | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 3 | 22 | 134 |
+| thornwood-weir | relentless | purist | 7/100 | 3 | 0/1 | 3 | 22 | 134 |
+| fernway-hollow | easy | standard | 40/40 | 14 | 199/200 | 1 | 2005 | 18215 |
+| fernway-hollow | easy | alternate-waves | 20/40 | 10 | 0/200 | 204 | 442 | 5661 |
+| fernway-hollow | easy | half-cash | 29/40 | 9 | 0/200 | 201 | 643 | 3415 |
+| fernway-hollow | easy | double-hp-blimps | 40/40 | 15 | 199/200 | 1 | 2005 | 18215 |
+| fernway-hollow | medium | standard | 60/60 | 14 | 99/150 | 51 | 7459 | 51715 |
+| fernway-hollow | medium | alternate-waves | 18/60 | 8 | 0/150 | 152 | 331 | 3587 |
+| fernway-hollow | medium | half-cash | 24/60 | 5 | 0/150 | 150 | 377 | 2345 |
+| fernway-hollow | medium | double-hp-blimps | 52/60 | 15 | 0/150 | 774 | 4524 | 33717 |
+| fernway-hollow | hard | standard | 32/80 | 10 | 0/100 | 104 | 912 | 8112 |
+| fernway-hollow | hard | alternate-waves | 11/80 | 5 | 0/100 | 100 | 108 | 1230 |
+| fernway-hollow | hard | half-cash | 16/80 | 3 | 0/100 | 103 | 141 | 1082 |
+| fernway-hollow | hard | double-hp-blimps | 32/80 | 10 | 0/100 | 104 | 912 | 8112 |
+| fernway-hollow | hard | purist | 10/80 | 3 | 0/1 | 2 | 91 | 956 |
+| fernway-hollow | relentless | standard | 7/100 | 3 | 0/1 | 2 | 22 | 135 |
 | fernway-hollow | relentless | alternate-waves | 6/100 | 3 | 0/1 | 18 | 13 | 12 |
-| fernway-hollow | relentless | half-cash | 7/100 | 3 | 0/1 | 2 | 22 | 82 |
-| fernway-hollow | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 2 | 22 | 131 |
-| fernway-hollow | relentless | purist | 7/100 | 3 | 0/1 | 2 | 22 | 131 |
-| bramble-gap | easy | standard | 40/40 | 24 | 68/200 | 132 | 1972 | 15933 |
-| bramble-gap | easy | alternate-waves | 18/40 | 8 | 0/200 | 203 | 332 | 3705 |
-| bramble-gap | easy | half-cash | 30/40 | 7 | 0/200 | 200 | 722 | 3457 |
-| bramble-gap | easy | double-hp-blimps | 40/40 | 24 | 0/200 | 202 | 1896 | 15269 |
-| bramble-gap | medium | standard | 37/60 | 18 | 0/150 | 154 | 1523 | 11476 |
-| bramble-gap | medium | alternate-waves | 17/60 | 5 | 0/150 | 207 | 295 | 3070 |
-| bramble-gap | medium | half-cash | 25/60 | 4 | 0/150 | 152 | 418 | 2401 |
-| bramble-gap | medium | double-hp-blimps | 37/60 | 18 | 0/150 | 154 | 1523 | 11476 |
-| bramble-gap | hard | standard | 30/80 | 8 | 0/100 | 110 | 727 | 6101 |
-| bramble-gap | hard | alternate-waves | 10/80 | 3 | 0/100 | 102 | 84 | 991 |
-| bramble-gap | hard | half-cash | 19/80 | 4 | 0/100 | 100 | 195 | 1401 |
-| bramble-gap | hard | double-hp-blimps | 30/80 | 8 | 0/100 | 110 | 727 | 6101 |
-| bramble-gap | hard | purist | 8/80 | 3 | 0/1 | 4 | 70 | 638 |
-| bramble-gap | relentless | standard | 7/100 | 3 | 0/1 | 1 | 21 | 131 |
+| fernway-hollow | relentless | half-cash | 7/100 | 3 | 0/1 | 2 | 22 | 84 |
+| fernway-hollow | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 2 | 22 | 135 |
+| fernway-hollow | relentless | purist | 7/100 | 3 | 0/1 | 2 | 22 | 135 |
+| bramble-gap | easy | standard | 40/40 | 15 | 200/200 | 0 | 2006 | 18132 |
+| bramble-gap | easy | alternate-waves | 22/40 | 10 | 0/200 | 200 | 569 | 6467 |
+| bramble-gap | easy | half-cash | 32/40 | 10 | 0/200 | 201 | 906 | 4972 |
+| bramble-gap | easy | double-hp-blimps | 40/40 | 15 | 200/200 | 0 | 2006 | 18152 |
+| bramble-gap | medium | standard | 53/60 | 14 | 0/150 | 190 | 5005 | 35149 |
+| bramble-gap | medium | alternate-waves | 18/60 | 8 | 0/150 | 156 | 331 | 3583 |
+| bramble-gap | medium | half-cash | 29/60 | 7 | 0/150 | 151 | 661 | 3442 |
+| bramble-gap | medium | double-hp-blimps | 52/60 | 15 | 0/150 | 638 | 4520 | 33022 |
+| bramble-gap | hard | standard | 33/80 | 10 | 0/100 | 102 | 1020 | 8724 |
+| bramble-gap | hard | alternate-waves | 11/80 | 5 | 0/100 | 101 | 106 | 1232 |
+| bramble-gap | hard | half-cash | 16/80 | 3 | 0/100 | 100 | 134 | 1081 |
+| bramble-gap | hard | double-hp-blimps | 33/80 | 10 | 0/100 | 102 | 1020 | 8724 |
+| bramble-gap | hard | purist | 8/80 | 3 | 0/1 | 3 | 70 | 654 |
+| bramble-gap | relentless | standard | 7/100 | 3 | 0/1 | 1 | 21 | 135 |
 | bramble-gap | relentless | alternate-waves | 6/100 | 3 | 0/1 | 18 | 13 | 14 |
-| bramble-gap | relentless | half-cash | 7/100 | 3 | 0/1 | 1 | 21 | 82 |
-| bramble-gap | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 1 | 21 | 131 |
-| bramble-gap | relentless | purist | 7/100 | 3 | 0/1 | 1 | 21 | 131 |
-| twinbrook-fork | easy | standard | 40/40 | 24 | 66/200 | 134 | 1972 | 16166 |
-| twinbrook-fork | easy | alternate-waves | 22/40 | 11 | 0/200 | 245 | 542 | 5387 |
-| twinbrook-fork | easy | half-cash | 29/40 | 6 | 0/200 | 201 | 651 | 3222 |
-| twinbrook-fork | easy | double-hp-blimps | 40/40 | 24 | 66/200 | 134 | 1972 | 16187 |
-| twinbrook-fork | medium | standard | 45/60 | 24 | 0/150 | 154 | 2878 | 19424 |
-| twinbrook-fork | medium | alternate-waves | 17/60 | 5 | 0/150 | 156 | 312 | 3121 |
-| twinbrook-fork | medium | half-cash | 24/60 | 4 | 0/150 | 153 | 382 | 2233 |
-| twinbrook-fork | medium | double-hp-blimps | 42/60 | 22 | 0/150 | 162 | 2295 | 16095 |
-| twinbrook-fork | hard | standard | 30/80 | 9 | 0/100 | 110 | 727 | 6101 |
-| twinbrook-fork | hard | alternate-waves | 11/80 | 3 | 0/100 | 101 | 111 | 1180 |
-| twinbrook-fork | hard | half-cash | 18/80 | 4 | 0/100 | 100 | 184 | 1278 |
-| twinbrook-fork | hard | double-hp-blimps | 30/80 | 9 | 0/100 | 110 | 727 | 6101 |
-| twinbrook-fork | hard | purist | 12/80 | 3 | 0/1 | 3 | 117 | 1249 |
-| twinbrook-fork | relentless | standard | 7/100 | 3 | 0/1 | 1 | 22 | 131 |
+| bramble-gap | relentless | half-cash | 7/100 | 3 | 0/1 | 1 | 21 | 84 |
+| bramble-gap | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 1 | 21 | 135 |
+| bramble-gap | relentless | purist | 7/100 | 3 | 0/1 | 1 | 21 | 135 |
+| twinbrook-fork | easy | standard | 40/40 | 14 | 180/200 | 20 | 2000 | 19000 |
+| twinbrook-fork | easy | alternate-waves | 22/40 | 11 | 0/200 | 200 | 569 | 6804 |
+| twinbrook-fork | easy | half-cash | 28/40 | 8 | 0/200 | 203 | 574 | 3149 |
+| twinbrook-fork | easy | double-hp-blimps | 40/40 | 14 | 180/200 | 20 | 2000 | 19030 |
+| twinbrook-fork | medium | standard | 52/60 | 14 | 0/150 | 838 | 4520 | 34878 |
+| twinbrook-fork | medium | alternate-waves | 18/60 | 8 | 0/150 | 150 | 339 | 3612 |
+| twinbrook-fork | medium | half-cash | 24/60 | 5 | 0/150 | 150 | 367 | 2321 |
+| twinbrook-fork | medium | double-hp-blimps | 52/60 | 14 | 0/150 | 1238 | 4520 | 35181 |
+| twinbrook-fork | hard | standard | 30/80 | 10 | 0/100 | 101 | 738 | 7216 |
+| twinbrook-fork | hard | alternate-waves | 12/80 | 6 | 0/100 | 101 | 134 | 1442 |
+| twinbrook-fork | hard | half-cash | 19/80 | 4 | 0/100 | 101 | 201 | 1460 |
+| twinbrook-fork | hard | double-hp-blimps | 30/80 | 10 | 0/100 | 101 | 738 | 7216 |
+| twinbrook-fork | hard | purist | 8/80 | 3 | 0/1 | 4 | 70 | 653 |
+| twinbrook-fork | relentless | standard | 7/100 | 3 | 0/1 | 1 | 22 | 135 |
 | twinbrook-fork | relentless | alternate-waves | 6/100 | 3 | 0/1 | 6 | 17 | 23 |
-| twinbrook-fork | relentless | half-cash | 7/100 | 3 | 0/1 | 1 | 22 | 83 |
-| twinbrook-fork | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 1 | 22 | 131 |
-| twinbrook-fork | relentless | purist | 7/100 | 3 | 0/1 | 1 | 22 | 131 |
+| twinbrook-fork | relentless | half-cash | 7/100 | 3 | 0/1 | 1 | 22 | 85 |
+| twinbrook-fork | relentless | double-hp-blimps | 7/100 | 3 | 0/1 | 1 | 22 | 135 |
+| twinbrook-fork | relentless | purist | 7/100 | 3 | 0/1 | 1 | 22 | 135 |
 
 ## Where the reference build bled
 
@@ -105,26 +105,26 @@ mode is working as intended.
 
 | round | configurations that leaked here |
 |---:|---:|
-| 7 | 43 |
-| 10 | 37 |
-| 8 | 33 |
-| 9 | 30 |
-| 12 | 29 |
-| 15 | 28 |
-| 24 | 28 |
-| 13 | 27 |
-| 14 | 27 |
+| 7 | 37 |
+| 8 | 31 |
+| 10 | 28 |
+| 12 | 26 |
+| 9 | 24 |
+| 24 | 24 |
 | 11 | 23 |
-| 27 | 23 |
-| 16 | 21 |
-| 17 | 17 |
-| 30 | 17 |
-| 6 | 13 |
-| 18 | 13 |
-| 37 | 12 |
-| 20 | 8 |
-| 5 | 7 |
-| 21 | 7 |
+| 14 | 23 |
+| 15 | 23 |
+| 16 | 19 |
+| 13 | 18 |
+| 18 | 16 |
+| 20 | 16 |
+| 30 | 13 |
+| 27 | 12 |
+| 17 | 10 |
+| 21 | 10 |
+| 22 | 10 |
+| 23 | 10 |
+| 6 | 9 |
 
 ## Inadequate build
 
@@ -149,69 +149,66 @@ mode is working as intended.
 
 ## Open balance problems
 
-- thornwood-weir · easy · standard: leaked out at round 24 of 40 (209 RBE leaked)
-- thornwood-weir · easy · alternate-waves: leaked out at round 15 of 40 (216 RBE leaked)
-- thornwood-weir · easy · half-cash: leaked out at round 21 of 40 (201 RBE leaked)
-- thornwood-weir · easy · double-hp-blimps: leaked out at round 24 of 40 (209 RBE leaked)
-- thornwood-weir · medium · standard: leaked out at round 27 of 60 (155 RBE leaked)
-- thornwood-weir · medium · alternate-waves: leaked out at round 13 of 60 (151 RBE leaked)
-- thornwood-weir · medium · half-cash: leaked out at round 20 of 60 (156 RBE leaked)
-- thornwood-weir · medium · double-hp-blimps: leaked out at round 27 of 60 (155 RBE leaked)
-- thornwood-weir · hard · standard: leaked out at round 19 of 80 (100 RBE leaked)
-- thornwood-weir · hard · alternate-waves: leaked out at round 10 of 80 (104 RBE leaked)
-- thornwood-weir · hard · half-cash: leaked out at round 15 of 80 (102 RBE leaked)
-- thornwood-weir · hard · double-hp-blimps: leaked out at round 19 of 80 (100 RBE leaked)
-- thornwood-weir · hard · purist: leaked out at round 7 of 80 (4 RBE leaked)
+- thornwood-weir · easy · standard: leaked out at round 27 of 40 (206 RBE leaked)
+- thornwood-weir · easy · alternate-waves: leaked out at round 15 of 40 (204 RBE leaked)
+- thornwood-weir · easy · half-cash: leaked out at round 21 of 40 (203 RBE leaked)
+- thornwood-weir · easy · double-hp-blimps: leaked out at round 27 of 40 (206 RBE leaked)
+- thornwood-weir · medium · standard: leaked out at round 24 of 60 (159 RBE leaked)
+- thornwood-weir · medium · alternate-waves: leaked out at round 12 of 60 (150 RBE leaked)
+- thornwood-weir · medium · half-cash: leaked out at round 19 of 60 (153 RBE leaked)
+- thornwood-weir · medium · double-hp-blimps: leaked out at round 24 of 60 (159 RBE leaked)
+- thornwood-weir · hard · standard: leaked out at round 20 of 80 (103 RBE leaked)
+- thornwood-weir · hard · alternate-waves: leaked out at round 10 of 80 (100 RBE leaked)
+- thornwood-weir · hard · half-cash: leaked out at round 15 of 80 (101 RBE leaked)
+- thornwood-weir · hard · double-hp-blimps: leaked out at round 20 of 80 (103 RBE leaked)
+- thornwood-weir · hard · purist: leaked out at round 7 of 80 (3 RBE leaked)
 - thornwood-weir · relentless · standard: leaked out at round 7 of 100 (3 RBE leaked)
 - thornwood-weir · relentless · alternate-waves: leaked out at round 6 of 100 (3 RBE leaked)
 - thornwood-weir · relentless · half-cash: leaked out at round 7 of 100 (3 RBE leaked)
 - thornwood-weir · relentless · double-hp-blimps: leaked out at round 7 of 100 (3 RBE leaked)
 - thornwood-weir · relentless · purist: leaked out at round 7 of 100 (3 RBE leaked)
-- fernway-hollow · easy · alternate-waves: leaked out at round 18 of 40 (200 RBE leaked)
-- fernway-hollow · easy · half-cash: leaked out at round 28 of 40 (200 RBE leaked)
-- fernway-hollow · easy · double-hp-blimps: leaked out at round 40 of 40 (202 RBE leaked)
-- fernway-hollow · medium · standard: leaked out at round 37 of 60 (154 RBE leaked)
-- fernway-hollow · medium · alternate-waves: leaked out at round 15 of 60 (152 RBE leaked)
-- fernway-hollow · medium · half-cash: leaked out at round 24 of 60 (152 RBE leaked)
-- fernway-hollow · medium · double-hp-blimps: leaked out at round 37 of 60 (154 RBE leaked)
-- fernway-hollow · hard · standard: leaked out at round 27 of 80 (108 RBE leaked)
-- fernway-hollow · hard · alternate-waves: leaked out at round 10 of 80 (102 RBE leaked)
-- fernway-hollow · hard · half-cash: leaked out at round 17 of 80 (102 RBE leaked)
-- fernway-hollow · hard · double-hp-blimps: leaked out at round 27 of 80 (108 RBE leaked)
-- fernway-hollow · hard · purist: leaked out at round 8 of 80 (4 RBE leaked)
+- fernway-hollow · easy · alternate-waves: leaked out at round 20 of 40 (204 RBE leaked)
+- fernway-hollow · easy · half-cash: leaked out at round 29 of 40 (201 RBE leaked)
+- fernway-hollow · medium · alternate-waves: leaked out at round 18 of 60 (152 RBE leaked)
+- fernway-hollow · medium · half-cash: leaked out at round 24 of 60 (150 RBE leaked)
+- fernway-hollow · medium · double-hp-blimps: leaked out at round 52 of 60 (774 RBE leaked)
+- fernway-hollow · hard · standard: leaked out at round 32 of 80 (104 RBE leaked)
+- fernway-hollow · hard · alternate-waves: leaked out at round 11 of 80 (100 RBE leaked)
+- fernway-hollow · hard · half-cash: leaked out at round 16 of 80 (103 RBE leaked)
+- fernway-hollow · hard · double-hp-blimps: leaked out at round 32 of 80 (104 RBE leaked)
+- fernway-hollow · hard · purist: leaked out at round 10 of 80 (2 RBE leaked)
 - fernway-hollow · relentless · standard: leaked out at round 7 of 100 (2 RBE leaked)
 - fernway-hollow · relentless · alternate-waves: leaked out at round 6 of 100 (18 RBE leaked)
 - fernway-hollow · relentless · half-cash: leaked out at round 7 of 100 (2 RBE leaked)
 - fernway-hollow · relentless · double-hp-blimps: leaked out at round 7 of 100 (2 RBE leaked)
 - fernway-hollow · relentless · purist: leaked out at round 7 of 100 (2 RBE leaked)
-- bramble-gap · easy · alternate-waves: leaked out at round 18 of 40 (203 RBE leaked)
-- bramble-gap · easy · half-cash: leaked out at round 30 of 40 (200 RBE leaked)
-- bramble-gap · easy · double-hp-blimps: leaked out at round 40 of 40 (202 RBE leaked)
-- bramble-gap · medium · standard: leaked out at round 37 of 60 (154 RBE leaked)
-- bramble-gap · medium · alternate-waves: leaked out at round 17 of 60 (207 RBE leaked)
-- bramble-gap · medium · half-cash: leaked out at round 25 of 60 (152 RBE leaked)
-- bramble-gap · medium · double-hp-blimps: leaked out at round 37 of 60 (154 RBE leaked)
-- bramble-gap · hard · standard: leaked out at round 30 of 80 (110 RBE leaked)
-- bramble-gap · hard · alternate-waves: leaked out at round 10 of 80 (102 RBE leaked)
-- bramble-gap · hard · half-cash: leaked out at round 19 of 80 (100 RBE leaked)
-- bramble-gap · hard · double-hp-blimps: leaked out at round 30 of 80 (110 RBE leaked)
-- bramble-gap · hard · purist: leaked out at round 8 of 80 (4 RBE leaked)
+- bramble-gap · easy · alternate-waves: leaked out at round 22 of 40 (200 RBE leaked)
+- bramble-gap · easy · half-cash: leaked out at round 32 of 40 (201 RBE leaked)
+- bramble-gap · medium · standard: leaked out at round 53 of 60 (190 RBE leaked)
+- bramble-gap · medium · alternate-waves: leaked out at round 18 of 60 (156 RBE leaked)
+- bramble-gap · medium · half-cash: leaked out at round 29 of 60 (151 RBE leaked)
+- bramble-gap · medium · double-hp-blimps: leaked out at round 52 of 60 (638 RBE leaked)
+- bramble-gap · hard · standard: leaked out at round 33 of 80 (102 RBE leaked)
+- bramble-gap · hard · alternate-waves: leaked out at round 11 of 80 (101 RBE leaked)
+- bramble-gap · hard · half-cash: leaked out at round 16 of 80 (100 RBE leaked)
+- bramble-gap · hard · double-hp-blimps: leaked out at round 33 of 80 (102 RBE leaked)
+- bramble-gap · hard · purist: leaked out at round 8 of 80 (3 RBE leaked)
 - bramble-gap · relentless · standard: leaked out at round 7 of 100 (1 RBE leaked)
 - bramble-gap · relentless · alternate-waves: leaked out at round 6 of 100 (18 RBE leaked)
 - bramble-gap · relentless · half-cash: leaked out at round 7 of 100 (1 RBE leaked)
 - bramble-gap · relentless · double-hp-blimps: leaked out at round 7 of 100 (1 RBE leaked)
 - bramble-gap · relentless · purist: leaked out at round 7 of 100 (1 RBE leaked)
-- twinbrook-fork · easy · alternate-waves: leaked out at round 22 of 40 (245 RBE leaked)
-- twinbrook-fork · easy · half-cash: leaked out at round 29 of 40 (201 RBE leaked)
-- twinbrook-fork · medium · standard: leaked out at round 45 of 60 (154 RBE leaked)
-- twinbrook-fork · medium · alternate-waves: leaked out at round 17 of 60 (156 RBE leaked)
-- twinbrook-fork · medium · half-cash: leaked out at round 24 of 60 (153 RBE leaked)
-- twinbrook-fork · medium · double-hp-blimps: leaked out at round 42 of 60 (162 RBE leaked)
-- twinbrook-fork · hard · standard: leaked out at round 30 of 80 (110 RBE leaked)
-- twinbrook-fork · hard · alternate-waves: leaked out at round 11 of 80 (101 RBE leaked)
-- twinbrook-fork · hard · half-cash: leaked out at round 18 of 80 (100 RBE leaked)
-- twinbrook-fork · hard · double-hp-blimps: leaked out at round 30 of 80 (110 RBE leaked)
-- twinbrook-fork · hard · purist: leaked out at round 12 of 80 (3 RBE leaked)
+- twinbrook-fork · easy · alternate-waves: leaked out at round 22 of 40 (200 RBE leaked)
+- twinbrook-fork · easy · half-cash: leaked out at round 28 of 40 (203 RBE leaked)
+- twinbrook-fork · medium · standard: leaked out at round 52 of 60 (838 RBE leaked)
+- twinbrook-fork · medium · alternate-waves: leaked out at round 18 of 60 (150 RBE leaked)
+- twinbrook-fork · medium · half-cash: leaked out at round 24 of 60 (150 RBE leaked)
+- twinbrook-fork · medium · double-hp-blimps: leaked out at round 52 of 60 (1238 RBE leaked)
+- twinbrook-fork · hard · standard: leaked out at round 30 of 80 (101 RBE leaked)
+- twinbrook-fork · hard · alternate-waves: leaked out at round 12 of 80 (101 RBE leaked)
+- twinbrook-fork · hard · half-cash: leaked out at round 19 of 80 (101 RBE leaked)
+- twinbrook-fork · hard · double-hp-blimps: leaked out at round 30 of 80 (101 RBE leaked)
+- twinbrook-fork · hard · purist: leaked out at round 8 of 80 (4 RBE leaked)
 - twinbrook-fork · relentless · standard: leaked out at round 7 of 100 (1 RBE leaked)
 - twinbrook-fork · relentless · alternate-waves: leaked out at round 6 of 100 (6 RBE leaked)
 - twinbrook-fork · relentless · half-cash: leaked out at round 7 of 100 (1 RBE leaked)

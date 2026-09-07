@@ -297,10 +297,15 @@
       { tier: 'goliath', count: 1, delay: 4 }
     ] },
 
-    /* ---------- 41-51 · blimps with escorts ---------- */
+    /* ---------- 41-60 · GOLIATH & WRAITH era ---------- */
 
+    /* The middle game is one long GOLIATH escort that hands the baton to the
+       WRAITH era at round 52. The era is a single WRAITH with a growing ceramic
+       stream behind it, holding a gentle ramp until round 61 — the first
+       LEVIATHAN is the first thing a medium game never sees. A build that holds
+       to round 60 has beaten the mode; round 61+ belongs to hard. */
     41: { groups: [
-      { tier: 'rainbow', count: 2, spacing: 1.2 },
+      { tier: 'red', count: 1, delay: 2 },
       { tier: 'goliath', count: 1, delay: 5 }
     ] },
     42: { groups: [
@@ -310,146 +315,134 @@
       { tier: 'goliath', count: 1, delay: 6 }
     ] },
     43: { groups: [
-      { tier: 'pink', count: 4, spacing: 0.35 },
-      { tier: 'zebra', count: 2, spacing: 1, delay: 2 },
-      { tier: 'ceramic', count: 2, spacing: 1.4, delay: 4.5 },
+      { tier: 'zebra', count: 2, spacing: 1 },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 2 },
+      { tier: 'ceramic', count: 1, spacing: 1.4, delay: 4.5 },
       { tier: 'goliath', count: 1, delay: 7 }
     ] },
     44: { groups: [
       { tier: 'zebra', count: 1, spacing: 1 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 2 },
-      { tier: 'ceramic', count: 3, spacing: 1.3, delay: 3.5 },
+      { tier: 'ceramic', count: 2, spacing: 1.3, delay: 3.5 },
       { tier: 'goliath', count: 1, delay: 7.5 }
     ] },
     45: { groups: [
-      { tier: 'rainbow', count: 2, spacing: 1.2, props: V },
-      { tier: 'ceramic', count: 4, spacing: 1.2, delay: 3 },
+      { tier: 'zebra', count: 1, spacing: 1, props: V },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 2, props: V },
+      { tier: 'ceramic', count: 2, spacing: 1.3, delay: 4 },
       { tier: 'goliath', count: 1, delay: 8 }
     ] },
     46: { groups: [
-      { tier: 'rainbow', count: 1, spacing: 1.2 },
-      { tier: 'goliath', count: 2, spacing: 3.5, delay: 4 }
+      { tier: 'ceramic', count: 3, spacing: 1.3 },
+      { tier: 'goliath', count: 1, delay: 6 }
     ] },
     47: { groups: [
-      { tier: 'ceramic', count: 2, spacing: 1.4 },
-      { tier: 'goliath', count: 2, spacing: 3.5, delay: 4.5 }
+      { tier: 'ceramic', count: 3, spacing: 1.3 },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 3 },
+      { tier: 'goliath', count: 1, delay: 7 }
     ] },
-    /* The ceramic wall: fifteen shells on one tick, after a pause long enough to
-       watch them come. A board that relies on single-target damage stops here. */
     48: { groups: [
-      { tier: 'zebra', count: 3, spacing: 0.8 },
-      { tier: 'ceramic', count: 15, spacing: 0, delay: 4 }
+      { tier: 'ceramic', count: 3, spacing: 1.3 },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 3 },
+      { tier: 'zebra', count: 1, spacing: 1, delay: 5 },
+      { tier: 'goliath', count: 1, delay: 8 }
     ] },
     49: { groups: [
-      { tier: 'rainbow', count: 2, spacing: 1.2 },
-      { tier: 'ceramic', count: 5, spacing: 1, delay: 2.5 },
-      { tier: 'goliath', count: 2, spacing: 3.5, delay: 8 }
+      { tier: 'ceramic', count: 4, spacing: 1.2 },
+      { tier: 'goliath', count: 1, delay: 8 }
     ] },
+    /* FORTIFIED arrives: one double-hull ceramic inside an otherwise ordinary
+       escort. A board reading RBE alone gets caught out. */
     50: { groups: [
-      { tier: 'ceramic', count: 2, spacing: 1.4 },
-      { tier: 'ceramic', count: 1, spacing: 1.4, delay: 3, props: FT },
-      { tier: 'goliath', count: 3, spacing: 3, delay: 4 }
+      { tier: 'ceramic', count: 3, spacing: 1.2 },
+      { tier: 'ceramic', count: 1, spacing: 1.2, delay: 2.5, props: FT },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 4 },
+      { tier: 'goliath', count: 1, delay: 7 }
     ] },
     51: { groups: [
-      { tier: 'rainbow', count: 2, spacing: 1.2, props: RG },
-      { tier: 'ceramic', count: 4, spacing: 1.1, delay: 2.5 },
-      { tier: 'goliath', count: 3, spacing: 3, delay: 8 }
+      { tier: 'ceramic', count: 5, spacing: 1.1, props: RG },
+      { tier: 'goliath', count: 1, delay: 8 }
     ] },
 
     /* WRAITH. Born veiled, nearly three times a red balloon's speed, and it
        ignores sharp and explosive damage. If the board has no detection and no
-       damage type outside those two, this round ends the run. */
+       damage type outside those two, this round ends the run.
+       The debut is a single WRAITH over an escorted ceramic stream — lighter than
+       round 51's GOLIATH plus five ceramics, and the spike over it is kept to a
+       beat (1.18x) rather than a cliff: round 52 was a GOLIATH and a WRAITH at
+       once (1432 RBE), which a competent medium board at this economy cannot
+       answer, and the whole era read as unholdable when the bottleneck was that
+       one round. */
     52: { groups: [
-      { tier: 'rainbow', count: 2, spacing: 1.2 },
-      { tier: 'ceramic', count: 5, spacing: 1, delay: 2.5 },
-      { tier: 'goliath', count: 2, spacing: 3, delay: 8 },
-      { tier: 'wraith', count: 1, delay: 14 }
+      { tier: 'ceramic', count: 5, spacing: 1.2, delay: 3 },
+      { tier: 'wraith', count: 1, delay: 10 }
     ] },
+    /* The ceramic wall, moved into the blimp era: twelve shells on one tick.
+       A board that relies on single-target damage stops here. */
     53: { groups: [
-      { tier: 'zebra', count: 4, spacing: 0.7 },
-      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 3 },
-      { tier: 'ceramic', count: 7, spacing: 0.9, delay: 5 },
-      { tier: 'goliath', count: 2, spacing: 3, delay: 11 },
-      { tier: 'wraith', count: 1, delay: 16 }
+      { tier: 'ceramic', count: 12, spacing: 0, delay: 3 },
+      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 7 }
     ] },
     54: { groups: [
-      { tier: 'rainbow', count: 3, spacing: 1.1 },
-      { tier: 'ceramic', count: 5, spacing: 1, delay: 3 },
-      { tier: 'goliath', count: 3, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 1, delay: 15 }
+      { tier: 'ceramic', count: 5, spacing: 1.2, delay: 2 },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
+      { tier: 'wraith', count: 1, delay: 10 }
     ] },
-    /* The camo round. Almost nothing here can be targeted without detection. */
+    /* The camo round. Everything on the field is veiled — even the WRAITH,
+       which is born that way. No detection, no hits. */
     55: { groups: [
-      { tier: 'rainbow', count: 6, spacing: 0.6, props: V },
-      { tier: 'ceramic', count: 12, spacing: 0.5, delay: 4, props: V },
-      { tier: 'wraith', count: 2, spacing: 3, delay: 11 },
-      { tier: 'goliath', count: 1, delay: 17 }
+      { tier: 'ceramic', count: 6, spacing: 1.1, delay: 2, props: V },
+      { tier: 'wraith', count: 1, delay: 12 }
     ] },
     56: { groups: [
-      { tier: 'zebra', count: 6, spacing: 0.6 },
-      { tier: 'rainbow', count: 4, spacing: 0.9, delay: 3 },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 6 },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 12 },
-      { tier: 'wraith', count: 2, spacing: 3, delay: 16 }
+      { tier: 'ceramic', count: 6, spacing: 1.1, delay: 2 },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
+      { tier: 'wraith', count: 1, delay: 10 }
     ] },
     57: { groups: [
-      { tier: 'rainbow', count: 4, spacing: 0.9, props: RG },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 3, spacing: 2.5, delay: 10 },
-      { tier: 'wraith', count: 2, spacing: 3, delay: 16 }
+      { tier: 'ceramic', count: 7, spacing: 1.0, delay: 2 },
+      { tier: 'wraith', count: 1, delay: 11 }
     ] },
     58: { groups: [
-      { tier: 'rainbow', count: 6, spacing: 0.8 },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 4, spacing: 2.2, delay: 10 },
-      { tier: 'wraith', count: 2, spacing: 3, delay: 17 }
+      { tier: 'ceramic', count: 7, spacing: 1.0, delay: 2 },
+      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
+      { tier: 'wraith', count: 1, delay: 11 }
     ] },
     59: { groups: [
-      { tier: 'rainbow', count: 4, spacing: 0.9, props: V },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 4, spacing: 2.2, delay: 10 },
-      { tier: 'wraith', count: 3, spacing: 2.8, delay: 17 }
+      { tier: 'ceramic', count: 8, spacing: 0.9, delay: 2 },
+      { tier: 'wraith', count: 1, delay: 11 }
     ] },
 
-    /* ---------- 60-69 · LEVIATHAN ---------- */
+/* ---------- 61-69 · LEVIATHAN ---------- */
 
-    /* LEVIATHAN: slow, enormous, and four GOLIATHs deep. Slowing it further is
-       almost free — killing it is not. */
+    /* The last standard round of medium mode. No LEVIATHAN here — that is
+       round 61, the first hard-only wall — so a build that held the WRAITH
+       era can close out the game. The era closes on one final WRAITH with nine
+       ceramics for company: still in the spirit of round 52, just more of it. */
     60: { groups: [
-      { tier: 'ceramic', count: 8, spacing: 0.6, delay: 3 },
-      { tier: 'goliath', count: 1, spacing: 2.5, delay: 8, props: FT },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 2, spacing: 3, delay: 13 },
-      { tier: 'leviathan', count: 1, delay: 20 }
+      { tier: 'ceramic', count: 9, spacing: 0.9, delay: 2 },
+      { tier: 'wraith', count: 1, delay: 12 }
     ] },
+
+    /* LEVIATHAN: slow, enormous, and four GOLIATHs deep. It debuts here,
+       alone — round 61, the first round a medium game never sees. Killing it
+       is not like killing anything before it. */
     61: { groups: [
-      { tier: 'rainbow', count: 6, spacing: 0.8 },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 10 },
-      { tier: 'wraith', count: 2, spacing: 3, delay: 15 },
-      { tier: 'leviathan', count: 1, delay: 21 }
+      { tier: 'leviathan', count: 1, delay: 6 }
     ] },
     62: { groups: [
-      { tier: 'rainbow', count: 6, spacing: 0.8, props: RG },
-      { tier: 'ceramic', count: 8, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 1, delay: 9 },
-      { tier: 'wraith', count: 1, delay: 13 },
-      { tier: 'leviathan', count: 2, spacing: 5, delay: 18 }
+      { tier: 'ceramic', count: 5, spacing: 1.1 },
+      { tier: 'goliath', count: 5, spacing: 2.2, delay: 6 },
+      { tier: 'wraith', count: 1, delay: 16 }
     ] },
     63: { groups: [
-      { tier: 'zebra', count: 8, spacing: 0.5 },
-      { tier: 'rainbow', count: 4, spacing: 0.9, delay: 4 },
-      { tier: 'ceramic', count: 8, spacing: 0.6, delay: 7 },
-      { tier: 'goliath', count: 1, delay: 12 },
-      { tier: 'wraith', count: 2, spacing: 2.8, delay: 15 },
-      { tier: 'leviathan', count: 2, spacing: 5, delay: 21 }
+      { tier: 'ceramic', count: 14, spacing: 0.8 },
+      { tier: 'goliath', count: 6, spacing: 2, delay: 8 },
+      { tier: 'wraith', count: 1, delay: 18 }
     ] },
     64: { groups: [
-      { tier: 'rainbow', count: 6, spacing: 0.8 },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 10 },
-      { tier: 'wraith', count: 2, spacing: 2.8, delay: 16 },
-      { tier: 'leviathan', count: 2, spacing: 5, delay: 22 }
+      { tier: 'ceramic', count: 16, spacing: 0.7 },
+      { tier: 'goliath', count: 10, spacing: 1.8, delay: 8 },
+      { tier: 'wraith', count: 1, delay: 19 }
     ] },
     65: { groups: [
       { tier: 'rainbow', count: 4, spacing: 0.9, props: V },

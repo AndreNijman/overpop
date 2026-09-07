@@ -114,7 +114,7 @@
     // drift out of step again when round data is retuned.
     const def = OP.Rounds && OP.Rounds.definition ? OP.Rounds.definition(sim, roundIndex) : null
     const rbe = def ? OP.Rounds.roundRBE(def) : 0
-    const base = OP.ROUND_END_BONUS + roundIndex * 3 + rbe * 0.22
+    const base = OP.ROUND_END_BONUS + roundIndex * 3 + rbe * 0.42
     return Math.floor(base * sim.rules.roundBonusMul)
   }
 

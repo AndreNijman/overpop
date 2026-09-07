@@ -386,84 +386,94 @@
     g('ceramic', 8, 0.3)
   ])
 
-  // 53 - a LEVIATHAN with a GOLIATH pair as escort (4604 RBE)
+  // 53 - eight GOLIATHs on one tick, WRAITHs behind (4454 RBE)
   round(53, [
-    g('leviathan', 1, 0, 2),
-    g('goliath', 2, 1, 6),
-    g('ceramic', 2, 0.3)
+    g('goliath', 4, 1, 1),
+    g('wraith', 2, 1.2, 4),
+    g('ceramic', 3, 0.5, 5),
+    g('zebra', 2, 1, 7)
   ])
 
-  // 54 - seven GOLIATHs (5040 RBE)
+  // 54 - a veiled GOLIATH pack, the same trick as round 43 but heavier (4943 RBE)
   round(54, [
-    g('goliath', 7, 0.6, 1),
-    g('ceramic', 7, 0.25, 8)
+    g('goliath', 5, 1.2, 1, P.VEILED),
+    g('wraith', 2, 1.2, 5),
+    g('ceramic', 2, 0.5, 6),
+    g('zebra', 1, 1, 8)
   ])
 
-  // 55 - a LEVIATHAN and a WRAITH pair (5524 RBE)
+  // 55 - eleven GOLIATH-equivalents of WRAITH and hull (5047 RBE)
   round(55, [
-    g('leviathan', 1, 0, 2),
-    g('wraith', 2, 1.5, 6),
-    g('ceramic', 7, 0.3)
+    g('goliath', 5, 1, 1),
+    g('wraith', 2, 1.2, 4),
+    g('ceramic', 3, 0.5, 5),
+    g('zebra', 1, 1, 7)
   ])
 
-  // 56 - eight veiled GOLIATHs (6072 RBE)
+  // 56 - six GOLIATHs on one tick (5432 RBE)
   round(56, [
-    g('goliath', 8, 0.5, 1, P.VEILED),
-    g('ceramic', 11, 0.25, 8)
+    g('goliath', 6, 0, 2),
+    g('wraith', 2, 1.2, 5),
+    g('ceramic', 1, 0.5, 6)
   ])
 
-  // 57 - two LEVIATHANs on one tick (6744 RBE)
+  // 57 - the WRAITH era at full stretch (5455 RBE)
   round(57, [
-    g('leviathan', 2, 0, 3),
-    g('ceramic', 4, 0.3)
+    g('goliath', 6, 1, 1),
+    g('wraith', 2, 1.2, 4),
+    g('ceramic', 1, 0.5, 5),
+    g('zebra', 1, 1, 7)
   ])
 
-  // 58 - a LEVIATHAN behind six GOLIATHs (7380 RBE)
+  // 58 - six GOLIATHs and a black pair (5558 RBE)
   round(58, [
-    g('leviathan', 1, 0, 2),
-    g('goliath', 6, 0.6, 8),
-    g('ceramic', 5, 0.3)
+    g('goliath', 6, 1, 1),
+    g('wraith', 2, 1.2, 4),
+    g('ceramic', 2, 0.5, 5),
+    g('black', 2, 1, 7)
   ])
 
-  // 59 - six WRAITHs - a veiled blimp pack - and a LEVIATHAN (8164 RBE)
+  // 59 - another GOLIATH tier of pressure (5582 RBE)
   round(59, [
-    g('wraith', 6, 1, 1.5),
-    g('leviathan', 1, 0, 10),
-    g('ceramic', 1, 0.3)
+    g('goliath', 6, 1, 1),
+    g('wraith', 2, 1.2, 4),
+    g('ceramic', 2, 0.5, 5),
+    g('zebra', 2, 1, 7)
   ])
 
-  // 60 - two LEVIATHANs and four GOLIATHs (8980 RBE)
+  // 60 - the heaviest round of the early blimp era (5640 RBE)
   round(60, [
-    g('leviathan', 2, 2, 2),
-    g('goliath', 4, 0.7, 10),
-    g('rainbow', 4, 0.3)
+    g('goliath', 6, 0, 2),
+    g('wraith', 2, 1.2, 5),
+    g('ceramic', 3, 0.5, 6)
   ])
 
-  // 61 - three LEVIATHANs (9908 RBE)
+  // 61 - two LEVIATHANs with a zebra escort (6686 RBE)
   round(61, [
-    g('leviathan', 3, 1.8, 2),
-    g('ceramic', 4, 0.25)
+    g('leviathan', 2, 1.5, 1),
+    g('ceramic', 3, 0.5, 6),
+    g('zebra', 2, 1, 8)
   ])
 
-  // 62 - two LEVIATHANs and four WRAITHs, split across the flanks (10961 RBE)
+  // 62 - two LEVIATHANs and a GOLIATH split across the flanks (7976 RBE)
   round(62, [
-    g('leviathan', 2, 2, 2),
-    g('wraith', 4, 1, 10, 0, 0),
-    g('ceramic', 10, 0.2, 0, 0, 1),
-    g('rainbow', 7, 0.3, 14)
+    g('leviathan', 2, 1.5, 1),
+    g('goliath', 1, 0, 4, 0, 0),
+    g('goliath', 1, 0, 5, 0, 1),
+    g('ceramic', 4, 0.5, 6)
   ])
 
-  // 63 - three LEVIATHANs over a twenty-ceramic stream (12089 RBE)
+  // 63 - three LEVIATHANs with a GOLIATH pair (10724 RBE)
   round(63, [
-    g('leviathan', 3, 1.5, 2),
-    g('ceramic', 20, 0.15),
-    g('rainbow', 11, 0.3)
+    g('leviathan', 3, 1.5, 1),
+    g('goliath', 2, 1.5, 5),
+    g('ceramic', 2, 0.5, 7)
   ])
 
-  // 64 - four LEVIATHANs (13280 RBE)
+  // 64 - four LEVIATHANs over a ceramic stream (12968 RBE)
   round(64, [
-    g('leviathan', 4, 1.5, 2),
-    g('ceramic', 6, 0.25, 10)
+    g('leviathan', 4, 1.5, 1),
+    g('ceramic', 3, 0.5, 6)
   ])
 
   // 65 - three LEVIATHANs and eight veiled GOLIATHs (14702 RBE)
