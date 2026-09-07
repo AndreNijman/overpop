@@ -248,6 +248,38 @@
         allowIncome: true,
         allowAbilities: true
       }
+    },
+
+    deluge: {
+      key: 'deluge',
+      name: 'DELUGE',
+      blurb: 'The run begins at round 100. No selling, no continues — everything you have is already on the board when the wall arrives.',
+      // Canon's round-teleport challenge: sixty rounds from 100, on every
+      // difficulty — the windows only differ in lives and cost.
+      rules: {
+        firstRound: 100,
+        lastRound: 160,
+        allowSell: false,
+        allowContinue: false,
+        livesRegain: false
+      }
+    },
+
+    tempo: {
+      key: 'tempo',
+      name: 'TEMPO',
+      blurb: 'Every balloon moves half again as fast. The same rounds, none of the reaction time.',
+      rules: { speedMul: 1.5 }
+    },
+
+    bounty: {
+      key: 'bounty',
+      name: 'BOUNTY',
+      blurb: 'Every pop and every round pays double. Build the dream board — the balloons pay for it.',
+      rules: {
+        cashPerPopMul: 2,
+        roundBonusMul: 2
+      }
     }
   }
 
@@ -265,6 +297,9 @@
     'double-hp-blimps',
     'alternate-waves',
     'reverse',
+    'tempo',
+    'bounty',
+    'deluge',
     'purist',
     'grim',
     'rampart',

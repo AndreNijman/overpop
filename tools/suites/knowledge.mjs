@@ -17,11 +17,11 @@ export function run (t, OP) {
 
   t.section('the tree is complete and internally valid')
   t.ok(OP.KNOWLEDGE && typeof OP.KNOWLEDGE === 'object', 'OP.KNOWLEDGE exists')
-  t.eq(Object.keys(OP.KNOWLEDGE).length, 43, 'forty-three knowledge nodes ship')
+  t.eq(Object.keys(OP.KNOWLEDGE).length, 55, 'fifty-five knowledge nodes ship')
   t.deep(OP.KNOWLEDGE_BRANCH_ORDER, ['primary', 'military', 'magic', 'support', 'general', 'heroes', 'powers'],
     'all seven branches have a stable display order')
   t.deep(OP.knowledgeValidate(), [], 'every prerequisite exists in its own branch')
-  t.eq(OP.KNOWLEDGE_TOTAL_COST, 123, 'the full tree costs 123 KP')
+  t.eq(OP.KNOWLEDGE_TOTAL_COST, 156, 'the full tree costs 156 KP')
 
   const supported = new Set([].concat(OP.Buffs.ADD_FIELDS, OP.Buffs.MUL_FIELDS, OP.Buffs.FLAG_FIELDS))
   for (const key of OP.KNOWLEDGE_ORDER) {

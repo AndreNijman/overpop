@@ -57,6 +57,8 @@
       abilityCd: 0,
       abilityActive: false,
       abilityTimer: 0,
+      // Temporary sprint from ridge-colossus-haste (ticks remaining)
+      hasteT: 0,
       // Time limit: player has 20 rounds to kill the boss (tracked in ticks)
       timeLimit: 0,
       ticksAlive: 0,
@@ -239,7 +241,10 @@
 
     const track = sim.map.paths[boss.path]
     const dt = OP.DT
-    boss.t += boss.speed * OP.BASE_SPEED * boss.speedMul * dt
+    // ridge-colossus-haste: a temporary sprint while the ability is running out
+    const haste = boss.hasteT > 0 ? 1.8 : 1
+    if (boss.hasteT > 0) boss.hasteT--
+    boss.t += boss.speed * OP.BASE_SPEED * boss.speedMul * haste * dt
     track.posInto(boss.t, boss)
 
     boss.ticksAlive++
@@ -371,6 +376,37 @@
           t.rangeWarpMul = 0.7
         }
       }
+    } else if (ability.key === 'cinder-toad-bloom') {
+      // A bloom of burning balloons spills onto the track behind the boss.
+      const schedule = OP.bossMinions(boss.def, boss.tier)
+      if (schedule) {
+        const count = Math.min(schedule.count, 10)
+        for (let i = 0; i < count; i++) {
+          OP.Balloons.spawn(sim, {
+            tier: schedule.tier,
+            path: boss.path,
+            t: Math.max(0, boss.t - i * 8)
+          })
+        }
+      }
+    } else if (ability.key === 'gloom-warden-drain') {
+      // Feed: pop every balloon within reach and knit the hull back together.
+      const heal = 60
+      let drained = 0
+      for (let i = sim.balloons.length - 1; i >= 0; i--) {
+        const b = sim.balloons[i]
+        if (!b.alive) continue
+        if (Math.abs(b.x - boss.x) > 120 || Math.abs(b.y - boss.y) > 120) continue
+        OP.Damage.hit(sim, b, { damage: 50, dmgType: OP.DMG.NORMAL, sourceId: -1 })
+        drained++
+        if (drained >= 12) break
+      }
+      if (drained > 0) {
+        boss.hp = Math.min(boss.maxHP, boss.hp + drained * 80)
+      }
+    } else if (ability.key === 'ridge-colossus-haste') {
+      // A lumbering sprint: the movement tick honors hasteT with a big multiplier.
+      boss.hasteT = 180  // 3 seconds
     }
   }
 

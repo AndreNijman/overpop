@@ -159,7 +159,103 @@
      registry. The rotation arithmetic lives in OP.BossEvent (js/core/bossevent.js),
      which reads this order lazily at call time. */
 
-  OP.BOSS_ORDER = ['elder-worm', 'storm-drake', 'void-maw']
+  OP.BOSS_ORDER = ['elder-worm', 'storm-drake', 'void-maw', 'cinder-toad', 'gloom-warden', 'ridge-colossus']
+
+  OP.BOSSES.cinderToad = {
+    key: 'cinder-toad',
+    name: 'Cinder Toad',
+    blurb: 'A bloated ember-beast that hatches broods of burning balloons as it crawls. Kill the spawn fast or drown in them.',
+    colour: '#8a3b1e',
+    shade: '#4a1f0e',
+    radius: 50,
+    baseSpeed: 0.13,
+    baseHP: 90000,
+    tierScale: 3.4,
+    eliteHPMul: 22,
+    eliteSpeedMul: 1.15,
+    slowResist: 0.5,
+    stunImmune: false,
+    abilityImmune: false,
+    minions: [
+      { tier: 'ceramic', count: 10, spacing: 0.3 },
+      { tier: 'rainbow', count: 16, spacing: 0.25 },
+      { tier: 'ceramic', count: 14, spacing: 0.25 },
+      { tier: 'leviathan', count: 2, spacing: 3 },
+      { tier: 'ceramic', count: 18, spacing: 0.2 }
+    ],
+    ability: {
+      key: 'cinder-toad-bloom',
+      cooldown: 24,
+      desc: 'Spits a bloom of burning balloons onto the track behind it.'
+    },
+    spawnsOnRound: 40,
+    tierInterval: 20,
+    maxTiers: 5
+  }
+
+  OP.BOSSES.gloomWarden = {
+    key: 'gloom-warden',
+    name: 'Gloom Warden',
+    blurb: 'It does not attack — it feeds. Every balloon it drains in passing knits hull back onto itself.',
+    colour: '#1e3d2f',
+    shade: '#0f2018',
+    radius: 55,
+    baseSpeed: 0.11,
+    baseHP: 110000,
+    tierScale: 3.2,
+    eliteHPMul: 24,
+    eliteSpeedMul: 1.1,
+    slowResist: 0.6,
+    stunImmune: false,
+    abilityImmune: true,
+    minions: [
+      { tier: 'zebra', count: 20, spacing: 0.3 },
+      { tier: 'ceramic', count: 8, spacing: 0.5 },
+      { tier: 'goliath', count: 4, spacing: 2 },
+      { tier: 'ceramic', count: 12, spacing: 0.3 },
+      { tier: 'wraith', count: 4, spacing: 2 }
+    ],
+    ability: {
+      key: 'gloom-warden-drain',
+      cooldown: 18,
+      desc: 'Drains every balloon near it, healing itself for what it takes.'
+    },
+    spawnsOnRound: 40,
+    tierInterval: 20,
+    maxTiers: 5
+  }
+
+  OP.BOSSES.ridgeColossus = {
+    key: 'ridge-colossus',
+    name: 'Ridge Colossus',
+    blurb: 'A walking quarry. Its shell shrugs off slow effects, and when it moves it MOVES.',
+    colour: '#3f3a2e',
+    shade: '#221f18',
+    radius: 58,
+    baseSpeed: 0.09,
+    baseHP: 130000,
+    tierScale: 3.0,
+    eliteHPMul: 26,
+    eliteSpeedMul: 1.25,
+    slowResist: 0.8,
+    stunImmune: true,
+    abilityImmune: true,
+    minions: [
+      { tier: 'goliath', count: 2, spacing: 3 },
+      { tier: 'ceramic', count: 16, spacing: 0.25 },
+      { tier: 'leviathan', count: 1, spacing: 3 },
+      { tier: 'goliath', count: 6, spacing: 1.5 },
+      { tier: 'colossus', count: 1, spacing: 3 }
+    ],
+    ability: {
+      key: 'ridge-colossus-haste',
+      cooldown: 26,
+      desc: 'Quakes into a lumbering sprint — nearly twice as fast for three seconds.'
+    },
+    spawnsOnRound: 40,
+    tierInterval: 20,
+    maxTiers: 5
+  }
 
   /** The boss keys in weekly rotation order. */
   OP.bossOrder = function () {

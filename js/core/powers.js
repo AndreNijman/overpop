@@ -19,6 +19,14 @@
 
   Powers.init = function (sim, inventory) {
     sim.powers = Powers.copyInventory(inventory)
+    // Knowledge's Powers tree can stock one spare use of every owned power at
+    // the start of each run (pow-free-inventory's rule delta).
+    const bonus = (sim.rules && sim.rules.powerStockBonus) || 0
+    if (bonus > 0) {
+      for (const k in sim.powers) {
+        if (sim.powers[k] > 0) sim.powers[k] += bonus
+      }
+    }
     return sim.powers
   }
 

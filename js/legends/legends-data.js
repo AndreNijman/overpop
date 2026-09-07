@@ -112,7 +112,21 @@
     { key: 'masterwork', name: 'Masterwork', rarity: 'legendary', blurb: 'Refined craft: all critters deal 50% more damage and reach 15% further.', mods: { damageMul: 1.5, rangeMul: 1.15 } },
     { key: 'epoch', name: 'Epoch', rarity: 'legendary', blurb: 'An age of war: all critters gain 3 damage, 20 range and faster attacks.', mods: { damageAdd: 3, rangeAdd: 20, projSpeedAdd: 60 } },
     { key: 'godhand', name: 'God Hand', rarity: 'legendary', blurb: 'The track bows: balloons are 25% slower and 25% easier to burst everywhere.', ruleOverrides: { speedScale: -0.25, hpScale: -0.25 } },
-    { key: 'jackpot', name: 'Jackpot', rarity: 'legendary', blurb: 'Cash flows: earn 50% more per pop and bank 50% more each round end.', ruleOverrides: { cashPerPopMul: 0.5, roundBonusMul: 0.5 } }
+    { key: 'jackpot', name: 'Jackpot', rarity: 'legendary', blurb: 'Cash flows: earn 50% more per pop and bank 50% more each round end.', ruleOverrides: { cashPerPopMul: 0.5, roundBonusMul: 0.5 } },
+    { key: 'owlmark', name: 'Owl Mark', rarity: 'common', blurb: 'A carved sigil — all critters reach 8 further and spot the sneaky balloons.', mods: { rangeAdd: 8, camoDetect: true } },
+    { key: 'tally-tune', name: 'Tally Tune', rarity: 'common', blurb: 'A marching rhythm — all critters loose their volleys a step quicker.', mods: { cooldownMul: 0.94 } },
+    { key: 'seedfund', name: 'Seed Fund', rarity: 'common', blurb: 'Start the next battle with $400 extra cash.', ruleOverrides: { startCash: 400 } },
+    { key: 'carapace', name: 'Carapace', rarity: 'common', blurb: 'Carry 15 bonus lives into every battle.', ruleOverrides: { startLives: 15 } },
+    { key: 'whetstone', name: 'Whetstone', rarity: 'common', blurb: 'All critters hurl attacks 30 speed faster for the rest of the campaign.', mods: { projSpeedAdd: 30 } },
+    { key: 'crosspoint', name: 'Crosspoint', rarity: 'rare', blurb: 'All critters gain 18 range and one extra pierce for the rest of the campaign.', mods: { rangeAdd: 18, pierceAdd: 1 } },
+    { key: 'staccato', name: 'Staccato', rarity: 'rare', blurb: 'All critters fire 20% faster for the rest of the campaign.', mods: { cooldownMul: 0.80 } },
+    { key: 'banner', name: 'War Banner', rarity: 'rare', blurb: 'Earn 40% more cash from every pop until the end of the campaign.', ruleOverrides: { cashPerPopMul: 0.40 } },
+    { key: 'bulwark', name: 'Bulwark', rarity: 'rare', blurb: 'Carry 30 bonus lives into every battle for the rest of the campaign.', ruleOverrides: { startLives: 30 } },
+    { key: 'gauntlet', name: 'Gauntlet', rarity: 'rare', blurb: 'Balloons are 20% easier to burst and move 10% slower everywhere.', ruleOverrides: { hpScale: -0.20, speedScale: -0.10 } },
+    { key: 'worldbreaker', name: 'Worldbreaker', rarity: 'legendary', blurb: 'All critters deal 5 more damage, pierce 2 and fire 10% faster.', mods: { damageAdd: 5, pierceAdd: 2, cooldownMul: 0.90 } },
+    { key: 'apex', name: 'Apex Predators', rarity: 'legendary', blurb: 'The food chain bends: 60 extra range, one extra volley and 3 more damage.', mods: { rangeAdd: 60, shotsAdd: 1, damageAdd: 3 } },
+    { key: 'warlord', name: 'Warlord', rarity: 'legendary', blurb: 'Everything swings harder: 40% more damage and 20% faster attacks.', mods: { damageMul: 1.4, cooldownMul: 0.80 } },
+    { key: 'monopoly', name: 'Monopoly', rarity: 'legendary', blurb: 'Every pop pays double and every round end banks double, forever.', ruleOverrides: { cashPerPopMul: 1, roundBonusMul: 1 } }
   ]
 
   /* First battle grants a free pick from the starter pool so every run opens

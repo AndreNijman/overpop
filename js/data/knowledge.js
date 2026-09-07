@@ -410,14 +410,14 @@
     'her-start-level': {
       key: 'her-start-level',
       name: 'Folk Hero',
-      blurb: 'Heroes arrive on the board already warmed up — level 3 from the first round.',
+      blurb: 'Heroes learn the crowd faster — every hero earns experience a third quicker.',
       branch: 'heroes',
       tier: 4,
       cost: 6,
       prereqs: ['her-cost'],
       gate: 10,
       mods: {},
-      ruleOverrides: { heroStartLevel: 2 }
+      ruleOverrides: { heroXpMul: 0.25 }
     },
 
     /* ==================== POWERS BRANCH ==================== */
@@ -496,14 +496,14 @@
     'gen-achievement-kp': {
       key: 'gen-achievement-kp',
       name: 'Crit Curriculum',
-      blurb: 'Knowledge points come in a little faster from every completed run.',
+      blurb: 'A deeper pouch at the start and a bigger tip at the end of every round.',
       branch: 'general',
       tier: 4,
       cost: 5,
       prereqs: ['gen-hero-xp'],
       gate: 10,
       mods: {},
-      ruleOverrides: { kpMul: 0.25 }
+      ruleOverrides: { startCash: 75, roundBonusMul: 0.05 }
     },
     'pri-rage': {
       key: 'pri-rage',
@@ -552,6 +552,142 @@
       gate: 10,
       mods: {},
       ruleOverrides: { sellRate: 0.05 }
+    },
+
+    /* ==================== SECOND-WAVE NODES ==================== */
+
+    'pri-swift': {
+      key: 'pri-swift',
+      name: 'Quick Paws',
+      blurb: 'Primary critters wind up a little faster.',
+      branch: 'primary',
+      tier: 1,
+      cost: 2,
+      prereqs: ['pri-damage'],
+      mods: { cooldownMul: 0.96 },
+      family: 'primary'
+    },
+    'pri-blast': {
+      key: 'pri-blast',
+      name: 'Bigger Bangs',
+      blurb: 'Primary blasts cover a wider footprint.',
+      branch: 'primary',
+      tier: 1,
+      cost: 2,
+      prereqs: ['pri-pierce'],
+      mods: { blastRadiusAdd: 4 },
+      family: 'primary'
+    },
+    'pri-volley': {
+      key: 'pri-volley',
+      name: 'Double Fling',
+      blurb: 'Primary towers loose one extra projectile per volley.',
+      branch: 'primary',
+      tier: 2,
+      cost: 4,
+      prereqs: ['pri-swift', 'pri-blast'],
+      mods: { shotsAdd: 1 },
+      family: 'primary'
+    },
+    'mil-velocity': {
+      key: 'mil-velocity',
+      name: 'Mach Fins',
+      blurb: 'Military projectiles fly faster downrange.',
+      branch: 'military',
+      tier: 1,
+      cost: 2,
+      prereqs: ['mil-damage'],
+      mods: { projSpeedMul: 1.10 },
+      family: 'military'
+    },
+    'mil-pierce': {
+      key: 'mil-pierce',
+      name: 'Drilled Tips',
+      blurb: 'Military shots punch through one extra target.',
+      branch: 'military',
+      tier: 2,
+      cost: 3,
+      prereqs: ['mil-velocity', 'mil-proj-speed'],
+      mods: { pierceAdd: 1 },
+      family: 'military'
+    },
+    'mag-impact': {
+      key: 'mag-impact',
+      name: 'Wide Arcana',
+      blurb: 'Magic bursts splash across a wider area.',
+      branch: 'magic',
+      tier: 1,
+      cost: 2,
+      prereqs: ['mag-damage'],
+      mods: { blastRadiusAdd: 5 },
+      family: 'magic'
+    },
+    'mag-volley': {
+      key: 'mag-volley',
+      name: 'Twin Spells',
+      blurb: 'Magic towers cast one extra projectile per volley.',
+      branch: 'magic',
+      tier: 3,
+      cost: 4,
+      prereqs: ['mag-impact'],
+      gate: 7,
+      mods: { shotsAdd: 1 },
+      family: 'magic'
+    },
+    'sup-stock': {
+      key: 'sup-stock',
+      name: 'Fresh Supplies',
+      blurb: 'Support blasts cover a wider footprint of the track.',
+      branch: 'support',
+      tier: 1,
+      cost: 2,
+      prereqs: ['sup-cost'],
+      mods: { blastRadiusAdd: 4 },
+      family: 'support'
+    },
+    'sup-pierce2': {
+      key: 'sup-pierce2',
+      name: 'Long Reach',
+      blurb: 'Support towers reach half a tile further down the track.',
+      branch: 'support',
+      tier: 2,
+      cost: 3,
+      prereqs: ['sup-stock'],
+      mods: { rangeAdd: 12 },
+      family: 'support'
+    },
+    'gen-power-knowledge': {
+      key: 'gen-power-knowledge',
+      name: 'Old Recipes',
+      blurb: 'Every power works a fraction harder.',
+      branch: 'general',
+      tier: 2,
+      cost: 3,
+      prereqs: ['gen-pop-income', 'gen-round-bonus'],
+      mods: {},
+      ruleOverrides: { powerEffectMul: 0.10 }
+    },
+    'her-vigor': {
+      key: 'her-vigor',
+      name: 'Trial by Fire',
+      blurb: 'Heroes learn from the rush — every hero earns experience a fifth faster.',
+      branch: 'heroes',
+      tier: 2,
+      cost: 3,
+      prereqs: ['her-cooldown'],
+      mods: {},
+      ruleOverrides: { heroXpMul: 0.15 }
+    },
+    'pow-bigger-cache': {
+      key: 'pow-bigger-cache',
+      name: 'Grand Cache',
+      blurb: 'Cash powers pay out even more.',
+      branch: 'powers',
+      tier: 2,
+      cost: 3,
+      prereqs: ['pow-cash-drop'],
+      mods: {},
+      ruleOverrides: { powerEffectMul: 0.20 }
     }
   }
 

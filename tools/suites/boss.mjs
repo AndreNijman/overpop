@@ -13,9 +13,9 @@ export function run (t, OP) {
   }
 
   t.section('the boss registry is complete')
-  t.eq(Object.keys(OP.BOSSES).length, 3, 'three original bosses ship')
+  t.eq(Object.keys(OP.BOSSES).length, 6, 'six original bosses ship')
   const defs = Object.values(OP.BOSSES)
-  t.deep(defs.map(d => d.key).sort(), ['elder-worm', 'storm-drake', 'void-maw'], 'all three boss keys are unique')
+  t.deep(defs.map(d => d.key).sort(), ['cinder-toad', 'elder-worm', 'gloom-warden', 'ridge-colossus', 'storm-drake', 'void-maw'], 'all six boss keys are unique')
   for (const def of defs) {
     t.eq(def.maxTiers, 5, def.key + ' has five tiers')
     t.gt(OP.bossHP(def, 5, false), OP.bossHP(def, 1, false), def.key + ' gains HP by tier')

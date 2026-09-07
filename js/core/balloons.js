@@ -199,7 +199,9 @@
       b.prevY = b.y
       if (b.speedMul <= 0) continue
       const tier = OP.BALLOON_TIERS[b.tier]
-      b.t += tier.speed * base * b.speedMul * b.speedScale * dt
+      // rules.speedMul is the mode-level global pacing dial (Speed mode): one
+      // factor on every balloon's along-track velocity.
+      b.t += tier.speed * base * b.speedMul * b.speedScale * (sim.rules.speedMul || 1) * dt
       sim.map.paths[b.path].posInto(b.t, b)
     }
   }

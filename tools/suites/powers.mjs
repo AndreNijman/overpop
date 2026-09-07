@@ -17,7 +17,7 @@ export function run (t, OP) {
 
   t.section('the consumable registry is complete')
   t.ok(OP.POWERS && typeof OP.POWERS === 'object', 'OP.POWERS exists')
-  t.deep(OP.POWER_ORDER, ['wild-cache', 'hearthfruit', 'briar-snare', 'thunder-stone'],
+  t.deep(OP.POWER_ORDER, ['wild-cache', 'hearthfruit', 'briar-snare', 'thunder-stone', 'gold-geyser', 'amber-sap', 'frost-veil', 'ember-cloud', 'meteor-shard', 'thorn-burst'],
     'four original powers ship in display order')
   t.deep(OP.POWER_ORDER.slice().sort(), Object.keys(OP.POWERS).sort(), 'the order is a registry permutation')
   for (const key of OP.POWER_ORDER) {
@@ -29,9 +29,10 @@ export function run (t, OP) {
   }
 
   t.section('inventory copies are canonical and bounded')
-  t.deep(OP.Powers.copyInventory({ 'wild-cache': 2.9, hearthfruit: -1, nope: 99 }), {
-    'wild-cache': 2, hearthfruit: 0, 'briar-snare': 0, 'thunder-stone': 0
-  }, 'only registered keys survive and counts are non-negative integers')
+        t.deep(OP.Powers.copyInventory({ 'wild-cache': 2.9, hearthfruit: -1, nope: 99 }), {
+          'wild-cache': 2, hearthfruit: 0, 'briar-snare': 0, 'thunder-stone': 0,
+          'gold-geyser': 0, 'amber-sap': 0, 'frost-veil': 0, 'ember-cloud': 0, 'meteor-shard': 0, 'thorn-burst': 0
+        }, 'only registered keys survive and counts are non-negative integers')
 
   t.section('cash and life powers use the economy engine')
   let s = sim({ 'wild-cache': 2, hearthfruit: 1 })

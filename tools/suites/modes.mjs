@@ -27,7 +27,8 @@ export function run (t, OP, env) {
 
   const DIFF_KEYS = ['easy', 'medium', 'hard', 'relentless']
   const MODE_KEYS = ['standard', 'primary-only', 'military-only', 'magic-only', 'deflation',
-    'onslaught', 'half-cash', 'double-hp-blimps', 'alternate-waves', 'reverse', 'purist', 'grim', 'rampart',
+    'onslaught', 'half-cash', 'double-hp-blimps', 'alternate-waves', 'reverse', 'tempo', 'bounty',
+    'deluge', 'purist', 'grim', 'rampart',
     'no-mercy', 'boss-event', 'boss-event-elite', 'tag-team', 'rush-trial']
 
   /** A readable label for the junk values fed to the fallback paths below. */
@@ -52,14 +53,14 @@ export function run (t, OP, env) {
   t.ok(D && typeof D === 'object', 'OP.DIFFICULTIES exists')
   t.ok(M && typeof M === 'object', 'OP.MODES exists')
   t.eq(Object.keys(D).length, 4, 'exactly four difficulties')
-  t.eq(Object.keys(M).length, 18, 'exactly eighteen modes')
+  t.eq(Object.keys(M).length, 21, 'exactly twenty-one modes')
   t.deep(OP.DIFFICULTY_ORDER, DIFF_KEYS, 'DIFFICULTY_ORDER is easiest-first')
-  t.eq(OP.MODE_ORDER.length, 18, 'MODE_ORDER lists eighteen modes')
+  t.eq(OP.MODE_ORDER.length, 21, 'MODE_ORDER lists twenty-one modes')
 
   // The order arrays are what the menus render. A mode missing from one is a mode
   // the player can never pick; a mode listed twice renders twice.
   t.deep(OP.MODE_ORDER.slice().sort(), Object.keys(M).sort(), 'MODE_ORDER is a permutation of the registry')
-  t.eq(new Set(OP.MODE_ORDER).size, 18, 'MODE_ORDER has no duplicates')
+  t.eq(new Set(OP.MODE_ORDER).size, 21, 'MODE_ORDER has no duplicates')
   t.deep(OP.DIFFICULTY_ORDER.slice().sort(), Object.keys(D).sort(), 'DIFFICULTY_ORDER is a permutation of the registry')
   t.eq(new Set(OP.DIFFICULTY_ORDER).size, 4, 'DIFFICULTY_ORDER has no duplicates')
   t.deep(OP.MODE_ORDER, MODE_KEYS, 'the eighteen modes are exactly the ones §8 names, in menu order')
@@ -156,7 +157,7 @@ export function run (t, OP, env) {
   // their own typo by adding it. Every entry has to earn its place twice below:
   // it must be genuinely absent from defaultRules(), and a named file in the
   // shipped bundle has to be shown reading it. Nothing is admitted on a promise.
-  const EXTRA = ['heroXpMul', 'reversePaths', 'bossKey', 'bossElite', 'coop']
+  const EXTRA = ['heroXpMul', 'reversePaths', 'bossKey', 'bossElite', 'coop', 'speedMul']
   // The file that consumes each one, asserted by name. A substring scan over the
   // whole bundle is satisfied by a comment, so for each field the reader is pinned
   // to the exact file and the exact expression that acts on it.
@@ -165,7 +166,8 @@ export function run (t, OP, env) {
     reversePaths: { file: 'js/main.js', needles: ['rules.reversePaths', 'Maps.reversePaths('] },
     bossKey: { file: 'js/core/sim.js', needles: ['rules.bossKey', 'bossKey'] },
     bossElite: { file: 'js/core/sim.js', needles: ['rules.bossElite', 'bossElite'] },
-    coop: { file: 'js/core/coop.js', needles: ['rules.coop', 'sim.coop'] }
+    coop: { file: 'js/core/coop.js', needles: ['rules.coop', 'sim.coop'] },
+    speedMul: { file: 'js/core/balloons.js', needles: ['rules.speedMul'] }
   }
 
   /** Rule keys on `obj` that the engine would silently ignore. */
@@ -432,7 +434,7 @@ export function run (t, OP, env) {
       if (unknownKeys(r).length) bad.keys.push(label + ': ' + unknownKeys(r).join(','))
     }
   }
-  t.eq(combos, 72, 'there are 72 combinations')
+  t.eq(combos, 84, 'there are 84 combinations')
   t.eq(bad.lives.length, 0, 'startLives >= 1 everywhere', bad.lives.join('; '))
   t.eq(bad.cost.length, 0, 'costMul > 0 everywhere', bad.cost.join('; '))
   t.eq(bad.rounds.length, 0, 'firstRound <= lastRound everywhere', bad.rounds.join('; '))
@@ -442,7 +444,7 @@ export function run (t, OP, env) {
   t.eq(bad.cash.length, 0, 'startCash is a finite non-negative number everywhere', bad.cash.join('; '))
   t.eq(bad.keys.length, 0, 'no resolved ruleset carries a field the engine ignores', bad.keys.join('; '))
 
-  t.section('Sim.create succeeds for all 72 combinations')
+  t.section('Sim.create succeeds for all 84 combinations')
   for (const dk of DIFF_KEYS) {
     for (const mk of MODE_KEYS) {
       const r = S.resolveRules({ difficulty: dk, mode: mk })
@@ -645,8 +647,8 @@ export function run (t, OP, env) {
     'no-mercy/easy', 'no-mercy/medium', 'boss-event/easy', 'boss-event-elite/easy', 'boss-event-elite/medium'],
     'PURIST, GRIM, RAMPART, NO MERCY, BOSS-EVENT and BOSS-EVENT-ELITE on lower difficulties are the only restrictions')
   t.ok(MODE_KEYS.every(mk => DIFF_KEYS.some(dk => OP.modeAllowedOn(mk, dk))), 'every mode is playable somewhere')
-    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'relentless')).length, 18, 'Relentless offers all eighteen')
-    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'easy')).length, 12, 'Easy offers twelve')
+    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'relentless')).length, 21, 'Relentless offers all twenty-one')
+    t.eq(MODE_KEYS.filter(mk => OP.modeAllowedOn(mk, 'easy')).length, 15, 'Easy offers fifteen')
   t.notOk(OP.modeAllowedOn('nope', 'medium'), 'an unknown mode is refused')
   t.notOk(OP.modeAllowedOn('standard', 'nope'), 'an unknown difficulty is refused')
   t.notOk(OP.modeAllowedOn(undefined, undefined), 'and so is nothing at all')

@@ -37,9 +37,61 @@
       effect: 'damage',
       damage: 60,
       dmgType: OP.DMG.ENERGY
+    },
+    'gold-geyser': {
+      key: 'gold-geyser',
+      name: 'Gold Geyser',
+      short: 'GEYSER',
+      blurb: 'A vein of paydirt bursts open for 1,200 cash.',
+      effect: 'cash',
+      amount: 1200
+    },
+    'amber-sap': {
+      key: 'amber-sap',
+      name: 'Amber Sap',
+      short: 'AMBER',
+      blurb: 'Seal the wounds — restore 80 lives when the current rules allow recovery.',
+      effect: 'lives',
+      amount: 80
+    },
+    'frost-veil': {
+      key: 'frost-veil',
+      name: 'Frost Veil',
+      short: 'VEIL',
+      blurb: 'A killing frost — every balloon slows by 60 percent for twelve seconds.',
+      effect: 'slow',
+      duration: 12,
+      magnitude: 0.6
+    },
+    'ember-cloud': {
+      key: 'ember-cloud',
+      name: 'Ember Cloud',
+      short: 'EMBER',
+      blurb: 'A drifting haze of embers — every balloon slows by 30 percent for five seconds.',
+      effect: 'slow',
+      duration: 5,
+      magnitude: 0.3
+    },
+    'meteor-shard': {
+      key: 'meteor-shard',
+      name: 'Meteor Shard',
+      short: 'METEOR',
+      blurb: 'Call down a shard that hits every balloon and the active boss for 150 energy damage.',
+      effect: 'damage',
+      damage: 150,
+      dmgType: OP.DMG.ENERGY
+    },
+    'thorn-burst': {
+      key: 'thorn-burst',
+      name: 'Thorn Burst',
+      short: 'THORN',
+      blurb: 'The undergrowth lashes out — every balloon takes 40 sharp damage.',
+      effect: 'damage',
+      damage: 40,
+      dmgType: OP.DMG.SHARP
     }
   }
 
   OP.POWERS = POWERS
-  OP.POWER_ORDER = ['wild-cache', 'hearthfruit', 'briar-snare', 'thunder-stone']
+  OP.POWER_ORDER = ['wild-cache', 'hearthfruit', 'briar-snare', 'thunder-stone', 'gold-geyser', 'amber-sap', 'frost-veil', 'ember-cloud', 'meteor-shard', 'thorn-burst']
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

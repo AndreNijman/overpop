@@ -41,8 +41,8 @@ export function run (t, OP) {
   t.eq(BE.featuredBoss(), BE.featuredBoss(), 'with no arg it is self-consistent for today')
 
   t.section('the roster and key guards stay in lockstep with the boss registry')
-  t.eq(OP.bossOrder().join(','), 'elder-worm,storm-drake,void-maw', 'the rotation order matches BOSS_ORDER')
-  t.eq(OP.bossRoster().length, 3, 'all three bosses are on the roster')
+  t.eq(OP.bossOrder().join(','), 'elder-worm,storm-drake,void-maw,cinder-toad,gloom-warden,ridge-colossus', 'the rotation order matches BOSS_ORDER')
+  t.eq(OP.bossRoster().length, 6, 'all six bosses are on the roster')
   t.eq(BE.validBoss('elder-worm'), 'elder-worm', 'a known key validates')
   t.eq(BE.validBoss('not-a-boss'), null, 'an unknown key is rejected')
   t.eq(BE.validBoss(123), null, 'a non-string key is rejected')
