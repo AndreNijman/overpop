@@ -181,3 +181,50 @@ ladder currently gates more steeply.
    surges (damage, speed, cash, lives, range). No insta-monkey mechanic.
 4. Rebalance the **medium+ reference curve** so a competent generic build can
    hold at least Medium Standard (currently 0/4 maps).
+---
+
+## 9. 2026-09-07 system audit (fresh pass, wiki cross-check)
+
+Requested coverage: monkeys, maps, monkey knowledge, legends, paragons, boss
+events/bosses, round structures, freeplay rules and generation, races, daily
+logins, achievements, upgrade paths. Status after this audit:
+
+| system | local state | canon reference | verdict |
+|---|---|---|---|
+| monkeys/towers | 31 towers, 4 classes; 20 heroes; template-driven | 22+1 towers, 4 classes | ~ full-slot parity, original names |
+| upgrade paths | 3 paths x 5 tiers, one branch above tier 2, XP-funded per-cell unlocks | 3 x 5 + crosspath rules | ~ canonical shape; per-cell unlock verified (TowerXp.cellUnlocked) |
+| paragons | 16 (suite: 1388 assertions) | 9 + more via legends | ~ |
+| maps | 48 (12 per tier x 4) | ~93 across 4 tiers | ~ half count; terrain/track/LOS systems exist |
+| monkey knowledge | 26 nodes, 5 branches (primary/military/magic/support/general) | ~100 nodes, 6 trees (…+Heroes, Powers), tier gates + respec | ~ structure right, depth + tree count short |
+| legends | 4-stage rogue-lite, 28 artifacts, heroes/boosts/merchant/mini-games | Rogue Legends (85+ artifacts) | ~ faithful frame, smaller slice |
+| boss events | weekly rotation, 5 HP tiers, elite gating, 6-boss roster | 6-boss rotation, same contract | ~ |
+| boss bloons | 6 boss defs (js/data/bosses.js) | 6 bosses | ~ |
+| round structures | full BTD6 composition mirror (rounds 1-100), alternate set retuned to the envelope | rounds 1-100 + alternate | ~ **done this session** |
+| freeplay | deterministic index-seeded generator, hp/speed scaling, shell/plated shells | rounds 101+ scaling | ~ |
+| races | Rush Trial + trials/expedition systems | Race Event + Odyssey/Expeditions | ~ |
+| daily challenges | deterministic date-seeded, streak tracking | daily challenges + streaks | ~ |
+| daily LOGINS | streak exists, but no per-day LOGIN REWARD calendar | daily login calendar pays escalating rewards | – **gap - build next** |
+| achievements | 16 | ~145 + 14 hidden | – depth gap - author more |
+
+### Build backlog raised by this audit
+
+1. **Daily login calendar** — consecutive-day login rewards (escalating
+   knowledge points / draft tokens / powers), persisted via OP.Save, streak
+   safe against clock rollback. Small, self-contained, suite-testable.
+2. **Monkey knowledge depth** — add the Heroes and Powers branches (matching
+   canon's six-tree shape), raise total nodes toward ~60+, add tier-gate
+   thresholds ("X points invested in this tree before tier Y unlocks") and a
+   respec toggle.
+3. **Achievements** — expand the list toward 60+ with canonical categories
+   (difficulty badges, pop-count ladders, tower-category wins, coop, events).
+4. **Modes**: add Apopalypse (round-teleport start + no saving between waves),
+   Speed (accelerated), Double Cash equivalents - all authorable in
+   js/data/modes.js with the existing rules plumbing.
+5. **Map parity**: grow each tier toward BTD6 counts; audit each map for
+   multi-path support and removables.
+6. **Upgrade-path parity**: rename/rebalance every tower's three paths to the
+   canonical path themes (e.g. dart: 0-0-X base -> crosspath ladders),
+   preserving original proper nouns. Largest single work item.
+7. **UI/graphics pass**: menu shells, HUD, tower/balloon sprites toward the
+   source game's look (fonts, panels, colors, pop feedback).
+

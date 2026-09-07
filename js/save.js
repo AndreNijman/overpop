@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 11
+  Save.SCHEMA_VERSION = 12
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -250,7 +250,10 @@
       towerUnlocks: {},       // towerKey -> [branch0..2] highest tier unlocked per branch
       legends: null,          // active Legends campaign state or null
       legendsCompletions: 0,  // completed Legends campaigns
-      drafts: []              // Draft Tokens: { key, level, count } slots
+      drafts: [],             // Draft Tokens: { key, level, count } slots
+      loginStreak: 0,         // consecutive-day login calendar streak
+      loginTotal: 0,          // lifetime login days claimed
+      lastLoginDay: ''        // dateKey of the most recent claim
     }
   }
 
@@ -306,6 +309,10 @@
     out.drafts = normaliseDrafts(raw.drafts)
     out.towerXp = normaliseTowerXp(raw.towerXp)
     out.towerUnlocks = normaliseTowerUnlocks(raw.towerUnlocks)
+    out.loginStreak = counter(raw.loginStreak)
+    out.loginTotal = counter(raw.loginTotal)
+    out.lastLoginDay = typeof raw.lastLoginDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.lastLoginDay)
+      ? raw.lastLoginDay : ''
     out.schemaVersion = Save.SCHEMA_VERSION
     return out
   }
@@ -664,6 +671,14 @@
         }
       }
       return p
+    },
+    // Version 11 → 12: add the daily login calendar. Nothing to derive —
+    // streaks start when the player first shows up.
+    11: function (p) {
+      if (typeof p.loginStreak !== 'number' || p.loginStreak < 0) p.loginStreak = 0
+      if (typeof p.loginTotal !== 'number' || p.loginTotal < 0) p.loginTotal = 0
+      if (typeof p.lastLoginDay !== 'string') p.lastLoginDay = ''
+      return p
     }
   }
 
@@ -796,6 +811,9 @@
     if (!isPlainObject(p.towerUnlocks)) p.towerUnlocks = {}
     if (!Array.isArray(p.drafts)) p.drafts = []
     p.drafts = normaliseDrafts(p.drafts)
+    if (typeof p.loginStreak !== 'number' || p.loginStreak < 0) p.loginStreak = 0
+    if (typeof p.loginTotal !== 'number' || p.loginTotal < 0) p.loginTotal = 0
+    if (typeof p.lastLoginDay !== 'string') p.lastLoginDay = ''
     return p
   }
 

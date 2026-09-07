@@ -115,7 +115,7 @@ export function run (t, OP, env) {
 
   t.section('a fresh profile is complete and storable')
   const d = S.defaults()
-  t.eq(S.SCHEMA_VERSION, 11, 'the schema starts at version 11')
+  t.eq(S.SCHEMA_VERSION, 12, 'the schema starts at version 12')
   t.ok(Number.isInteger(S.SCHEMA_VERSION) && S.SCHEMA_VERSION >= 1, 'and is a positive integer')
   t.ok(completeProfile(OP, d), 'defaults() has every field the game reads')
   t.eq(d.settings.gameSpeed, 1, 'the game starts at normal speed')

@@ -59,6 +59,14 @@
     S.profile = OP.Save && OP.Save.load ? OP.Save.load() : null
     applySettings()
 
+    // The daily login calendar: today's claim, paid straight into the profile.
+    // Silently accrues for now — the calendar screen is part of the UI pass.
+    if (S.profile && OP.Logins && OP.Logins.claim) {
+      const key = OP.Daily && OP.Daily.dateKey ? OP.Daily.dateKey(new Date())
+        : new Date().toISOString().slice(0, 10)
+      try { OP.Logins.claim(S.profile, key); OP.Save.write(S.profile) } catch (e) { /* a login claim must never block boot */ }
+    }
+
     resize()
     window.addEventListener('resize', resize)
     if (window.matchMedia) {
