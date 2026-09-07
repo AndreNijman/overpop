@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 10
+  Save.SCHEMA_VERSION = 11
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -247,6 +247,7 @@
       activeTrial: null,    // active trial state or null
       completedTrials: {},   // trialKey -> { completed, bestTime, completedAt }
       towerXp: {},            // towerKey -> banked tower XP from completed runs
+      towerUnlocks: {},       // towerKey -> [branch0..2] highest tier unlocked per branch
       legends: null,          // active Legends campaign state or null
       legendsCompletions: 0,  // completed Legends campaigns
       drafts: []              // Draft Tokens: { key, level, count } slots
@@ -304,6 +305,7 @@
     out.legendsCompletions = counter(raw.legendsCompletions)
     out.drafts = normaliseDrafts(raw.drafts)
     out.towerXp = normaliseTowerXp(raw.towerXp)
+    out.towerUnlocks = normaliseTowerUnlocks(raw.towerUnlocks)
     out.schemaVersion = Save.SCHEMA_VERSION
     return out
   }
@@ -494,6 +496,29 @@
     return out
   }
 
+  /* Normalise per-upgrade XP unlocks. towerKey -> [branch0..branch2] where each
+     entry is the highest tier (0-5) unlocked on that branch. Values are clamped
+     to the shipped tree depth and junk is dropped, same as every user-keyed map. */
+  function normaliseTowerUnlocks (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    for (const key in raw) {
+      if (!own(raw, key) || !safeKey(key)) continue
+      const arr = raw[key]
+      if (!Array.isArray(arr)) continue
+      let any = false
+      const cell = [0, 0, 0]
+      for (let p = 0; p < 3; p++) {
+        const n = counter(arr[p])
+        const clamped = n > 5 ? 5 : n
+        cell[p] = clamped
+        if (clamped > 0) any = true
+      }
+      if (any) out[key] = cell
+    }
+    return out
+  }
+
   /* Draft Token slots as a canonical array of { key, level, count }. One slot per
      (tower key, level); a malformed or overlapping entry is repaired into shape
      rather than dropped, because a slot is earned content the player owns. */
@@ -550,7 +575,12 @@
      Exposed as Save.MIGRATIONS below so the harness can prove the loop really
      steps — with a single version there is no hop to observe otherwise, and an
      unexercised migration engine is one that breaks on the day it is first
-     needed. */
+     needed.
+
+     The cumulative per-branch tower XP ladder, kept in step with
+     js/core/towerxp.js. The v10→v11 step needs it to honour the tier-wide
+     unlocks the old model granted. */
+  const TOWER_XP_LADDER = [0, 150, 450, 1500, 6000, 25000]
   const MIGRATIONS = {
     // An unversioned profile — written before the schema existed, or hand-made.
     // Nothing to move; normalise() repairs it.
@@ -612,6 +642,27 @@
     // from Boss Event tiers, Rush Trial bests and exhausted Legends chests.
     9: function (p) {
       if (!Array.isArray(p.drafts)) p.drafts = []
+      return p
+    },
+    // Version 10 → 11: per-upgrade XP unlocks. The old model unlocked a whole
+    // tier on every branch at once; the new one spends banked XP on the exact
+    // (branch, tier) cell you choose. A banked total that once bought tier N
+    // everywhere is honoured by granting each branch that tier — progression is
+    // carried over, never revoked — while the banked XP itself is kept intact.
+    10: function (p) {
+      const xpMap = p.towerXp
+      if (isPlainObject(xpMap) && !isPlainObject(p.towerUnlocks)) {
+        p.towerUnlocks = {}
+        for (const key in xpMap) {
+          if (!own(xpMap, key) || !safeKey(key)) continue
+          const xp = counter(xpMap[key])
+          let hi = 0
+          for (let i = TOWER_XP_LADDER.length - 1; i >= 1; i--) {
+            if (xp >= TOWER_XP_LADDER[i]) { hi = i; break }
+          }
+          if (hi > 0) p.towerUnlocks[key] = [hi, hi, hi]
+        }
+      }
       return p
     }
   }
@@ -742,6 +793,7 @@
     if (p.activeTrial !== null && !isPlainObject(p.activeTrial)) p.activeTrial = null
     if (!isPlainObject(p.completedTrials)) p.completedTrials = {}
     if (!isPlainObject(p.towerXp)) p.towerXp = {}
+    if (!isPlainObject(p.towerUnlocks)) p.towerUnlocks = {}
     if (!Array.isArray(p.drafts)) p.drafts = []
     p.drafts = normaliseDrafts(p.drafts)
     return p

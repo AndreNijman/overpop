@@ -275,7 +275,12 @@ export function run (t, OP, env) {
 
   t.section('the tower tab reports lifetime XP and upgrade lock state')
   if (OP.Bestiary.state.tab !== undefined && OP.TowerXp && OP.TowerXp.profileXp) {
-    const xpApp = stubApp({ profile: Object.assign(OP.Save.defaults(), { towerXp: { 'acorn-fox': 500 } }) })
+    // Migrate a v10 save: the tier-wide XP unlocks every branch to tier 2 (the
+    // v10→v11 grandfathering), then the screen reflects the per-upgrade model.
+    const xpProfile = OP.Save.migrate(JSON.parse(JSON.stringify(
+      { schemaVersion: 10, stats: {}, towerXp: { 'acorn-fox': 500 } }
+    )))
+    const xpApp = stubApp({ profile: xpProfile })
     Menus.install(xpApp)
     OP.Bestiary.state.tab = 'towers'
     OP.Bestiary.state.towerKey = 'acorn-fox'
@@ -284,12 +289,17 @@ export function run (t, OP, env) {
     const squashed = ctx.texts.join(' ').toUpperCase()
     t.ok(squashed.indexOf('TOWER XP') >= 0, 'the XP readout is present')
     t.ok(squashed.indexOf('500') >= 0, 'and shows the tower type total')
-    // 500 XP buys tier 1 and 2 (150, 450) but not tier 3 (1500).
+    // The migration carried the old tier-wide unlock to each branch: all three
+    // branches hold tier 2 open, tier 3 is still locked.
     t.eq(OP.TowerXp.tierUnlocked(xpApp.state.profile, 'acorn-fox', 1), true, 'tier 1 is unlocked at 500 XP')
     t.eq(OP.TowerXp.tierUnlocked(xpApp.state.profile, 'acorn-fox', 2), true, 'tier 2 is unlocked at 500 XP')
     t.eq(OP.TowerXp.tierUnlocked(xpApp.state.profile, 'acorn-fox', 3), false, 'tier 3 is locked at 500 XP')
+    t.eq(OP.TowerXp.pathUnlocked(xpApp.state.profile, 'acorn-fox', 0), 2, 'branch 1 held the tier-wide unlock')
+    t.eq(OP.TowerXp.pathUnlocked(xpApp.state.profile, 'acorn-fox', 1), 2, 'branch 2 held it too')
+    t.eq(OP.TowerXp.pathUnlocked(xpApp.state.profile, 'acorn-fox', 2), 2, 'and branch 3')
     t.ok(squashed.indexOf('LOCKED') >= 0, 'the detail panel marks locked tiers')
-    t.ok(squashed.indexOf('NEXT UNLOCK AT') >= 0, 'and announces the next unlock threshold')
+    t.ok(squashed.indexOf('NEXT UNLOCK') >= 0, 'and announces the next unlock step')
+    t.ok(squashed.indexOf('UNLOCK') >= 0, 'and offers the unlock action on locked cells')
     t.eq(OP.TowerXp.profileXp(xpApp.state.profile, 'acorn-fox'), 500, 'the profile XP helper reads the save')
     OP.Bestiary.state.tab = 'balloons'
     OP.Bestiary.state.towerKey = null

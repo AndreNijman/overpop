@@ -156,41 +156,35 @@ export function run (t, OP) {
   t.lt(rbe[1], 25, `round 1 is a handful of reds (${rbe[1]} RBE)`)
   t.gte(rbe[1], 5, 'but it is not empty')
   t.ok(groupsOf(1).every(g => g.tier === 'red'), 'and it is nothing but reds')
-  t.between(rbe[100], 150000, 400000, `round 100 lands in the intended band (${rbe[100]} RBE)`)
+  t.between(rbe[100], 40000, 80000, `round 100 is a single OMEN, as in BTD6 (${rbe[100]} RBE)`)
+  const heaviest = Math.max(...nums.map(n => rbe[n]))
+  t.between(heaviest, 120000, 260000, `the heaviest round is the pre-climax fortified wall (${heaviest} RBE)`)
 
-  t.section('RBE increases strictly, round to round')
-  let firstDrop = null
-  for (let n = 2; n <= 100 && firstDrop === null; n++) {
-    if (rbe[n] <= rbe[n - 1]) firstDrop = n
-  }
-  t.ok(firstDrop === null, firstDrop === null
-    ? 'every round is worth more RBE than the one before it'
-    : `round ${firstDrop} (${rbe[firstDrop]}) is not greater than round ${firstDrop - 1} (${rbe[firstDrop - 1]})`)
+  t.section('the BTD6 milestone rounds are pinned to their solo-blimp weights')
+  // BTD6 does not climb monotonically — the famous post-GOLIATH dip is part of
+  // the game's texture (a 616-RBE MOAB right after a 1620-RBE round 39). What
+  // gets pinned instead is the shape of the milestone rounds themselves.
+  t.between(rbe[40], 500, 800, `round 40 is one GOLIATH alone (${rbe[40]})`)
+  t.between(rbe[60], 2500, 4000, `round 60 is one LEVIATHAN alone (${rbe[60]})`)
+  t.between(rbe[80], 12000, 22000, `round 80 is one COLOSSUS alone (${rbe[80]})`)
+  t.between(rbe[90], 2500, 5000, `round 90 is a lead wall escorting the first WRAITHs (${rbe[90]})`)
+  t.gt(rbe[100], 40 * rbe[40], `round 100 outweighs round 40 forty-fold (${rbe[100]})`)
 
-  t.section('the growth reads as a curve, not a line')
-  // Round 1's "previous round" is an empty board, not round 1 itself — otherwise
-  // the first decade's average understates itself and a later tuning pass chases
-  // a number that was never real.
-  const avgDelta = (lo, hi) => (rbe[hi] - (lo === 1 ? 0 : rbe[lo - 1])) / (hi - lo + 1)
-  const decade = []
-  for (let d = 0; d < 10; d++) decade.push(avgDelta(d * 10 + 1, d * 10 + 10))
-  let flatDecade = null
-  for (let d = 1; d < 10 && flatDecade === null; d++) if (!(decade[d] > decade[d - 1])) flatDecade = d
-  t.ok(flatDecade === null, flatDecade === null
-    ? 'each decade of rounds grows faster than the one before: ' + decade.map(v => Math.round(v)).join(' → ')
-    : `decade ${flatDecade + 1} does not grow faster than decade ${flatDecade} (${Math.round(decade[flatDecade])} vs ${Math.round(decade[flatDecade - 1])})`)
-  t.gt(avgDelta(41, 60), avgDelta(1, 20) * 10, 'the 40s-60s are more than ten times steeper than the opening twenty')
-  t.gt(avgDelta(81, 100), avgDelta(41, 60) * 10, 'and from 80 up it is another order of magnitude harder again')
+  t.section('each blimp era out-scales the one before')
+  t.gt(rbe[60] / rbe[40], 4, 'the LEVIATHAN era is four-plus times the GOLIATH era')
+  t.gt(rbe[80] / rbe[60], 4, 'and the COLOSSUS era out-scales the LEVIATHAN era again')
+  t.gt(rbe[100] / rbe[80], 3, 'and the OMEN era out-scales the COLOSSUS era')
   t.lt(rbe[20] / rbe[100], 0.01, 'round 20 is under 1% of round 100 — the early game is genuinely gentle')
 
-  t.section('no round is an unsignalled cliff')
+  t.section('cliffs are blimp-era, and bounded')
   let worst = 1, worstAt = 0
   for (let n = 2; n <= 100; n++) {
     const ratio = rbe[n] / rbe[n - 1]
     if (ratio > worst) { worst = ratio; worstAt = n }
   }
-  t.lt(worst, 2, `the biggest single-round jump is ${worst.toFixed(2)}x, at round ${worstAt}`)
-  t.gt(worst, 1.05, 'and at least one round is a real step up rather than a nudge')
+  t.lt(worst, 25, `the biggest single-round jump is ${worst.toFixed(2)}x, at round ${worstAt}`)
+  t.gte(worstAt, 40, 'and it is a blimp-era wall, not an ambush in the early game')
+  t.gt(worst, 5, 'the table still has real cliffs — the BTD6 texture, not a smooth ramp')
 
   /* ---------- OP.roundSetRBE ---------- */
 
@@ -230,32 +224,36 @@ export function run (t, OP) {
   for (const n of nums) {
     for (const g of groupsOf(n)) if (firstAt[g.tier] === undefined) firstAt[g.tier] = n
   }
-  // intended round for each tier. A tier may arrive up to 3 rounds late, never
-  // early — an early arrival is a balance bug, a late one is pacing.
+  // BTD6's exact debut rounds. The mirror is faithful, so every tier lands on
+  // its source round precisely — a drift of even one round is a bug now, not
+  // pacing.
   const INTENDED = {
-    red: 1, blue: 3, green: 5, yellow: 7, pink: 11, black: 17, white: 17, lead: 20,
-    zebra: 23, rainbow: 28, ceramic: 32, purple: 35,
-    goliath: 40, wraith: 52, leviathan: 60, colossus: 80, omen: 98
+    red: 1, blue: 3, green: 6, yellow: 11, pink: 15, black: 20, white: 22,
+    purple: 25, zebra: 26, lead: 28, rainbow: 35, ceramic: 38,
+    goliath: 40, leviathan: 60, colossus: 80, wraith: 90, omen: 100
   }
   for (const key of Object.keys(INTENDED)) {
-    const want = INTENDED[key]
-    const got = firstAt[key]
-    const hi = Math.min(100, want + 3)
-    t.ok(got !== undefined && got >= want && got <= hi,
-      `${key} first appears at round ${got} (intended ${want}, allowed ${want}-${hi})`)
+    t.eq(firstAt[key], INTENDED[key],
+      `${key} first appears exactly at round ${INTENDED[key]} (got ${firstAt[key]})`)
   }
   t.eq(Object.keys(firstAt).length, OP.BALLOON_TIERS.length,
     'every tier in the roster is used somewhere in the table')
   t.eq(Object.keys(INTENDED).length, OP.BALLOON_TIERS.length,
     'and the intended-round list covers the whole roster, so no tier escapes the check')
 
-  t.section('the blimp ladder arrives in RBE order')
-  const blimps = ['goliath', 'wraith', 'leviathan', 'colossus', 'omen']
+  t.section('the blimp ladder arrives in BTD6 order')
+  const blimps = ['goliath', 'leviathan', 'colossus', 'wraith', 'omen']
   for (let i = 1; i < blimps.length; i++) {
     t.gt(firstAt[blimps[i]], firstAt[blimps[i - 1]],
       `${blimps[i]} debuts after ${blimps[i - 1]}`)
-    t.gt(OP.balloonRBE(blimps[i]), OP.balloonRBE(blimps[i - 1]),
-      `and is worth more RBE than ${blimps[i - 1]}`)
+  }
+  // RBE order differs from debut order at exactly one step: the WRAITH is a
+  // fast special-delivery blimp whose hull is far lighter than the COLOSSUS
+  // class it shares the late game with, yet it debuts after one.
+  const ladder = ['goliath', 'wraith', 'leviathan', 'colossus', 'omen']
+  for (let i = 1; i < ladder.length; i++) {
+    t.gt(OP.balloonRBE(ladder[i]), OP.balloonRBE(ladder[i - 1]),
+      `${ladder[i]} is worth more RBE than ${ladder[i - 1]}`)
   }
 
   /* ---------- properties ---------- */
@@ -273,10 +271,11 @@ export function run (t, OP) {
       }
     }
   }
-  t.between(propFirst.VEILED, 22, 27, `VEILED first appears at round ${propFirst.VEILED}`)
-  t.between(propFirst.REGEN, 23, 28, `REGEN first appears at round ${propFirst.REGEN}`)
-  t.between(propFirst.PLATED, 67, 73, `PLATED first appears at round ${propFirst.PLATED}`)
-  t.between(propFirst.FORTIFIED, 47, 65, `FORTIFIED first appears at round ${propFirst.FORTIFIED}`)
+  t.eq(propFirst.VEILED, 24, `VEILED debuts at round ${propFirst.VEILED} — the BTD6 camo round`)
+  t.eq(propFirst.REGEN, 17, `REGEN debuts at round ${propFirst.REGEN} — the BTD6 regrow round`)
+  t.eq(propFirst.PLATED, 45, `PLATED debuts at round ${propFirst.PLATED} — the BTD6 fortified round`)
+  t.eq(propFirst.FORTIFIED, undefined,
+    'FORTIFIED (plated-but-slower, an Overpop variant) stays out of the standard table — BTD6 fortified only doubles HP')
   let earlyProp = null
   for (const n of nums) {
     if (n >= Math.min(propFirst.VEILED, propFirst.REGEN)) break
@@ -285,22 +284,23 @@ export function run (t, OP) {
   t.ok(earlyProp === null, 'no round carries a property before the first property round')
   t.gte(propRounds.VEILED.length, 10, `VEILED recurs (${propRounds.VEILED.length} rounds), so detection stays required`)
   t.gte(propRounds.REGEN.length, 5, `REGEN recurs (${propRounds.REGEN.length} rounds)`)
-  t.between(propRounds.PLATED.length, 4, 15, `PLATED is used sparingly (${propRounds.PLATED.length} rounds)`)
+  t.between(propRounds.PLATED.length, 4, 40, `PLATED recurs through the fortified era (${propRounds.PLATED.length} rounds)`)
   t.ok(propRounds.VEILED.some(n => n > 60), 'VEILED is still in play in the late game')
-  t.ok(propRounds.PLATED.every(n => n >= 67), 'and no PLATED balloon arrives before the seventies')
+  t.ok(propRounds.PLATED.every(n => n >= 45), 'and no PLATED balloon arrives before round 45')
 
   /* ---------- personality rounds ---------- */
 
-  t.section('an early all-yellow rush')
-  const rush = nums.filter(n => n <= 15 &&
-    groupsOf(n).every(g => g.tier === 'yellow') &&
-    countOf(n) >= 6 &&
-    groupsOf(n).every(g => g.spacing <= 0.25))
-  t.gte(rush.length, 1, `a tightly-packed yellow-only round exists in the first fifteen: ${rush.join(',') || 'none'}`)
+  t.section('early rounds are single-tier teaching floods')
+  const greens = nums.filter(n => n <= 15 &&
+    groupsOf(n).length === 1 && groupsOf(n)[0].tier === 'green' && countOf(n) >= 25)
+  t.gte(greens.length, 1, `a greens-only teaching round exists in the first fifteen: round ${greens.join(',') || 'none'}`)
+  const blueFlood = nums.filter(n => n < 15 &&
+    countOf(n) >= 100 && groupsOf(n).every(g => g.tier === 'blue'))
+  t.gte(blueFlood.length, 1, `and a hundred-strong blue flood lands before round 15: round ${blueFlood.join(',') || 'none'}`)
 
   t.section('a grouped ceramic wall')
-  const walls = nums.filter(n => groupsOf(n).some(g => g.tier === 'ceramic' && g.spacing === 0 && g.count >= 12))
-  t.gte(walls.length, 1, `a spacing-0 ceramic clump of 12+ exists: round ${walls.join(',') || 'none'}`)
+  const walls = nums.filter(n => groupsOf(n).some(g => g.tier === 'ceramic' && g.count >= 40))
+  t.gte(walls.length, 1, `a wall of 40+ ceramics pours through in one round: round ${walls.join(',') || 'none'}`)
   t.ok(walls.every(n => n > firstAt.ceramic), 'and it is not the round ceramics are introduced')
 
   t.section('a round that is one blimp, alone')
@@ -326,15 +326,13 @@ export function run (t, OP) {
   const wr = firstAt.wraith
   t.ok(groupsOf(wr).some(g => g.tier === 'wraith'), `round ${wr} contains a WRAITH`)
   t.ok((OP.tierByKey('wraith').props & P.VEILED) !== 0, 'which is born veiled, so that round needs detection')
-  t.gt(rbe[wr] / rbe[wr - 1], 1.1, 'and it is more than a 10% jump over the round before')
+  t.gt(rbe[wr + 1] / rbe[wr], 5, 'and the fortified wall right after it is the real spike — the WRAITH round itself is a teaser')
 
   t.section('round 100 is a climax')
   const last = groupsOf(100)
   t.ok(last.some(g => g.tier === 'omen'), 'round 100 sends OMENs')
-  t.gt(last.filter(g => g.tier === 'omen')[0].count, 1, 'more than one of them')
-  t.ok(last.some(g => g.tier === 'colossus'), 'behind a COLOSSUS escort')
-  t.eq(Math.max(...nums.map(n => rbe[n])), rbe[100], 'and nothing in the table is bigger')
-  t.gt(rbe[100] - rbe[99], rbe[99] - rbe[98], 'the final step up is the largest in the table')
+  t.eq(last.filter(g => g.tier === 'omen')[0].count, 1, 'exactly one of them, alone — the BTD6 BAD finale')
+  t.eq(Math.max(...nums.map(n => rbe[n])), rbe[98], 'and the heaviest round of the table is the fortified blimp wall at 98')
 
   /* ---------- durations ---------- */
 
@@ -358,7 +356,7 @@ export function run (t, OP) {
   // the game out from under the runner.
   const sample = []
   for (let n = 7; n <= 100; n += 7) sample.push(n)
-  for (const n of [1, 40, 48, 52, 55, 60, 80, 100]) if (!sample.includes(n)) sample.push(n)
+  for (const n of [1, 40, 60, 80, 90, 100]) if (!sample.includes(n)) sample.push(n)
   sample.sort((a, b) => a - b)
 
   function releaseRound (n) {
@@ -388,7 +386,7 @@ export function run (t, OP) {
   }
 
   t.gte(sample.length, 20, `the sample covers ${sample.length} rounds: ${sample.join(',')}`)
-  t.ok([1, 40, 52, 60, 80, 100].every(n => sample.includes(n)),
+  t.ok([1, 40, 60, 80, 90, 100].every(n => sample.includes(n)),
     'and includes round 1 and every blimp debut')
   sampleScan('the round set resolved without falling through to the missing-round path', (n, r) =>
     r.sim.events.some(e => e.kind === 'error') ? 'an error event was emitted' : null)
@@ -423,10 +421,11 @@ export function run (t, OP) {
   const wallRound = pick(walls, 'ceramic-wall')
   if (wallRound) {
     const wallRun = releaseRound(wallRound)
-    const wallGroup = groupsOf(wallRound).find(g => g.tier === 'ceramic' && g.spacing === 0)
+    const wallGroup = groupsOf(wallRound).filter(g => g.tier === 'ceramic')
+      .reduce((a, g) => (g.count > a.count ? g : a))
     let peak = 0
     for (const b of wallRun.sim.balloons) if (OP.BALLOON_TIERS[b.tier].key === 'ceramic') peak++
-    t.gte(peak, wallGroup.count, 'the ceramic wall is on the board all at once, not trickled')
+    t.gte(peak, Math.min(wallGroup.count, 12), 'the ceramic wall sits thick on the board, not a trickle')
   }
 
   const camoRound = pick(camo, 'camo-heavy')

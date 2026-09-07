@@ -35,6 +35,15 @@ export function run (t, OP, env) {
     t.gt(X.TIER_XP[i], X.TIER_XP[i - 1], 'the ladder is strictly increasing at tier ' + i)
   }
 
+  t.section('one branch\'s unlock costs the marginal step of the ladder')
+  t.eq(X.unlockCost(0), Infinity, 'there is no tier 0 to unlock')
+  t.eq(X.unlockCost(1), 150, 'tier 1 costs 150')
+  t.eq(X.unlockCost(2), 300, 'tier 2 is the step from 150 to 450')
+  t.eq(X.unlockCost(3), 1050, 'tier 3 is the step from 450 to 1500')
+  t.eq(X.unlockCost(4), 4500, 'tier 4 is the step from 1500 to 6000')
+  t.eq(X.unlockCost(5), 19000, 'tier 5 is the step from 6000 to 25000')
+  t.eq(X.unlockCost(6), Infinity, 'past tier 5 there is nothing to unlock')
+
   t.section('round multiplier')
   t.eq(X.roundMultiplier(0), 1, 'round 0 is 1x')
   t.eq(X.roundMultiplier(1), 1, 'the first ten rounds are 1x')
@@ -151,8 +160,9 @@ t.section('pool splits 50/50 between spending and popping')
   simC.towerXp = { 'acorn-fox': 100000 }
   const twC = OP.Towers.place(simC, 'acorn-fox', 100, 360, { free: true })
   t.eq(twC.runXp, 0, 'no XP yet')
+  X.unlockCell(null, simC, 'acorn-fox', 0, 1)
   const buyResult = OP.Upgrades.buy(simC, twC, 0)
-  t.ok(buyResult.ok, 'an affordable, XP-clear upgrade buys')
+  t.ok(buyResult.ok, 'an affordable, unlocked upgrade buys')
   t.eq(twC.runXp, 0, 'the purchase grants no XP - only popping earns XP')
 
   t.section('money never buys XP in freeplay either')
@@ -160,6 +170,7 @@ t.section('pool splits 50/50 between spending and popping')
   simFC.freeplay = true
   simFC.towerXp = { 'acorn-fox': 100000 }
   const twFC = OP.Towers.place(simFC, 'acorn-fox', 100, 360, { free: true })
+  X.unlockCell(null, simFC, 'acorn-fox', 0, 1)
   const buyFC = OP.Upgrades.buy(simFC, twFC, 0)
   t.ok(buyFC.ok, 'the buy succeeds')
   t.eq(twFC.runXp, 0, 'and still grants no XP, freeplay or not')
@@ -192,28 +203,40 @@ t.section('pool splits 50/50 between spending and popping')
   t.section('a raw sim with no bank is unenforced')
   const simRw = makeSim(OP, { cash: 5000 })
   t.eq(X.baseOf(simRw, 'acorn-fox'), 0, 'no bank reads as zero')
-  t.eq(X.canUnlock(simRw, 'acorn-fox', 1).ok, true, 'tier 1 is unlocked regardless')
-  t.eq(X.canUnlock(simRw, 'acorn-fox', 5).ok, true, 'even tier 5 is unlocked regardless')
-  t.eq(X.canUnlock(simRw, 'acorn-fox', 5).req, 25000, 'the ladder still reports its requirement')
+  t.eq(X.unlockArray(simRw, 'acorn-fox')[0], 0, 'no unlock map reads all-zero')
+  t.eq(X.canUnlock(simRw, 'acorn-fox', 0, 1).ok, true, 'branch 1 tier 1 is unlocked regardless')
+  t.eq(X.canUnlock(simRw, 'acorn-fox', 2, 5).ok, true, 'even branch 3 tier 5 is unlocked regardless')
+  t.eq(X.canUnlock(simRw, 'acorn-fox', 2, 5).req, 19000, 'the ladder still reports its marginal cost')
   const twRw = OP.Towers.place(simRw, 'acorn-fox', 100, 360, { free: true })
   twRw.runXp = 7
   t.eq(X.available(simRw, 'acorn-fox'), 7, 'the run half still counts on a raw sim')
 
-  t.section('upgrades are gated banked + run XP')
+  t.section('upgrades are gated by the specific unlocked cell, not a tier')
   const simG = makeSim(OP, { cash: 99999 })
   simG.towerXp = {}
   const twG = OP.Towers.place(simG, 'acorn-fox', 100, 360, { free: true })
-  const denied = OP.Upgrades.buy(simG, twG, 0)
-  t.notOk(denied.ok, 'an upgrade with 0 banked XP is refused')
-  t.ok(/XP/.test(denied.reason), 'and the refusal names the XP shortfall')
+  let denied = OP.Upgrades.buy(simG, twG, 0)
+  t.notOk(denied.ok, 'an upgrade with an empty progression is refused')
+  t.ok(/locked/i.test(denied.reason), 'and the refusal names the locked branch')
   t.eq(twG.tiers[0], 0, 'no tier was granted')
-  t.eq(twG.runXp, 0, 'and no XP was spent in the process')
 
   simG.towerXp = { 'acorn-fox': 150 }
-  const exactly = OP.Upgrades.buy(simG, twG, 0)
-  t.ok(exactly.ok, 'at exactly 150 XP the purchase goes through')
+  denied = OP.Upgrades.buy(simG, twG, 0)
+  t.notOk(denied.ok, 'banked XP alone no longer unlocks — the cell must be bought')
+  t.eq(twG.tiers[0], 0, 'and the tier is still not granted')
+
+  const spent = X.unlockCell(null, simG, 'acorn-fox', 0, 1)
+  t.ok(spent.ok, 'the specific cell unlocks at exactly 150 XP')
+  t.eq(spent.cost, 150, 'and reports the marginal cost')
+  t.eq(simG.towerXp['acorn-fox'], 0, 'the unlock SPENT the banked XP')
+  t.eq(X.pathUnlocked(simG, 'acorn-fox', 0), 1, 'branch 1 now holds tier 1')
+  t.eq(X.pathUnlocked(simG, 'acorn-fox', 1), 0, 'branch 2 gained nothing')
+  const exact = OP.Upgrades.buy(simG, twG, 0)
+  t.ok(exact.ok, 'the now-unlocked upgrade buys')
   t.eq(twG.tiers[0], 1, 'the tier was granted')
-  t.eq(twG.runXp, 0, 'and the purchase changes nothing about XP - it merely spends cash')
+  t.eq(twG.runXp, 0, 'and the cash purchase spends no XP')
+  const branch1 = OP.Upgrades.buy(simG, twG, 1)
+  t.notOk(branch1.ok, 'the sibling branch is still locked by XP')
 
   t.section('the gate counts this run as well as the bank')
   const simL = makeSim(OP, { cash: 99999 })
@@ -221,8 +244,45 @@ t.section('pool splits 50/50 between spending and popping')
   const twL = OP.Towers.place(simL, 'acorn-fox', 100, 360, { free: true })
   twL.runXp = 90
   t.eq(X.available(simL, 'acorn-fox'), 150, '60 banked + 90 this run')
+  const spentLive = X.unlockCell(null, simL, 'acorn-fox', 0, 1)
+  t.ok(spentLive.ok, 'the live balance unlocks the tier')
+  t.eq(simL.towerXp['acorn-fox'], 0, 'the banked half was spent first')
+  t.close(twL.runXp, 0, 1e-9, 'then the run half covered the rest')
   const liveBuy = OP.Upgrades.buy(simL, twL, 0)
-  t.ok(liveBuy.ok, 'the combined balance unlocks the tier')
+  t.ok(liveBuy.ok, 'and the now-unlocked upgrade buys')
+
+  t.section('an unlock opens one specific upgrade, not a whole tier')
+  const profC = OP.Save.defaults()
+  profC.towerXp = { 'acorn-fox': 1000 }
+  const r1 = X.unlockCell(profC, null, 'acorn-fox', 0, 1)
+  t.ok(r1.ok, 'branch 1 tier 1 unlocks')
+  t.eq(X.profileXp(profC, 'acorn-fox'), 850, 'and spends 150 of the 1000')
+  const r2 = X.unlockCell(profC, null, 'acorn-fox', 2, 1)
+  t.ok(r2.ok, 'branch 3 tier 1 unlocks independently')
+  t.eq(X.profileXp(profC, 'acorn-fox'), 700, 'another 150 gone')
+  const skip = X.unlockCell(profC, null, 'acorn-fox', 1, 2)
+  t.notOk(skip.ok, 'branch 2 tier 2 cannot skip tier 1')
+  t.eq(X.profileXp(profC, 'acorn-fox'), 700, 'and a refused unlock spends nothing')
+  const deep = X.unlockCell(profC, null, 'acorn-fox', 0, 2)
+  t.ok(deep.ok, 'branch 1 tier 2 unlocks on top of tier 1')
+  t.eq(deep.cost, 300, 'the marginal step costs 300')
+  t.eq(X.profileXp(profC, 'acorn-fox'), 400, '400 left after 450 + 150')
+  const poor = X.unlockCell(profC, null, 'acorn-fox', 0, 3)
+  t.notOk(poor.ok, 'tier 3 at 1050 is out of reach with 400')
+  t.deep(X.unlockArray(profC, 'acorn-fox'), [2, 0, 1], 'the three branches are independent')
+  t.eq(X.pathUnlocked(profC, 'acorn-fox', 0), 2, 'branch 1 reads back tier 2')
+  t.eq(X.pathUnlocked(profC, 'acorn-fox', 1), 0, 'branch 2 never unlocked')
+  t.eq(X.pathUnlocked(profC, 'acorn-fox', 2), 1, 'branch 3 holds tier 1')
+  t.eq(X.tierUnlocked(profC, 'acorn-fox', 2), true, 'the tier-wide headline sees branch 1')
+  t.eq(X.tierUnlocked(profC, 'acorn-fox', 3), false, 'but tier 3 is still nowhere open')
+
+  // A run started off that profile sees exactly the cells the profile bought.
+  const simX = makeSim(OP, { cash: 99999 })
+  simX.towerXp = Object.assign({}, profC.towerXp)
+  simX.towerUnlocks = X.simUnlocks(profC)
+  const twX = OP.Towers.place(simX, 'acorn-fox', 100, 360, { free: true })
+  t.ok(OP.Upgrades.buy(simX, twX, 0).ok, 'an unlocked branch buys')
+  t.notOk(OP.Upgrades.buy(simX, twX, 1).ok, 'a locked branch refuses')
 
   t.section('banking floors run XP into the profile at game over')
   const prof = { towerXp: {} }
@@ -245,20 +305,41 @@ t.section('pool splits 50/50 between spending and popping')
   X.bank(null, simBH)
   t.ok(true, 'a null profile is a safe no-op')
 
+  t.section('banking carries the run into the profile, XP and unlocks')
+  const profU = { towerXp: {}, towerUnlocks: {} }
+  const simU = makeSim(OP, { cash: 5000 })
+  const twU = OP.Towers.place(simU, 'acorn-fox', 100, 360, { free: true })
+  twU.runXp = 44.6
+  simU.towerUnlocks = { 'acorn-fox': [3, 0, 0] }
+  X.bank(profU, simU)
+  t.eq(profU.towerXp['acorn-fox'], 44, 'the float is floored into banked XP')
+  t.deep(profU.towerUnlocks['acorn-fox'], [3, 0, 0], 'and the mid-run unlock survives')
+
   t.section('profile integration')
   t.ok(OP.Save, 'save module runs in this suite')
   const d = OP.Save.defaults()
   t.deep(d.towerXp, {}, 'defaults carry an empty towerXp map')
+  t.deep(d.towerUnlocks, {}, 'defaults carry an empty towerUnlocks map')
   const roundTripped = OP.Save.migrate(JSON.parse(JSON.stringify(
-    Object.assign(OP.Save.defaults(), { towerXp: { 'acorn-fox': 500 } })
+    { schemaVersion: 10, stats: {}, towerXp: { 'acorn-fox': 500 } }
   )))
   t.eq(roundTripped.towerXp['acorn-fox'], 500, 'banked XP survives a save/load round trip')
+  t.deep(roundTripped.towerUnlocks['acorn-fox'], [2, 2, 2],
+    'a v10 save grand-fathers every branch to the tier-wide unlock it had')
   const junk = OP.Save.migrate({ schemaVersion: 8, towerXp: { toString: 2, 'acorn-fox': 1, junk: -1 } })
   t.eq(junk.towerXp['acorn-fox'], 1, 'a positive key survives')
   t.eq(junk.towerXp.junk, undefined, 'a negative value is dropped')
   t.notOk(Object.prototype.hasOwnProperty.call(junk.towerXp, 'constructor'),
     'no inherited key becomes an own key')
+  const junkU = OP.Save.migrate({
+    schemaVersion: 11, towerXp: { 'acorn-fox': 1 },
+    towerUnlocks: { toString: 2, 'acorn-fox': [1, -5, 9], junk: 'x' }
+  })
+  t.deep(junkU.towerUnlocks['acorn-fox'], [1, 0, 5], 'unlock tiers clamp to the shipped tree')
+  t.notOk(Object.prototype.hasOwnProperty.call(junkU.towerUnlocks, 'constructor'),
+    'no inherited key becomes an own unlock key')
   const v7 = OP.Save.migrate({ schemaVersion: 7, stats: { gamesPlayed: 3 } })
   t.deep(v7.towerXp, {}, 'a v7 profile gains an empty towerXp map')
+  t.deep(v7.towerUnlocks, {}, 'and an empty towerUnlocks map')
   t.eq(v7.schemaVersion, OP.Save.SCHEMA_VERSION, 'and is stamped current')
 }

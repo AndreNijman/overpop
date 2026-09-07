@@ -28,7 +28,9 @@ export function run (t, OP) {
 
   // A tower that deliberately consumes randomness, so the RNG is genuinely part
   // of the simulation rather than incidental to it.
+  const made = []
   if (!OP.TOWERS['det-scatter']) {
+    made.push('det-scatter')
     OP.Towers.define({
       key: 'det-scatter', name: 'Det Scatter', family: 'primary', cost: 200, footprint: 12,
       base: { range: 220, cooldown: 0.35, damage: 2, pierce: 3, dmgType: D.SHARP, projSpeed: 620 },
@@ -47,6 +49,7 @@ export function run (t, OP) {
     })
   }
   if (!OP.TOWERS['det-bomber']) {
+    made.push('det-bomber')
     OP.Towers.define({
       key: 'det-bomber', name: 'Det Bomber', family: 'military', cost: 400, footprint: 14,
       base: { range: 260, cooldown: 1.1, damage: 3, pierce: 8, dmgType: D.EXPLOSIVE, projSpeed: 400 },
@@ -283,4 +286,8 @@ export function run (t, OP) {
   }
   t.eq(tripled.tick, normal.tick, 'both reached the same tick')
   t.eq(S.checksum(tripled), S.checksum(normal), '3x speed is the same simulation, run sooner')
+
+  // Suite hygiene: remove the throwaway towers so later suites (reference-build,
+  // drafts, towerxp) see exactly the shipped roster in OP.TOWER_ORDER.
+  for (const key of made) OP.Towers.undefine(key)
 }

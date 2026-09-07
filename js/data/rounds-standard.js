@@ -1,712 +1,517 @@
 ;(function (OP) {
   'use strict'
 
-  /* The standard 100-round table.
+  /* The standard 100-round table, mirrored from Bloons TD 6 (rounds 1-100).
+     Compositions follow the BTD6 standard table (Blooncyclopedia)
+     "List of rounds in BTD6"). Overpop balloon names substitute:
+     MOAB=GOLIATH, BFB=LEVIATHAN, ZOMG=COLOSSUS, DDT=WRAITH, BAD=OMEN, and
+     Camo=VEILED, Regrow=REGEN, Fortified=PLATED. The milestone beats are
+     therefore identical to the source game: round 24 = first camo, round 28
+     = first lead, round 40 = first GOLIATH, round 60 = first LEVIATHAN,
+     round 80 = first COLOSSUS, round 90 = first WRAITH, round 100 = first
+     OMEN.
 
-     A round is a list of spawn groups; the runner in js/core/rounds.js turns each
-     group into `count` balloons of one tier, `spacing` seconds apart, starting
-     `delay` seconds into the round (see Rounds.normalizeGroup for the shape and
-     the defaults). Everything here is plain data — no closures, no tier objects,
-     just string keys — so a mid-round save serialises and a round set can be
-     swapped by name.
+     Spacing and delays are Overpop's own pacing. Groups of 20+ stream in
+     bursts, blimp packs space by size (1.5s for a solo blimp down to 0.3s
+     for a wall of them), and each group enters on a 2s beat after the one
+     before. Individual tight floods can reach 20/s; single-blimp rounds
+     release in ~3s. No round lasts longer than ~90s.
 
-     Pacing intent, stated so a later tuning pass can tell design from accident:
-
-       · Rounds 1-10 teach one tier at a time and never punish inattention.
-       · 11-30 build the colour ladder to zebra and rainbow. Total RBE roughly
-         doubles every eight rounds; the increments stay small enough that a
-         player who under-builds gets a warning rather than a loss.
-       · 24 and 25 introduce VEILED and REGEN, which is the point where a build
-         without detection or burst damage stops working.
-       · 31-39 are the ceramic ramp, deliberately held under 616 RBE so that
-         round 40 — a single GOLIATH, arriving alone — is the largest single jump
-         in the first half of the game.
-       · 41-59 are the blimp-escort rounds. 52 adds WRAITH: fast, born veiled,
-         and immune to sharp and explosive all at once. It is the difficulty
-         spike of the middle game and it is meant to be felt.
-       · 60-79 stack LEVIATHANs. PLATED starts at 70, sparingly, because it
-         doubles layer HP without changing the RBE the HUD shows — a round that
-         reads as ordinary and is not.
-       · 80-97 are COLOSSUS rounds; 98 is the first OMEN; 100 is three of them
-         with an escort, and is the hardest thing the table can send.
-
-     RBE is never written down in this file. It is computed from the balloon tree
-     by OP.Rounds.roundRBE / OP.roundSetRBE, and the suite asserts the curve is
-     strictly increasing across all one hundred rounds. A hardcoded number here
-     would be wrong the first time anyone tunes a tier's HP. */
+     RBE is never written down in this file; it is computed from the balloon
+     tree by OP.Rounds.roundRBE / OP.roundSetRBE. The BTD6 table does not
+     climb strictly (the famous dip right after the round-40 GOLIATH), so the
+     suites assert milestone rounds and pacing etiquette, not a monotone
+     curve. */
 
   const P = OP.PROP
-  const V = P.VEILED
-  const RG = P.REGEN
-  const PL = P.PLATED
-  const FT = P.FORTIFIED
 
   OP.ROUNDS_STANDARD = {
-
-    /* ---------- 1-10 · one new tier at a time ---------- */
-
     1: { groups: [
-      { tier: 'red', count: 10, spacing: 0.8 }
+      { tier: 'red', count: 20, spacing: 0.25, delay: 3.00, props: 0 }
     ] },
     2: { groups: [
-      { tier: 'red', count: 13, spacing: 0.6 }
+      { tier: 'red', count: 35, spacing: 0.25, delay: 3.00, props: 0 }
     ] },
-    3: { groups: [   // blue
-      { tier: 'red', count: 9, spacing: 0.55 },
-      { tier: 'blue', count: 3, spacing: 0.7, delay: 5 }
+    3: { groups: [
+      { tier: 'red', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 5, spacing: 0.60, delay: 10.40, props: 0 },
+      { tier: 'red', count: 15, spacing: 0.60, delay: 14.80, props: 0 }
     ] },
     4: { groups: [
-      { tier: 'red', count: 8, spacing: 0.5 },
-      { tier: 'blue', count: 4, spacing: 0.6, delay: 4 }
+      { tier: 'red', count: 25, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 18, spacing: 0.60, delay: 11.00, props: 0 },
+      { tier: 'red', count: 10, spacing: 0.60, delay: 23.20, props: 0 }
     ] },
-    5: { groups: [   // green
-      { tier: 'red', count: 6, spacing: 0.5 },
-      { tier: 'blue', count: 3, spacing: 0.6, delay: 3 },
-      { tier: 'green', count: 2, spacing: 0.8, delay: 6 }
+    5: { groups: [
+      { tier: 'blue', count: 12, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'red', count: 5, spacing: 0.60, delay: 11.60, props: 0 },
+      { tier: 'blue', count: 15, spacing: 0.60, delay: 16.00, props: 0 }
     ] },
     6: { groups: [
-      { tier: 'red', count: 6, spacing: 0.45 },
-      { tier: 'blue', count: 4, spacing: 0.55, delay: 3 },
-      { tier: 'green', count: 2, spacing: 0.8, delay: 6.5 }
+      { tier: 'green', count: 4, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'red', count: 15, spacing: 0.60, delay: 6.80, props: 0 },
+      { tier: 'blue', count: 15, spacing: 0.60, delay: 17.20, props: 0 }
     ] },
-    7: { groups: [   // yellow
-      { tier: 'red', count: 4, spacing: 0.4 },
-      { tier: 'blue', count: 3, spacing: 0.5, delay: 2.5 },
-      { tier: 'green', count: 2, spacing: 0.6, delay: 5 },
-      { tier: 'yellow', count: 2, spacing: 0.5, delay: 7.5 }
+    7: { groups: [
+      { tier: 'blue', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'green', count: 5, spacing: 0.60, delay: 10.40, props: 0 },
+      { tier: 'red', count: 20, spacing: 0.25, delay: 14.80, props: 0 },
+      { tier: 'blue', count: 10, spacing: 0.60, delay: 21.55, props: 0 }
     ] },
     8: { groups: [
-      { tier: 'red', count: 5, spacing: 0.4 },
-      { tier: 'blue', count: 4, spacing: 0.5, delay: 2.5 },
-      { tier: 'green', count: 2, spacing: 0.6, delay: 5 },
-      { tier: 'yellow', count: 2, spacing: 0.5, delay: 7 }
+      { tier: 'blue', count: 20, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'green', count: 2, spacing: 0.60, delay: 9.75, props: 0 },
+      { tier: 'red', count: 10, spacing: 0.60, delay: 12.35, props: 0 },
+      { tier: 'green', count: 12, spacing: 0.60, delay: 19.75, props: 0 }
     ] },
     9: { groups: [
-      { tier: 'red', count: 4, spacing: 0.4 },
-      { tier: 'blue', count: 4, spacing: 0.45, delay: 2.5 },
-      { tier: 'green', count: 3, spacing: 0.55, delay: 5 },
-      { tier: 'yellow', count: 2, spacing: 0.5, delay: 7.5 }
+      { tier: 'green', count: 30, spacing: 0.25, delay: 3.00, props: 0 }
     ] },
-    /* The first personality round: nothing but yellows, in two tight packs.
-       Fast, harmless if you have coverage, embarrassing if you do not. */
     10: { groups: [
-      { tier: 'yellow', count: 4, spacing: 0.15 },
-      { tier: 'yellow', count: 4, spacing: 0.15, delay: 3.2 }
+      { tier: 'blue', count: 60, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 20, spacing: 0.25, delay: 12.08, props: 0 },
+      { tier: 'blue', count: 22, spacing: 0.25, delay: 18.83, props: 0 }
     ] },
-
-    /* ---------- 11-22 · the colour ladder ---------- */
-
-    11: { groups: [   // pink
-      { tier: 'red', count: 4, spacing: 0.4 },
-      { tier: 'blue', count: 3, spacing: 0.45, delay: 2 },
-      { tier: 'green', count: 3, spacing: 0.5, delay: 4 },
-      { tier: 'yellow', count: 2, spacing: 0.5, delay: 6 },
-      { tier: 'pink', count: 2, spacing: 0.6, delay: 7.5 }
+    11: { groups: [
+      { tier: 'yellow', count: 3, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'green', count: 12, spacing: 0.60, delay: 6.20, props: 0 },
+      { tier: 'blue', count: 10, spacing: 0.60, delay: 14.80, props: 0 },
+      { tier: 'red', count: 10, spacing: 0.60, delay: 22.20, props: 0 }
     ] },
     12: { groups: [
-      { tier: 'blue', count: 4, spacing: 0.45 },
-      { tier: 'green', count: 3, spacing: 0.5, delay: 2.5 },
-      { tier: 'yellow', count: 3, spacing: 0.5, delay: 5 },
-      { tier: 'pink', count: 2, spacing: 0.6, delay: 7 }
+      { tier: 'green', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 15, spacing: 0.60, delay: 10.40, props: 0 },
+      { tier: 'yellow', count: 5, spacing: 0.60, delay: 20.80, props: 0 }
     ] },
     13: { groups: [
-      { tier: 'blue', count: 4, spacing: 0.4 },
-      { tier: 'green', count: 4, spacing: 0.45, delay: 2.5 },
-      { tier: 'yellow', count: 2, spacing: 0.5, delay: 5 },
-      { tier: 'pink', count: 3, spacing: 0.55, delay: 6.5 }
+      { tier: 'blue', count: 50, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'green', count: 23, spacing: 0.25, delay: 10.88, props: 0 }
     ] },
     14: { groups: [
-      { tier: 'red', count: 5, spacing: 0.35 },
-      { tier: 'green', count: 5, spacing: 0.45, delay: 2.5 },
-      { tier: 'yellow', count: 3, spacing: 0.45, delay: 5 },
-      { tier: 'pink', count: 3, spacing: 0.55, delay: 7 }
+      { tier: 'red', count: 18, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 5, spacing: 0.60, delay: 15.20, props: 0 },
+      { tier: 'green', count: 5, spacing: 0.60, delay: 19.60, props: 0 },
+      { tier: 'yellow', count: 4, spacing: 0.60, delay: 24.00, props: 0 },
+      { tier: 'red', count: 31, spacing: 0.25, delay: 27.80, props: 0 },
+      { tier: 'blue', count: 10, spacing: 0.60, delay: 37.30, props: 0 },
+      { tier: 'green', count: 5, spacing: 0.60, delay: 44.70, props: 0 },
+      { tier: 'yellow', count: 5, spacing: 0.60, delay: 49.10, props: 0 }
     ] },
     15: { groups: [
-      { tier: 'red', count: 2, spacing: 0.4 },
-      { tier: 'green', count: 5, spacing: 0.4, delay: 2 },
-      { tier: 'yellow', count: 4, spacing: 0.4, delay: 4.5 },
-      { tier: 'pink', count: 4, spacing: 0.5, delay: 6.5 }
+      { tier: 'red', count: 20, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 15, spacing: 0.60, delay: 9.75, props: 0 },
+      { tier: 'green', count: 12, spacing: 0.60, delay: 20.15, props: 0 },
+      { tier: 'yellow', count: 10, spacing: 0.60, delay: 28.75, props: 0 },
+      { tier: 'pink', count: 5, spacing: 0.60, delay: 36.15, props: 0 }
     ] },
     16: { groups: [
-      { tier: 'blue', count: 4, spacing: 0.35 },
-      { tier: 'green', count: 4, spacing: 0.4, delay: 2 },
-      { tier: 'yellow', count: 4, spacing: 0.4, delay: 4.5 },
-      { tier: 'pink', count: 5, spacing: 0.5, delay: 6.5 }
+      { tier: 'green', count: 20, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'green', count: 20, spacing: 0.25, delay: 9.75, props: 0 },
+      { tier: 'yellow', count: 8, spacing: 0.60, delay: 16.50, props: 0 }
     ] },
-    17: { groups: [   // black and white
-      { tier: 'green', count: 4, spacing: 0.4 },
-      { tier: 'yellow', count: 3, spacing: 0.4, delay: 2.5 },
-      { tier: 'black', count: 2, spacing: 0.8, delay: 5 },
-      { tier: 'white', count: 2, spacing: 0.8, delay: 7 }
+    17: { groups: [
+      { tier: 'yellow', count: 12, spacing: 0.60, delay: 3.00, props: P.REGEN }
     ] },
     18: { groups: [
-      { tier: 'red', count: 2, spacing: 0.4 },
-      { tier: 'yellow', count: 2, spacing: 0.4, delay: 1.5 },
-      { tier: 'pink', count: 4, spacing: 0.45, delay: 3 },
-      { tier: 'black', count: 2, spacing: 0.7, delay: 5.5 },
-      { tier: 'white', count: 2, spacing: 0.7, delay: 7.5 }
+      { tier: 'green', count: 60, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'green', count: 20, spacing: 0.25, delay: 12.08, props: 0 }
     ] },
     19: { groups: [
-      { tier: 'green', count: 3, spacing: 0.4 },
-      { tier: 'pink', count: 3, spacing: 0.45, delay: 2.5 },
-      { tier: 'black', count: 3, spacing: 0.6, delay: 5 },
-      { tier: 'white', count: 2, spacing: 0.7, delay: 7.5 }
+      { tier: 'green', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'yellow', count: 5, spacing: 0.60, delay: 10.40, props: P.REGEN },
+      { tier: 'pink', count: 15, spacing: 0.60, delay: 14.80, props: 0 },
+      { tier: 'yellow', count: 4, spacing: 0.60, delay: 25.20, props: 0 }
     ] },
-    20: { groups: [   // lead
-      { tier: 'red', count: 2, spacing: 0.4 },
-      { tier: 'pink', count: 4, spacing: 0.45, delay: 1.5 },
-      { tier: 'black', count: 1, spacing: 0.7, delay: 4 },
-      { tier: 'white', count: 1, spacing: 0.7, delay: 5 },
-      { tier: 'lead', count: 2, spacing: 1.2, delay: 6.5 }
+    20: { groups: [
+      { tier: 'black', count: 6, spacing: 0.60, delay: 3.00, props: 0 }
     ] },
     21: { groups: [
-      { tier: 'pink', count: 4, spacing: 0.4 },
-      { tier: 'black', count: 1, spacing: 0.7, delay: 2.5 },
-      { tier: 'white', count: 2, spacing: 0.7, delay: 4 },
-      { tier: 'lead', count: 2, spacing: 1.2, delay: 6.5 }
+      { tier: 'yellow', count: 40, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'pink', count: 10, spacing: 0.60, delay: 9.68, props: 0 },
+      { tier: 'pink', count: 4, spacing: 0.60, delay: 17.08, props: 0 }
     ] },
     22: { groups: [
-      { tier: 'red', count: 5, spacing: 0.3 },
-      { tier: 'pink', count: 3, spacing: 0.4, delay: 2 },
-      { tier: 'black', count: 2, spacing: 0.6, delay: 4 },
-      { tier: 'white', count: 2, spacing: 0.6, delay: 5.5 },
-      { tier: 'lead', count: 2, spacing: 1.2, delay: 7 }
+      { tier: 'white', count: 16, spacing: 0.60, delay: 3.00, props: 0 }
     ] },
-
-    /* ---------- 23-31 · zebra, the properties, rainbow ---------- */
-
-    23: { groups: [   // zebra
-      { tier: 'pink', count: 2, spacing: 0.4 },
-      { tier: 'black', count: 2, spacing: 0.6, delay: 1.5 },
-      { tier: 'white', count: 2, spacing: 0.6, delay: 3.5 },
-      { tier: 'lead', count: 1, spacing: 1, delay: 5.5 },
-      { tier: 'zebra', count: 2, spacing: 1.2, delay: 7 }
+    23: { groups: [
+      { tier: 'black', count: 7, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'white', count: 7, spacing: 0.60, delay: 8.60, props: 0 }
     ] },
-    /* VEILED arrives here. Two of these groups cannot be targeted at all by a
-       tower without detection, which is the whole lesson. */
     24: { groups: [
-      { tier: 'red', count: 2, spacing: 0.4 },
-      { tier: 'pink', count: 4, spacing: 0.45, delay: 1.5, props: V },
-      { tier: 'black', count: 2, spacing: 0.7, delay: 4, props: V },
-      { tier: 'lead', count: 2, spacing: 1.1, delay: 6 },
-      { tier: 'zebra', count: 2, spacing: 1.2, delay: 8 }
+      { tier: 'green', count: 1, spacing: 0.60, delay: 3.00, props: P.VEILED },
+      { tier: 'blue', count: 20, spacing: 0.25, delay: 5.00, props: 0 }
     ] },
-    /* REGEN arrives here. Chip damage that used to be enough now loses ground. */
     25: { groups: [
-      { tier: 'red', count: 6, spacing: 0.3 },
-      { tier: 'green', count: 4, spacing: 0.4, delay: 2, props: RG },
-      { tier: 'pink', count: 4, spacing: 0.45, delay: 4 },
-      { tier: 'white', count: 2, spacing: 0.7, delay: 6, props: RG },
-      { tier: 'lead', count: 2, spacing: 1.1, delay: 7.5 },
-      { tier: 'zebra', count: 2, spacing: 1.2, delay: 9.5 }
+      { tier: 'yellow', count: 25, spacing: 0.25, delay: 3.00, props: P.REGEN },
+      { tier: 'purple', count: 10, spacing: 0.60, delay: 11.00, props: 0 }
     ] },
     26: { groups: [
-      { tier: 'pink', count: 3, spacing: 0.4 },
-      { tier: 'black', count: 2, spacing: 0.6, delay: 2 },
-      { tier: 'white', count: 2, spacing: 0.6, delay: 3.5 },
-      { tier: 'lead', count: 2, spacing: 1.1, delay: 5.5 },
-      { tier: 'zebra', count: 3, spacing: 1.1, delay: 7.5 }
+      { tier: 'pink', count: 23, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'zebra', count: 4, spacing: 0.60, delay: 10.50, props: 0 }
     ] },
     27: { groups: [
-      { tier: 'pink', count: 4, spacing: 0.4 },
-      { tier: 'black', count: 3, spacing: 0.6, delay: 2, props: V },
-      { tier: 'white', count: 2, spacing: 0.6, delay: 4.5 },
-      { tier: 'lead', count: 2, spacing: 1.1, delay: 6 },
-      { tier: 'zebra', count: 3, spacing: 1.1, delay: 8 }
+      { tier: 'red', count: 100, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'blue', count: 60, spacing: 0.12, delay: 16.88, props: 0 },
+      { tier: 'green', count: 45, spacing: 0.12, delay: 25.96, props: 0 },
+      { tier: 'yellow', count: 45, spacing: 0.12, delay: 33.24, props: 0 }
     ] },
-    28: { groups: [   // rainbow
-      { tier: 'black', count: 2, spacing: 0.6 },
-      { tier: 'lead', count: 2, spacing: 1, delay: 2 },
-      { tier: 'zebra', count: 2, spacing: 1.1, delay: 4.5 },
-      { tier: 'rainbow', count: 2, spacing: 1.4, delay: 7 }
+    28: { groups: [
+      { tier: 'lead', count: 6, spacing: 0.60, delay: 3.00, props: 0 }
     ] },
     29: { groups: [
-      { tier: 'yellow', count: 5, spacing: 0.3 },
-      { tier: 'black', count: 2, spacing: 0.6, delay: 2 },
-      { tier: 'lead', count: 2, spacing: 1, delay: 4 },
-      { tier: 'zebra', count: 2, spacing: 1.1, delay: 6 },
-      { tier: 'rainbow', count: 2, spacing: 1.4, delay: 8.5 }
+      { tier: 'yellow', count: 50, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'yellow', count: 15, spacing: 0.60, delay: 10.88, props: P.REGEN }
     ] },
     30: { groups: [
-      { tier: 'black', count: 2, spacing: 0.6 },
-      { tier: 'lead', count: 2, spacing: 1, delay: 2 },
-      { tier: 'zebra', count: 2, spacing: 1.1, delay: 4, props: V },
-      { tier: 'rainbow', count: 3, spacing: 1.3, delay: 6.5 }
+      { tier: 'lead', count: 9, spacing: 0.60, delay: 3.00, props: 0 }
     ] },
     31: { groups: [
-      { tier: 'white', count: 2, spacing: 0.6, props: RG },
-      { tier: 'lead', count: 2, spacing: 1, delay: 2 },
-      { tier: 'zebra', count: 3, spacing: 1, delay: 4 },
-      { tier: 'rainbow', count: 3, spacing: 1.3, delay: 7 }
+      { tier: 'black', count: 8, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'white', count: 8, spacing: 0.60, delay: 9.20, props: 0 },
+      { tier: 'zebra', count: 8, spacing: 0.60, delay: 15.40, props: 0 },
+      { tier: 'zebra', count: 2, spacing: 0.60, delay: 21.60, props: P.REGEN }
     ] },
-
-    /* ---------- 32-39 · the ceramic ramp, held under one GOLIATH ---------- */
-
-    32: { groups: [   // ceramic
-      { tier: 'red', count: 4, spacing: 0.3 },
-      { tier: 'zebra', count: 2, spacing: 1, delay: 2 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 4.5 },
-      { tier: 'ceramic', count: 2, spacing: 1.6, delay: 6 }
+    32: { groups: [
+      { tier: 'black', count: 15, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'white', count: 20, spacing: 0.25, delay: 13.40, props: 0 },
+      { tier: 'purple', count: 10, spacing: 0.60, delay: 20.15, props: 0 }
     ] },
     33: { groups: [
-      { tier: 'red', count: 6, spacing: 0.3 },
-      { tier: 'zebra', count: 1, spacing: 1, delay: 2 },
-      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 4 },
-      { tier: 'ceramic', count: 2, spacing: 1.6, delay: 6.5 }
+      { tier: 'red', count: 20, spacing: 0.25, delay: 3.00, props: P.VEILED },
+      { tier: 'yellow', count: 13, spacing: 0.60, delay: 9.75, props: P.VEILED }
     ] },
     34: { groups: [
-      { tier: 'pink', count: 3, spacing: 0.35 },
-      { tier: 'lead', count: 1, spacing: 1, delay: 2 },
-      { tier: 'zebra', count: 1, spacing: 1, delay: 3.5 },
-      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 5 },
-      { tier: 'ceramic', count: 2, spacing: 1.6, delay: 7.5 }
+      { tier: 'yellow', count: 160, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'zebra', count: 6, spacing: 0.60, delay: 24.08, props: 0 }
     ] },
-    35: { groups: [   // purple — nothing that glows will touch it
-      { tier: 'purple', count: 6, spacing: 0.5 },
-      { tier: 'zebra', count: 1, spacing: 1, delay: 4 },
-      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 5.5 },
-      { tier: 'ceramic', count: 2, spacing: 1.6, delay: 8 }
+    35: { groups: [
+      { tier: 'white', count: 25, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'rainbow', count: 5, spacing: 0.60, delay: 11.00, props: 0 },
+      { tier: 'pink', count: 35, spacing: 0.25, delay: 15.40, props: 0 },
+      { tier: 'black', count: 30, spacing: 0.25, delay: 25.90, props: 0 }
     ] },
     36: { groups: [
-      { tier: 'purple', count: 4, spacing: 0.5 },
-      { tier: 'zebra', count: 1, spacing: 1, delay: 3 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 4.5 },
-      { tier: 'ceramic', count: 3, spacing: 1.4, delay: 6 }
+      { tier: 'pink', count: 40, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'green', count: 10, spacing: 0.60, delay: 9.68, props: P.VEILED | P.REGEN },
+      { tier: 'pink', count: 40, spacing: 0.12, delay: 17.08, props: 0 },
+      { tier: 'green', count: 10, spacing: 0.60, delay: 23.76, props: P.VEILED | P.REGEN },
+      { tier: 'pink', count: 60, spacing: 0.12, delay: 31.16, props: 0 }
     ] },
     37: { groups: [
-      { tier: 'purple', count: 4, spacing: 0.5, props: V },
-      { tier: 'pink', count: 4, spacing: 0.4, delay: 3 },
-      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 5 },
-      { tier: 'ceramic', count: 3, spacing: 1.4, delay: 7 }
+      { tier: 'black', count: 25, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'white', count: 25, spacing: 0.25, delay: 11.00, props: 0 },
+      { tier: 'lead', count: 15, spacing: 0.60, delay: 19.00, props: 0 },
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 29.40, props: 0 },
+      { tier: 'white', count: 7, spacing: 0.60, delay: 36.80, props: P.VEILED }
     ] },
     38: { groups: [
-      { tier: 'purple', count: 4, spacing: 0.5 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 3 },
-      { tier: 'ceramic', count: 4, spacing: 1.3, delay: 5 }
+      { tier: 'white', count: 17, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'pink', count: 42, spacing: 0.12, delay: 14.60, props: 0 },
+      { tier: 'lead', count: 14, spacing: 0.60, delay: 21.52, props: 0 },
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 31.32, props: 0 },
+      { tier: 'ceramic', count: 2, spacing: 0.60, delay: 38.72, props: 0 }
     ] },
     39: { groups: [
-      { tier: 'purple', count: 6, spacing: 0.45, props: RG },
-      { tier: 'zebra', count: 1, spacing: 1, delay: 3.5 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
-      { tier: 'ceramic', count: 4, spacing: 1.3, delay: 6.5 }
+      { tier: 'black', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'white', count: 10, spacing: 0.60, delay: 10.40, props: 0 },
+      { tier: 'zebra', count: 20, spacing: 0.25, delay: 17.80, props: 0 },
+      { tier: 'rainbow', count: 18, spacing: 0.60, delay: 24.55, props: 0 },
+      { tier: 'rainbow', count: 2, spacing: 0.60, delay: 36.75, props: P.REGEN }
     ] },
-
-    /* One GOLIATH. Nothing else, on any path. Either the board can chew through
-       two hundred layers of hull before it crosses, or it cannot. */
     40: { groups: [
-      { tier: 'goliath', count: 1, delay: 4 }
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 3.00, props: 0 }
     ] },
-
-    /* ---------- 41-60 · GOLIATH & WRAITH era ---------- */
-
-    /* The middle game is one long GOLIATH escort that hands the baton to the
-       WRAITH era at round 52. The era is a single WRAITH with a growing ceramic
-       stream behind it, holding a gentle ramp until round 61 — the first
-       LEVIATHAN is the first thing a medium game never sees. A build that holds
-       to round 60 has beaten the mode; round 61+ belongs to hard. */
     41: { groups: [
-      { tier: 'red', count: 1, delay: 2 },
-      { tier: 'goliath', count: 1, delay: 5 }
+      { tier: 'black', count: 60, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'zebra', count: 60, spacing: 0.12, delay: 12.08, props: 0 }
     ] },
     42: { groups: [
-      { tier: 'zebra', count: 1, spacing: 1 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 2 },
-      { tier: 'ceramic', count: 1, spacing: 1.4, delay: 4 },
-      { tier: 'goliath', count: 1, delay: 6 }
+      { tier: 'rainbow', count: 6, spacing: 0.60, delay: 3.00, props: P.REGEN },
+      { tier: 'rainbow', count: 5, spacing: 0.60, delay: 8.00, props: P.VEILED }
     ] },
     43: { groups: [
-      { tier: 'zebra', count: 2, spacing: 1 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 2 },
-      { tier: 'ceramic', count: 1, spacing: 1.4, delay: 4.5 },
-      { tier: 'goliath', count: 1, delay: 7 }
+      { tier: 'rainbow', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 7, spacing: 0.60, delay: 10.40, props: 0 }
     ] },
     44: { groups: [
-      { tier: 'zebra', count: 1, spacing: 1 },
-      { tier: 'ceramic', count: 2, spacing: 1.3, delay: 3.5 },
-      { tier: 'goliath', count: 1, delay: 7.5 }
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 10.40, props: 0 },
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 17.80, props: 0 },
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 25.20, props: 0 },
+      { tier: 'zebra', count: 10, spacing: 0.60, delay: 32.60, props: 0 }
     ] },
     45: { groups: [
-      { tier: 'zebra', count: 1, spacing: 1, props: V },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 2, props: V },
-      { tier: 'ceramic', count: 2, spacing: 1.3, delay: 4 },
-      { tier: 'goliath', count: 1, delay: 8 }
+      { tier: 'rainbow', count: 25, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'purple', count: 10, spacing: 0.60, delay: 11.00, props: P.VEILED },
+      { tier: 'pink', count: 180, spacing: 0.12, delay: 18.40, props: 0 },
+      { tier: 'lead', count: 4, spacing: 0.60, delay: 41.88, props: P.PLATED }
     ] },
     46: { groups: [
-      { tier: 'ceramic', count: 3, spacing: 1.3 },
-      { tier: 'goliath', count: 1, delay: 6 }
+      { tier: 'ceramic', count: 6, spacing: 0.60, delay: 3.00, props: P.PLATED }
     ] },
     47: { groups: [
-      { tier: 'ceramic', count: 3, spacing: 1.3 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 3 },
-      { tier: 'goliath', count: 1, delay: 7 }
+      { tier: 'ceramic', count: 12, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'pink', count: 70, spacing: 0.12, delay: 11.60, props: P.VEILED }
     ] },
     48: { groups: [
-      { tier: 'ceramic', count: 3, spacing: 1.3 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 3 },
-      { tier: 'zebra', count: 1, spacing: 1, delay: 5 },
-      { tier: 'goliath', count: 1, delay: 8 }
+      { tier: 'pink', count: 40, spacing: 0.12, delay: 3.00, props: P.REGEN },
+      { tier: 'purple', count: 30, spacing: 0.25, delay: 9.68, props: P.VEILED | P.REGEN },
+      { tier: 'rainbow', count: 40, spacing: 0.12, delay: 18.93, props: 0 },
+      { tier: 'ceramic', count: 3, spacing: 0.60, delay: 25.61, props: P.PLATED }
     ] },
     49: { groups: [
-      { tier: 'ceramic', count: 4, spacing: 1.2 },
-      { tier: 'goliath', count: 1, delay: 8 }
+      { tier: 'green', count: 343, spacing: 0.05, delay: 3.00, props: 0 },
+      { tier: 'rainbow', count: 10, spacing: 0.60, delay: 22.10, props: 0 },
+      { tier: 'ceramic', count: 18, spacing: 0.60, delay: 29.50, props: 0 },
+      { tier: 'zebra', count: 20, spacing: 0.25, delay: 41.70, props: 0 },
+      { tier: 'rainbow', count: 10, spacing: 0.60, delay: 48.45, props: 0 },
+      { tier: 'rainbow', count: 10, spacing: 0.60, delay: 55.85, props: P.REGEN }
     ] },
-    /* FORTIFIED arrives: one double-hull ceramic inside an otherwise ordinary
-       escort. A board reading RBE alone gets caught out. */
     50: { groups: [
-      { tier: 'ceramic', count: 3, spacing: 1.2 },
-      { tier: 'ceramic', count: 1, spacing: 1.2, delay: 2.5, props: FT },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 4 },
-      { tier: 'goliath', count: 1, delay: 7 }
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'lead', count: 8, spacing: 0.60, delay: 5.00, props: P.PLATED },
+      { tier: 'red', count: 20, spacing: 0.25, delay: 11.20, props: 0 },
+      { tier: 'ceramic', count: 20, spacing: 0.25, delay: 17.95, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 24.70, props: 0 }
     ] },
     51: { groups: [
-      { tier: 'ceramic', count: 5, spacing: 1.1, props: RG },
-      { tier: 'goliath', count: 1, delay: 8 }
+      { tier: 'ceramic', count: 15, spacing: 0.60, delay: 3.00, props: P.VEILED },
+      { tier: 'rainbow', count: 10, spacing: 0.60, delay: 13.40, props: P.REGEN }
     ] },
-
-    /* WRAITH. Born veiled, nearly three times a red balloon's speed, and it
-       ignores sharp and explosive damage. If the board has no detection and no
-       damage type outside those two, this round ends the run.
-       The debut is a single WRAITH over an escorted ceramic stream — lighter than
-       round 51's GOLIATH plus five ceramics, and the spike over it is kept to a
-       beat (1.18x) rather than a cliff: round 52 was a GOLIATH and a WRAITH at
-       once (1432 RBE), which a competent medium board at this economy cannot
-       answer, and the whole era read as unholdable when the bottleneck was that
-       one round. */
     52: { groups: [
-      { tier: 'ceramic', count: 5, spacing: 1.2, delay: 3 },
-      { tier: 'wraith', count: 1, delay: 10 }
+      { tier: 'rainbow', count: 25, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 11.00, props: 0 },
+      { tier: 'ceramic', count: 5, spacing: 0.60, delay: 13.00, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 17.40, props: 0 },
+      { tier: 'ceramic', count: 5, spacing: 0.60, delay: 19.40, props: 0 }
     ] },
-    /* The ceramic wall, moved into the blimp era: twelve shells on one tick.
-       A board that relies on single-target damage stops here. */
     53: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0, delay: 3 },
-      { tier: 'rainbow', count: 2, spacing: 1.2, delay: 7 }
+      { tier: 'pink', count: 80, spacing: 0.12, delay: 3.00, props: P.VEILED },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 14.48, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 16.48, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 18.48, props: 0 }
     ] },
     54: { groups: [
-      { tier: 'ceramic', count: 5, spacing: 1.2, delay: 2 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
-      { tier: 'wraith', count: 1, delay: 10 }
+      { tier: 'ceramic', count: 35, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 13.50, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 15.50, props: 0 }
     ] },
-    /* The camo round. Everything on the field is veiled — even the WRAITH,
-       which is born that way. No detection, no hits. */
     55: { groups: [
-      { tier: 'ceramic', count: 6, spacing: 1.1, delay: 2, props: V },
-      { tier: 'wraith', count: 1, delay: 12 }
+      { tier: 'ceramic', count: 10, spacing: 0.60, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 10, spacing: 0.60, delay: 10.40, props: 0 },
+      { tier: 'ceramic', count: 10, spacing: 0.60, delay: 17.80, props: 0 },
+      { tier: 'ceramic', count: 15, spacing: 0.60, delay: 25.20, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 35.60, props: 0 }
     ] },
     56: { groups: [
-      { tier: 'ceramic', count: 6, spacing: 1.1, delay: 2 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
-      { tier: 'wraith', count: 1, delay: 10 }
+      { tier: 'rainbow', count: 40, spacing: 0.12, delay: 3.00, props: P.VEILED },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 9.68, props: 0 }
     ] },
     57: { groups: [
-      { tier: 'ceramic', count: 7, spacing: 1.0, delay: 2 },
-      { tier: 'wraith', count: 1, delay: 11 }
+      { tier: 'goliath', count: 2, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'rainbow', count: 40, spacing: 0.12, delay: 6.50, props: 0 },
+      { tier: 'goliath', count: 2, spacing: 1.50, delay: 13.18, props: 0 }
     ] },
     58: { groups: [
-      { tier: 'ceramic', count: 7, spacing: 1.0, delay: 2 },
-      { tier: 'rainbow', count: 1, spacing: 1.2, delay: 5 },
-      { tier: 'wraith', count: 1, delay: 11 }
+      { tier: 'goliath', count: 5, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 15, spacing: 0.60, delay: 11.00, props: 0 },
+      { tier: 'ceramic', count: 10, spacing: 0.60, delay: 21.40, props: P.PLATED }
     ] },
     59: { groups: [
-      { tier: 'ceramic', count: 8, spacing: 0.9, delay: 2 },
-      { tier: 'wraith', count: 1, delay: 11 }
+      { tier: 'ceramic', count: 20, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'lead', count: 50, spacing: 0.12, delay: 9.75, props: P.VEILED },
+      { tier: 'ceramic', count: 10, spacing: 0.60, delay: 17.63, props: P.REGEN }
     ] },
-
-/* ---------- 61-69 · LEVIATHAN ---------- */
-
-    /* The last standard round of medium mode. No LEVIATHAN here — that is
-       round 61, the first hard-only wall — so a build that held the WRAITH
-       era can close out the game. The era closes on one final WRAITH with nine
-       ceramics for company: still in the spirit of round 52, just more of it. */
     60: { groups: [
-      { tier: 'ceramic', count: 9, spacing: 0.9, delay: 2 },
-      { tier: 'wraith', count: 1, delay: 12 }
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 3.00, props: 0 }
     ] },
-
-    /* LEVIATHAN: slow, enormous, and four GOLIATHs deep. It debuts here,
-       alone — round 61, the first round a medium game never sees. Killing it
-       is not like killing anything before it. */
     61: { groups: [
-      { tier: 'leviathan', count: 1, delay: 6 }
+      { tier: 'zebra', count: 150, spacing: 0.12, delay: 3.00, props: P.REGEN },
+      { tier: 'goliath', count: 5, spacing: 1.50, delay: 22.88, props: 0 }
     ] },
     62: { groups: [
-      { tier: 'ceramic', count: 5, spacing: 1.1 },
-      { tier: 'goliath', count: 5, spacing: 2.2, delay: 6 },
-      { tier: 'wraith', count: 1, delay: 16 }
+      { tier: 'purple', count: 250, spacing: 0.08, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 5, spacing: 1.50, delay: 24.92, props: 0 },
+      { tier: 'goliath', count: 2, spacing: 1.50, delay: 32.92, props: P.PLATED },
+      { tier: 'rainbow', count: 15, spacing: 0.60, delay: 36.42, props: P.VEILED | P.REGEN }
     ] },
     63: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.8 },
-      { tier: 'goliath', count: 6, spacing: 2, delay: 8 },
-      { tier: 'wraith', count: 1, delay: 18 }
+      { tier: 'lead', count: 75, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 40, spacing: 0.12, delay: 13.88, props: 0 },
+      { tier: 'ceramic', count: 40, spacing: 0.12, delay: 20.56, props: 0 },
+      { tier: 'ceramic', count: 42, spacing: 0.12, delay: 27.24, props: 0 }
     ] },
     64: { groups: [
-      { tier: 'ceramic', count: 16, spacing: 0.7 },
-      { tier: 'goliath', count: 10, spacing: 1.8, delay: 8 },
-      { tier: 'wraith', count: 1, delay: 19 }
+      { tier: 'goliath', count: 6, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 3, spacing: 1.50, delay: 9.50, props: P.PLATED }
     ] },
     65: { groups: [
-      { tier: 'rainbow', count: 4, spacing: 0.9, props: V },
-      { tier: 'ceramic', count: 10, spacing: 0.6, delay: 4 },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 10 },
-      { tier: 'wraith', count: 1, delay: 15 },
-      { tier: 'leviathan', count: 3, spacing: 4.5, delay: 19 }
+      { tier: 'zebra', count: 100, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'rainbow', count: 70, spacing: 0.12, delay: 16.88, props: 0 },
+      { tier: 'ceramic', count: 50, spacing: 0.12, delay: 27.16, props: 0 },
+      { tier: 'goliath', count: 3, spacing: 1.50, delay: 35.04, props: 0 },
+      { tier: 'leviathan', count: 2, spacing: 1.50, delay: 40.04, props: 0 }
     ] },
     66: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.55 },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 8 },
-      { tier: 'wraith', count: 2, spacing: 2.8, delay: 14 },
-      { tier: 'leviathan', count: 3, spacing: 4.5, delay: 20 }
+      { tier: 'goliath', count: 2, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 2, spacing: 1.50, delay: 6.50, props: 0 },
+      { tier: 'goliath', count: 4, spacing: 1.50, delay: 10.00, props: 0 },
+      { tier: 'goliath', count: 3, spacing: 1.50, delay: 16.50, props: P.PLATED }
     ] },
     67: { groups: [
-      { tier: 'ceramic', count: 10, spacing: 0.55, props: RG },
-      { tier: 'goliath', count: 1, delay: 8 },
-      { tier: 'wraith', count: 2, spacing: 2.8, delay: 12 },
-      { tier: 'leviathan', count: 4, spacing: 4, delay: 18 }
+      { tier: 'goliath', count: 4, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 13, spacing: 0.60, delay: 9.50, props: P.VEILED | P.REGEN | P.PLATED },
+      { tier: 'goliath', count: 4, spacing: 1.50, delay: 18.70, props: 0 }
     ] },
     68: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.55 },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 3, spacing: 2.5, delay: 13 },
-      { tier: 'leviathan', count: 4, spacing: 4, delay: 20 }
+      { tier: 'goliath', count: 4, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 9.50, props: 0 }
     ] },
     69: { groups: [
-      { tier: 'ceramic', count: 10, spacing: 0.55, props: V },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 2, spacing: 2.8, delay: 13 },
-      { tier: 'leviathan', count: 5, spacing: 3.5, delay: 19 }
+      { tier: 'lead', count: 40, spacing: 0.12, delay: 3.00, props: P.PLATED },
+      { tier: 'black', count: 40, spacing: 0.12, delay: 9.68, props: P.REGEN },
+      { tier: 'ceramic', count: 50, spacing: 0.12, delay: 16.36, props: 0 }
     ] },
-
-    /* ---------- 70-79 · PLATED, and LEVIATHANs in numbers ---------- */
-
-    /* PLATED starts here. It doubles every layer's HP and changes nothing the
-       HUD shows, so this round reads exactly like round 69 and is not. */
     70: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.5, props: PL },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 9 },
-      { tier: 'wraith', count: 3, spacing: 2.5, delay: 14 },
-      { tier: 'leviathan', count: 5, spacing: 3.5, delay: 20 }
+      { tier: 'rainbow', count: 200, spacing: 0.08, delay: 3.00, props: 0 },
+      { tier: 'white', count: 120, spacing: 0.12, delay: 20.92, props: P.VEILED | P.REGEN },
+      { tier: 'goliath', count: 4, spacing: 1.50, delay: 37.20, props: 0 }
     ] },
     71: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.5 },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 3, spacing: 2.5, delay: 13 },
-      { tier: 'leviathan', count: 6, spacing: 3.2, delay: 19 }
+      { tier: 'ceramic', count: 30, spacing: 0.25, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 10, spacing: 0.90, delay: 12.25, props: 0 }
     ] },
     72: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.5, props: V },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 8 },
-      { tier: 'wraith', count: 2, spacing: 2.8, delay: 13 },
-      { tier: 'leviathan', count: 7, spacing: 3, delay: 18 }
+      { tier: 'ceramic', count: 38, spacing: 0.25, delay: 3.00, props: P.REGEN },
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 14.25, props: 0 },
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 16.25, props: 0 }
     ] },
     73: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.5, props: PL },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 3, spacing: 2.5, delay: 13 },
-      { tier: 'leviathan', count: 8, spacing: 2.8, delay: 18 }
+      { tier: 'goliath', count: 7, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'leviathan', count: 2, spacing: 1.50, delay: 10.40, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 13.90, props: 0 }
     ] },
     74: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.5, props: RG },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 3, spacing: 2.5, delay: 13 },
-      { tier: 'leviathan', count: 9, spacing: 2.6, delay: 18 }
+      { tier: 'ceramic', count: 50, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 25, spacing: 0.25, delay: 10.88, props: P.VEILED | P.REGEN | P.PLATED },
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 18.88, props: 0 },
+      { tier: 'ceramic', count: 60, spacing: 0.12, delay: 20.88, props: P.PLATED }
     ] },
     75: { groups: [
-      { tier: 'ceramic', count: 12, spacing: 0.5 },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 8 },
-      { tier: 'wraith', count: 4, spacing: 2.4, delay: 13 },
-      { tier: 'leviathan', count: 10, spacing: 2.4, delay: 18 }
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 3.00, props: 0 },
+      { tier: 'lead', count: 14, spacing: 0.60, delay: 5.00, props: 0 },
+      { tier: 'goliath', count: 1, spacing: 1.50, delay: 14.80, props: P.PLATED },
+      { tier: 'leviathan', count: 3, spacing: 1.50, delay: 16.80, props: 0 },
+      { tier: 'lead', count: 14, spacing: 0.60, delay: 21.80, props: P.PLATED },
+      { tier: 'goliath', count: 2, spacing: 1.50, delay: 31.60, props: P.PLATED },
+      { tier: 'leviathan', count: 3, spacing: 1.50, delay: 35.10, props: 0 }
     ] },
     76: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.5, props: PL },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 9 },
-      { tier: 'wraith', count: 4, spacing: 2.4, delay: 14 },
-      { tier: 'leviathan', count: 11, spacing: 2.2, delay: 19 }
+      { tier: 'ceramic', count: 60, spacing: 0.12, delay: 3.00, props: P.REGEN }
     ] },
     77: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.5, props: V },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 12, spacing: 2.1, delay: 19 }
+      { tier: 'goliath', count: 11, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'leviathan', count: 5, spacing: 1.50, delay: 14.00, props: 0 }
     ] },
     78: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.5 },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 9 },
-      { tier: 'wraith', count: 4, spacing: 2.4, delay: 14 },
-      { tier: 'leviathan', count: 14, spacing: 1.9, delay: 19 }
+      { tier: 'rainbow', count: 150, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 75, spacing: 0.12, delay: 22.88, props: 0 },
+      { tier: 'leviathan', count: 1, spacing: 1.50, delay: 33.76, props: 0 },
+      { tier: 'purple', count: 80, spacing: 0.12, delay: 35.76, props: 0 },
+      { tier: 'ceramic', count: 72, spacing: 0.12, delay: 47.24, props: P.VEILED }
     ] },
     79: { groups: [
-      { tier: 'ceramic', count: 16, spacing: 0.45, props: PL },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 15, spacing: 1.8, delay: 19 }
+      { tier: 'rainbow', count: 500, spacing: 0.05, delay: 3.00, props: P.REGEN },
+      { tier: 'leviathan', count: 4, spacing: 1.50, delay: 29.95, props: 0 },
+      { tier: 'leviathan', count: 2, spacing: 1.50, delay: 36.45, props: P.PLATED }
     ] },
-
-    /* ---------- 80-97 · COLOSSUS ---------- */
-
-    /* COLOSSUS: four thousand hits of hull, then four LEVIATHANs. */
     80: { groups: [
-      { tier: 'ceramic', count: 16, spacing: 0.45 },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 2, spacing: 2, delay: 19, props: FT },
-      { tier: 'leviathan', count: 10, spacing: 2, delay: 19 },
-      { tier: 'colossus', count: 1, delay: 30 }
+      { tier: 'colossus', count: 1, spacing: 1.50, delay: 3.00, props: 0 }
     ] },
-    /* From here the escort trades one thing for the other: a round that adds a
-       COLOSSUS thins its ceramic stream, and a round that does not adds ceramics
-       and LEVIATHANs instead. That is what keeps the RBE curve smooth across a
-       tier whose single unit is worth sixteen thousand. */
     81: { groups: [
-      { tier: 'ceramic', count: 26, spacing: 0.45, props: V },
-      { tier: 'goliath', count: 2, spacing: 2.5, delay: 9 },
-      { tier: 'wraith', count: 4, spacing: 2.4, delay: 13 },
-      { tier: 'leviathan', count: 9, spacing: 2.4, delay: 18 },
-      { tier: 'colossus', count: 2, spacing: 6, delay: 28 }
+      { tier: 'leviathan', count: 9, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'leviathan', count: 8, spacing: 0.90, delay: 12.20, props: 0 }
     ] },
     82: { groups: [
-      { tier: 'ceramic', count: 18, spacing: 0.45, props: RG },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 11, spacing: 2.2, delay: 19 },
-      { tier: 'colossus', count: 2, spacing: 6, delay: 30 }
+      { tier: 'leviathan', count: 10, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'leviathan', count: 5, spacing: 1.50, delay: 13.10, props: P.PLATED }
     ] },
     83: { groups: [
-      { tier: 'ceramic', count: 30, spacing: 0.45, props: PL },
-      { tier: 'goliath', count: 3, spacing: 2.2, delay: 9 },
-      { tier: 'wraith', count: 4, spacing: 2.4, delay: 14 },
-      { tier: 'leviathan', count: 8, spacing: 2.6, delay: 19 },
-      { tier: 'colossus', count: 3, spacing: 5.5, delay: 28 }
+      { tier: 'ceramic', count: 40, spacing: 0.12, delay: 3.00, props: 0 },
+      { tier: 'ceramic', count: 40, spacing: 0.12, delay: 9.68, props: P.REGEN },
+      { tier: 'ceramic', count: 40, spacing: 0.12, delay: 16.36, props: P.PLATED },
+      { tier: 'goliath', count: 30, spacing: 0.50, delay: 23.04, props: 0 }
     ] },
     84: { groups: [
-      { tier: 'ceramic', count: 32, spacing: 0.45 },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 10, spacing: 2.4, delay: 19 },
-      { tier: 'colossus', count: 3, spacing: 5.5, delay: 30 }
+      { tier: 'goliath', count: 50, spacing: 0.30, delay: 3.00, props: 0 },
+      { tier: 'leviathan', count: 10, spacing: 0.90, delay: 19.70, props: 0 }
     ] },
     85: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.45, props: V },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 8, spacing: 2.6, delay: 19 },
-      { tier: 'colossus', count: 4, spacing: 5, delay: 28 }
+      { tier: 'colossus', count: 2, spacing: 1.50, delay: 3.00, props: 0 }
     ] },
     86: { groups: [
-      { tier: 'ceramic', count: 32, spacing: 0.4 },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 6, spacing: 2, delay: 14 },
-      { tier: 'leviathan', count: 10, spacing: 2.4, delay: 19 },
-      { tier: 'colossus', count: 4, spacing: 5, delay: 30 }
+      { tier: 'leviathan', count: 5, spacing: 1.50, delay: 3.00, props: P.PLATED }
     ] },
     87: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.4, props: PL },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 5, spacing: 2.2, delay: 14 },
-      { tier: 'leviathan', count: 9, spacing: 2.8, delay: 19 },
-      { tier: 'colossus', count: 5, spacing: 4.5, delay: 28 }
+      { tier: 'colossus', count: 4, spacing: 1.50, delay: 3.00, props: 0 }
     ] },
     88: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.4, props: RG },
-      { tier: 'goliath', count: 5, spacing: 1.8, delay: 9 },
-      { tier: 'wraith', count: 6, spacing: 2, delay: 14 },
-      { tier: 'leviathan', count: 12, spacing: 2.5, delay: 19 },
-      { tier: 'colossus', count: 5, spacing: 4.5, delay: 30 }
+      { tier: 'leviathan', count: 8, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 18, spacing: 0.50, delay: 11.30, props: 0 },
+      { tier: 'colossus', count: 2, spacing: 1.50, delay: 21.80, props: 0 }
     ] },
     89: { groups: [
-      { tier: 'ceramic', count: 30, spacing: 0.4, props: V },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 6, spacing: 2, delay: 14 },
-      { tier: 'leviathan', count: 10, spacing: 2.6, delay: 19 },
-      { tier: 'colossus', count: 6, spacing: 4, delay: 28 }
+      { tier: 'goliath', count: 20, spacing: 0.50, delay: 3.00, props: P.PLATED },
+      { tier: 'leviathan', count: 8, spacing: 0.90, delay: 14.50, props: P.PLATED }
     ] },
     90: { groups: [
-      { tier: 'ceramic', count: 20, spacing: 0.4 },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 6, spacing: 2, delay: 14 },
-      { tier: 'leviathan', count: 9, spacing: 2.8, delay: 19 },
-      { tier: 'colossus', count: 7, spacing: 4, delay: 30 }
+      { tier: 'lead', count: 50, spacing: 0.12, delay: 3.00, props: P.VEILED | P.REGEN | P.PLATED },
+      { tier: 'wraith', count: 3, spacing: 1.50, delay: 10.88, props: 0 }
     ] },
     91: { groups: [
-      { tier: 'ceramic', count: 14, spacing: 0.4, props: PL },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 7, spacing: 1.9, delay: 14 },
-      { tier: 'leviathan', count: 8, spacing: 3, delay: 19 },
-      { tier: 'colossus', count: 8, spacing: 3.6, delay: 28 }
+      { tier: 'ceramic', count: 100, spacing: 0.12, delay: 3.00, props: P.PLATED },
+      { tier: 'leviathan', count: 20, spacing: 0.50, delay: 16.88, props: 0 }
     ] },
     92: { groups: [
-      { tier: 'ceramic', count: 22, spacing: 0.4, props: V },
-      { tier: 'goliath', count: 4, spacing: 2, delay: 9 },
-      { tier: 'wraith', count: 7, spacing: 1.9, delay: 14 },
-      { tier: 'leviathan', count: 7, spacing: 3, delay: 19 },
-      { tier: 'colossus', count: 9, spacing: 3.4, delay: 30 }
+      { tier: 'goliath', count: 50, spacing: 0.30, delay: 3.00, props: P.PLATED },
+      { tier: 'colossus', count: 4, spacing: 1.50, delay: 19.70, props: 0 }
     ] },
     93: { groups: [
-      { tier: 'ceramic', count: 28, spacing: 0.4, props: RG },
-      { tier: 'goliath', count: 5, spacing: 1.8, delay: 9 },
-      { tier: 'wraith', count: 8, spacing: 1.8, delay: 14 },
-      { tier: 'leviathan', count: 6, spacing: 3, delay: 19 },
-      { tier: 'colossus', count: 10, spacing: 3.2, delay: 30 }
+      { tier: 'leviathan', count: 10, spacing: 0.90, delay: 3.00, props: P.PLATED },
+      { tier: 'wraith', count: 6, spacing: 0.90, delay: 13.10, props: 0 }
     ] },
     94: { groups: [
-      { tier: 'ceramic', count: 26, spacing: 0.35 },
-      { tier: 'goliath', count: 5, spacing: 1.8, delay: 9 },
-      { tier: 'wraith', count: 8, spacing: 1.8, delay: 14 },
-      { tier: 'leviathan', count: 6, spacing: 3, delay: 19 },
-      { tier: 'colossus', count: 11, spacing: 3, delay: 30 }
+      { tier: 'leviathan', count: 25, spacing: 0.50, delay: 3.00, props: 0 },
+      { tier: 'colossus', count: 6, spacing: 0.90, delay: 17.00, props: 0 }
     ] },
     95: { groups: [
-      { tier: 'ceramic', count: 28, spacing: 0.35, props: PL },
-      { tier: 'goliath', count: 6, spacing: 1.7, delay: 9 },
-      { tier: 'wraith', count: 8, spacing: 1.8, delay: 14 },
-      { tier: 'leviathan', count: 6, spacing: 3, delay: 19 },
-      { tier: 'colossus', count: 12, spacing: 2.8, delay: 30 }
+      { tier: 'purple', count: 500, spacing: 0.05, delay: 3.00, props: P.VEILED | P.REGEN },
+      { tier: 'lead', count: 250, spacing: 0.08, delay: 29.95, props: P.VEILED | P.REGEN | P.PLATED },
+      { tier: 'goliath', count: 50, spacing: 0.30, delay: 51.87, props: P.PLATED },
+      { tier: 'wraith', count: 30, spacing: 0.50, delay: 68.57, props: 0 }
     ] },
     96: { groups: [
-      { tier: 'ceramic', count: 32, spacing: 0.35, props: V },
-      { tier: 'goliath', count: 6, spacing: 1.7, delay: 9 },
-      { tier: 'wraith', count: 9, spacing: 1.7, delay: 14 },
-      { tier: 'leviathan', count: 6, spacing: 3, delay: 19 },
-      { tier: 'colossus', count: 13, spacing: 2.6, delay: 30 }
+      { tier: 'leviathan', count: 10, spacing: 0.90, delay: 3.00, props: 0 },
+      { tier: 'goliath', count: 20, spacing: 0.50, delay: 13.10, props: P.PLATED },
+      { tier: 'leviathan', count: 10, spacing: 0.90, delay: 24.60, props: 0 },
+      { tier: 'goliath', count: 20, spacing: 0.50, delay: 34.70, props: P.PLATED },
+      { tier: 'leviathan', count: 10, spacing: 0.90, delay: 46.20, props: 0 },
+      { tier: 'colossus', count: 6, spacing: 0.90, delay: 56.30, props: 0 }
     ] },
     97: { groups: [
-      { tier: 'ceramic', count: 32, spacing: 0.35, props: RG },
-      { tier: 'goliath', count: 6, spacing: 1.7, delay: 9 },
-      { tier: 'wraith', count: 9, spacing: 1.7, delay: 14 },
-      { tier: 'leviathan', count: 7, spacing: 2.8, delay: 19 },
-      { tier: 'colossus', count: 14, spacing: 2.5, delay: 30 }
+      { tier: 'colossus', count: 2, spacing: 1.50, delay: 3.00, props: P.PLATED }
     ] },
-
-    /* ---------- 98-100 · OMEN ---------- */
-
-    /* The first OMEN. Twenty thousand hits of hull, two COLOSSUS and three
-       WRAITHs inside it, and immune to instant-kill effects — no single ability
-       deletes this. */
     98: { groups: [
-      { tier: 'ceramic', count: 30, spacing: 0.35, props: PL },
-      { tier: 'goliath', count: 6, spacing: 1.7, delay: 9 },
-      { tier: 'wraith', count: 10, spacing: 1.6, delay: 14 },
-      { tier: 'leviathan', count: 8, spacing: 2.4, delay: 19 },
-      { tier: 'colossus', count: 12, spacing: 2.8, delay: 28 },
-      { tier: 'omen', count: 1, delay: 45 }
+      { tier: 'leviathan', count: 30, spacing: 0.50, delay: 3.00, props: P.PLATED },
+      { tier: 'colossus', count: 8, spacing: 0.90, delay: 19.50, props: 0 }
     ] },
     99: { groups: [
-      { tier: 'ceramic', count: 32, spacing: 0.35, props: V },
-      { tier: 'goliath', count: 6, spacing: 1.7, delay: 9 },
-      { tier: 'wraith', count: 10, spacing: 1.6, delay: 14 },
-      { tier: 'leviathan', count: 10, spacing: 2.4, delay: 19 },
-      { tier: 'colossus', count: 10, spacing: 2.8, delay: 28 },
-      { tier: 'omen', count: 2, spacing: 9, delay: 44 }
+      { tier: 'goliath', count: 60, spacing: 0.30, delay: 3.00, props: 0 },
+      { tier: 'wraith', count: 9, spacing: 0.90, delay: 22.70, props: P.PLATED }
     ] },
-    /* The last thing the track sends: three OMENs behind nine COLOSSUS, with
-       everything else the table has taught in front of them. */
     100: { groups: [
-      { tier: 'rainbow', count: 24, spacing: 0.3 },
-      { tier: 'ceramic', count: 40, spacing: 0.35, delay: 4, props: PL },
-      { tier: 'wraith', count: 12, spacing: 1.5, delay: 14 },
-      { tier: 'leviathan', count: 12, spacing: 2.2, delay: 20 },
-      { tier: 'colossus', count: 9, spacing: 2.8, delay: 30 },
-      { tier: 'omen', count: 3, spacing: 8, delay: 46 }
-    ] }
+      { tier: 'omen', count: 1, spacing: 1.50, delay: 3.00, props: 0 }
+    ] },
   }
 
   OP.ROUND_SETS.standard = OP.ROUNDS_STANDARD

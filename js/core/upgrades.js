@@ -100,12 +100,14 @@
     if (!up) return no('Nothing left to buy on this branch.')
 
     // Tower XP gates upgrades. A raw sim with no progression (test harness,
-    // preview) is unlimited; a real run can only spend what it has earned.
+    // preview) is unlimited; a real run can only spend on cells it has
+    // already unlocked — buying is a cash purchase, unlock is the XP spend.
     const next = tower.tiers[pathIdx] + 1
     if (OP.TowerXp && OP.TowerXp.canUnlock) {
-      const xp = OP.TowerXp.canUnlock(sim, tower.key, next)
+      const xp = OP.TowerXp.canUnlock(sim, tower.key, pathIdx, next)
       if (!xp.ok) {
-        return no('Tier ' + next + ' needs ' + xp.req + ' tower XP — you have ' + Math.floor(xp.have) + '.')
+        return no(xp.reason || 'Branch ' + (pathIdx + 1) + ' tier ' + next +
+          ' is not unlocked for this tower yet.')
       }
     }
 

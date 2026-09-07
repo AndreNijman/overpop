@@ -16,7 +16,9 @@ export function run (t, OP) {
   })
 
   // A plain gun to be buffed.
+  const made = []
   if (!OP.TOWERS['buff-gun']) {
+    made.push('buff-gun')
     T.define({
       key: 'buff-gun', name: 'Buff Gun', family: 'primary', cost: 200, footprint: 12,
       base: { range: 100, cooldown: 1, damage: 2, pierce: 2, dmgType: D.SHARP, projSpeed: 300 },
@@ -26,6 +28,7 @@ export function run (t, OP) {
   }
   // A magic gun, to test family filters.
   if (!OP.TOWERS['buff-mage']) {
+    made.push('buff-mage')
     T.define({
       key: 'buff-mage', name: 'Buff Mage', family: 'magic', cost: 300, footprint: 12,
       base: { range: 100, cooldown: 1, damage: 2, pierce: 2, dmgType: D.PLASMA, projSpeed: 300 },
@@ -35,6 +38,7 @@ export function run (t, OP) {
   }
   // A village that buffs everything nearby.
   if (!OP.TOWERS['buff-village']) {
+    made.push('buff-village')
     T.define({
       key: 'buff-village', name: 'Buff Village', family: 'support', cost: 1000, footprint: 16,
       base: { range: 180, cooldown: 5, damage: 0, pierce: 1, dmgType: D.NORMAL, projSpeed: 1 },
@@ -161,6 +165,7 @@ export function run (t, OP) {
   // Enforced by the engine rather than left to every content author to remember.
   let seenRange = -1
   if (!OP.TOWERS['buff-probe']) {
+    made.push('buff-probe')
     T.define({
       key: 'buff-probe', name: 'Probe', family: 'support', cost: 100, footprint: 12,
       base: { range: 200, cooldown: 3, damage: 0, pierce: 1, dmgType: D.NORMAL, projSpeed: 1 },
@@ -338,4 +343,9 @@ export function run (t, OP) {
   B.register(sim, { id: 'pre-existing', radius: 'global', mods: { damageAdd: 7 } })
   const late = place(sim, 'buff-gun', 400, 300)
   t.eq(late.s.damage, 9, 'placement restats against the existing buff set')
+
+  // Suite hygiene: throwaway towers must not leak into the shared registry that
+  // later suites (reference-build, drafts, towerxp) read. The playthrough bot
+  // enumerates OP.TOWER_ORDER, so a stray 'buff-gun' changes real builds.
+  for (const key of made) T.undefine(key)
 }

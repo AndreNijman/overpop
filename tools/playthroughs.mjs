@@ -31,6 +31,11 @@ const argv = process.argv.slice(2)
 const arg = (f, d) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : d }
 const has = f => argv.includes(f)
 
+// The module doubles as a tool and a library: importing it (reference-build
+// does) must not run the sweep or exit the process. Only a direct invocation
+// of this file as the node entry script plays the matrix.
+const INVOKED_DIRECTLY = process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href
+
 const { OP, errors } = game()
 if (errors.length) {
   console.error(red('the bundle failed to load:'))
@@ -1048,6 +1053,7 @@ function explain (r) {
   }
 }
 
+if (INVOKED_DIRECTLY) {
 log(`\n${bold('OVERPOP playthroughs')}`)
 log(`${dim('maps       ')} ${maps.join(', ')}`)
 log(`${dim('difficulty ')} ${difficulties.join(', ')}`)
@@ -1193,3 +1199,7 @@ log(failures.length
   : green(`all ${refRuns.length} reference runs held, all ${badRuns.length} inadequate runs leaked, determinism stable`))
 
 process.exit(failures.length ? 1 : 0)
+
+}
+
+export { playReference, playBad, runGame }

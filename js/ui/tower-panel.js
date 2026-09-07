@@ -121,17 +121,16 @@
     const up = OP.Upgrades.nextUpgrade(tower, p)
     const cost = up ? OP.Economy.price(sim, up.cost) : 0
     const afford = !!up && OP.Economy.canAfford(sim, cost)
-    // Tower XP gate: whether the tower type holds the requirement for the NEXT
-    // tier. Unlimited for raw sims with no progression (menu preview, harness).
+    // Tower XP gate: whether this specific (branch, tier) upgrade is unlocked.
+    // Unlimited for raw sims with no progression (menu preview, harness).
     const nextTier = tower.tiers[p] + 1
     const xp = OP.TowerXp && OP.TowerXp.canUnlock
-      ? OP.TowerXp.canUnlock(sim, tower.key, nextTier)
-      : { ok: true, req: Infinity, have: Infinity }
+      ? OP.TowerXp.canUnlock(sim, tower.key, p, nextTier)
+      : { ok: true, req: Infinity, have: Infinity, reason: '' }
     let reason = ''
     if (!legal.ok) reason = legal.reason
     else if (!up) reason = 'This branch is fully upgraded.'
-    else if (!xp.ok) reason = 'Tier ' + nextTier + ' needs ' + M.compact(xp.req) +
-      ' tower XP — you have ' + M.compact(Math.floor(xp.have)) + '.'
+    else if (!xp.ok) reason = xp.reason
     else if (!afford) reason = 'Not enough cash — ' + M.money(cost) + ' needed.'
     return {
       up: up,

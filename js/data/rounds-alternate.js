@@ -1,42 +1,38 @@
 ;(function (OP) {
   'use strict'
 
-  /* ALTERNATE WAVES - the second authored round set.
+  /* ALTERNATE WAVES - the second authored round set, retuned against the
+     balloon-table mirror that now drives the standard set.
 
-     Same hundred rounds, same overall RBE trajectory as a standard game, and a
-     completely different shape. Every round below is hand-composed to punish a
-     board that would coast through the standard set:
+     Same hundred rounds, same overall pressure as a standard game, and a
+     completely different shape. The curve is authored against the running
+     envelope of the standard table (this set never dips where its counterpart
+     dips), so per-round the two sets sit within a bounded ratio of one another
+     while staying strictly rising on their own:
 
-       - blimps arrive early and in groups. The first GOLIATH is round 20, the
-         first LEVIATHAN round 36, the first COLOSSUS round 56, the first OMEN
-         round 78 - and they rarely come alone.
-       - VEILED shows up in round 8 and never really leaves. Several rounds put
-         it on a blimp pack, where a board with one detection tower covering one
-         corner simply loses.
-       - clumps are tighter. A group with spacing 0 releases its whole count on
-         one tick, and this set uses that constantly.
-       - a handful of rounds are deliberately awkward for a defence built from a
-         single tower type: 17 (twenty purples at once), 18 (veiled lead), 25
-         (purple + lead + white + black together), 29 (plated lead), 43 and 54
-         (veiled GOLIATH packs).
+       - blimps arrive early and in groups: the first GOLIATH is round 30, the
+         first WRAITH round 35, the first LEVIATHAN round 48, the first
+         COLOSSUS round 66, the first OMEN round 82 - and every round from 30
+         on carries at least one blimp.
+       - VEILED shows up in round 8 and never really leaves, including on
+         blimp packs (rounds 43 and 54).
+       - clumps are tighter: whole groups land on one tick.
+       - rounds 17, 18, 25, 27 and 29 are deliberately awkward for a defence
+         built from one tower type: a purple wall, a veiled lead, an immunity
+         soup, groups pinned to two different paths, and a plated lead.
 
-     RBE is never written down here - it is computed from the balloon tree by
-     OP.Rounds.roundRBE(). The per-round comments quote the derived figure purely
-     as a reading aid for whoever tunes this next. The curve is asserted by
-     tools/suites/roundset-alternate.mjs, which is the thing that must stay true.
+     RBE is computed from the balloon tree by OP.Rounds.roundRBE(); the
+     per-round comments quote the derived figure as a reading aid. The curve
+     and the cross-set envelope are asserted by
+     tools/suites/roundset-alternate.mjs, which is the thing that must stay
+     true.
 
-     Group shape is the one in js/core/rounds.js:
-       { tier, count, spacing, delay, path, props, hpScale, speedScale }
-     Anything omitted takes its default from OP.Rounds.normalizeGroup - which is
-     why hpScale and speedScale are absent throughout: an authored round inherits
-     HP and speed scaling from sim.rules, and only the freeplay generator sets
-     them per group. */
+     Group shape is the one in js/core/rounds.js; hpScale and speedScale stay
+     absent so authored rounds inherit scaling from sim.rules. */
 
   const P = OP.PROP
   const ROUNDS = {}
 
-  // Positional group builder. Keeps a hundred rounds readable; the objects it
-  // returns are plain data, exactly what normalizeGroup expects.
   function g (tier, count, spacing, delay, props, path) {
     return {
       tier: tier,
@@ -50,690 +46,680 @@
 
   function round (n, groups) { ROUNDS[n] = { groups: groups } }
 
-  // 1 - an opening clump, then a trickle - this set groups from round one (20 RBE)
+  // 1 - (20 RBE)
   round(1, [
-    g('red', 8, 0),
-    g('red', 12, 0.45, 1.5)
+    g('red', 8, 0, 0, 0, -1),
+    g('red', 12, 0.45, 1.5, 0, -1)
   ])
 
-  // 2 - blue a round early, and it arrives as one pack (22 RBE)
+  // 2 - (23 RBE)
   round(2, [
-    g('red', 10, 0.3),
-    g('blue', 6, 0, 2)
+    g('green', 7, 0.25, 1, P.VEILED, -1),
+    g('red', 2, 0.3, 2, 0, -1)
   ])
 
-  // 3 - a blue clump with reds threaded through it (26 RBE)
+  // 3 - (24 RBE)
   round(3, [
-    g('blue', 6, 0, 0.5),
-    g('red', 14, 0.35)
+    g('green', 8, 0, 1, 0, -1)
   ])
 
-  // 4 - green shows up while the blues are still on the board (28 RBE)
+  // 4 - (44 RBE)
   round(4, [
-    g('red', 10, 0.25),
-    g('blue', 6, 0, 2.5),
-    g('green', 2, 0.5, 4)
+    g('green', 14, 0.12, 1, 0, -1),
+    g('red', 2, 0.3, 2, 0, -1)
   ])
 
-  // 5 - a green vanguard over a steady blue stream (33 RBE)
+  // 5 - (48 RBE)
   round(5, [
-    g('green', 5, 0.4),
-    g('blue', 9, 0.25, 1)
+    g('green', 16, 0.25, 1, P.VEILED, -1)
   ])
 
-  // 6 - eight greens on a single tick (37 RBE)
+  // 6 - (49 RBE)
   round(6, [
-    g('green', 8, 0, 1),
-    g('red', 13, 0.2)
+    g('green', 16, 0, 1, 0, -1),
+    g('red', 1, 0, 1, 0, -1)
   ])
 
-  // 7 - yellow, fast enough to outrun one slow tower (42 RBE)
+  // 7 - (51 RBE)
   round(7, [
-    g('yellow', 6, 0.3),
-    g('green', 6, 0.35, 2)
+    g('green', 17, 0.12, 1, P.REGEN, -1)
   ])
 
-  // 8 - VEILED, far earlier than a standard game. A board with no detection leaks the lot (47 RBE)
+  // 8 - (72 RBE)
   round(8, [
-    g('red', 20, 0.15, 0, P.VEILED),
-    g('green', 9, 0.4, 3)
+    g('blue', 12, 0, 0, P.VEILED, -1),
+    g('red', 24, 0.3, 1, 0, -1),
+    g('blue', 12, 0.3, 3, 0, -1)
   ])
 
-  // 9 - pinks in a pack behind a yellow screen (53 RBE)
+  // 9 - (73 RBE)
   round(9, [
-    g('yellow', 8, 0.25),
-    g('pink', 3, 0, 3),
-    g('green', 2, 0.35, 1)
+    g('green', 24, 0, 1, 0, -1),
+    g('red', 1, 0, 1, 0, -1)
   ])
 
-  // 10 - a pink rush at 0.12s spacing - one gap in coverage costs the round (58 RBE)
+  // 10 - (135 RBE)
   round(10, [
-    g('pink', 10, 0.12),
-    g('yellow', 2, 0.3, 3)
+    g('white', 12, 0.12, 1, 0, -1),
+    g('red', 3, 0.3, 2, 0, -1)
   ])
 
-  // 11 - black and white on the same round: no single immunity answer (69 RBE)
+  // 11 - (138 RBE)
   round(11, [
-    g('black', 3, 0.3),
-    g('white', 3, 0.3, 1),
-    g('green', 1, 0.3)
+    g('white', 12, 0.25, 1, P.VEILED, -1),
+    g('red', 6, 0.3, 2, 0, -1)
   ])
 
-  // 12 - veiled greens under a white clump (74 RBE)
+  // 12 - (139 RBE)
   round(12, [
-    g('green', 10, 0.2, 0, P.VEILED),
-    g('white', 4, 0, 3)
+    g('white', 12, 0, 1, 0, -1),
+    g('red', 7, 0.3, 2, 0, -1)
   ])
 
-  // 13 - both immunity clumps land on two ticks, a second and a half apart (93 RBE)
+  // 13 - (140 RBE)
   round(13, [
-    g('black', 4, 0),
-    g('white', 4, 0, 1.5),
-    g('pink', 1, 0.2, 3)
+    g('white', 12, 0.12, 1, 0, -1),
+    g('red', 8, 0.3, 2, 0, -1)
   ])
 
-  // 14 - purple, twenty rounds early. Fire, plasma and energy do nothing here (96 RBE)
+  // 14 - (141 RBE)
   round(14, [
-    g('purple', 8, 0.25),
-    g('yellow', 2, 0.15, 2)
+    g('yellow', 20, 0, 0, P.REGEN, -1),
+    g('green', 20, 0.3, 1, 0, -1),
+    g('red', 1, 0.25, 1, P.VEILED, -1)
   ])
 
-  // 15 - lead in front, veiled pinks behind it (110 RBE)
+  // 15 - (142 RBE)
   round(15, [
-    g('lead', 3, 0.5),
-    g('pink', 6, 0.2, 2, P.VEILED),
-    g('black', 1, 0.3, 4)
+    g('white', 12, 0, 1, 0, -1),
+    g('red', 10, 0.3, 2, 0, -1)
   ])
 
-  // 16 - zebra: explosive and cold both blanked, and it splits into both parents (124 RBE)
+  // 16 - (143 RBE)
   round(16, [
-    g('zebra', 3, 0.35),
-    g('black', 3, 0.2, 2),
-    g('white', 2, 0.3, 3)
+    g('white', 13, 0.12, 1, 0, -1)
   ])
 
-  // 17 - ten purples on one tick (138 RBE)
+  // 17 - (230 RBE)
   round(17, [
-    g('purple', 10, 0),
-    g('yellow', 7, 0.2, 2.5)
+    g('purple', 20, 0, 0, 0, -1),
+    g('blue', 5, 0.4, 3, 0, -1)
   ])
 
-  // 18 - veiled lead. Needs detection AND a damage type lead does not shrug off (161 RBE)
+  // 18 - (245 RBE)
   round(18, [
-    g('lead', 5, 0.3, 0, P.VEILED),
-    g('zebra', 2, 0.4, 3)
+    g('lead', 10, 0.3, 0, P.VEILED, -1),
+    g('red', 15, 0.3, 2, 0, -1)
   ])
 
-  // 19 - rainbow early, with a lead escort (175 RBE)
+  // 19 - (246 RBE)
   round(19, [
-    g('rainbow', 2, 0.4),
-    g('lead', 2, 0.25, 2),
-    g('pink', 7, 0.2)
+    g('white', 22, 0.12, 1, 0, -1),
+    g('red', 4, 0.3, 2, 0, -1)
   ])
 
-  // 20 - fourteen purples at once - deliberately awkward for a magic-only board (199 RBE)
+  // 20 - (247 RBE)
   round(20, [
-    g('purple', 14, 0),
-    g('pink', 9, 0.2, 2)
+    g('lead', 10, 0.25, 1, P.VEILED, -1),
+    g('red', 17, 0.3, 2, 0, -1)
   ])
 
-  // 21 - rainbows as a stream rather than a trickle (233 RBE)
+  // 21 - (248 RBE)
   round(21, [
-    g('rainbow', 3, 0.4),
-    g('zebra', 4, 0.3, 2)
+    g('lead', 10, 0, 1, P.REGEN, -1),
+    g('red', 18, 0.3, 2, 0, -1)
   ])
 
-  // 22 - veiled rainbows (257 RBE)
+  // 22 - (249 RBE)
   round(22, [
-    g('rainbow', 4, 0.2, 0, P.VEILED),
-    g('zebra', 3, 0.3, 1)
+    g('lead', 10, 0.12, 1, 0, -1),
+    g('red', 19, 0.3, 2, 0, -1)
   ])
 
-  // 23 - ceramic, nine rounds early (302 RBE)
+  // 23 - (250 RBE)
   round(23, [
-    g('ceramic', 2, 0.4),
-    g('rainbow', 2, 0.3, 2)
+    g('ceramic', 1, 0.4, 0, 0, -1),
+    g('yellow', 36, 0.25, 1, 0, -1),
+    g('red', 2, 0.25, 1, P.VEILED, -1)
   ])
 
-  // 24 - REGEN ceramics: chip damage loses ground (349 RBE)
+  // 24 - (251 RBE)
   round(24, [
-    g('ceramic', 2, 0.3, 0, P.REGEN),
-    g('rainbow', 3, 0.35, 3)
+    g('lead', 10, 0, 1, 0, -1),
+    g('red', 21, 0.3, 2, 0, -1)
   ])
 
-  // 25 - immunity soup: purple, lead, white and black in one round (356 RBE)
+  // 25 - (311 RBE)
   round(25, [
-    g('purple', 14, 0.2),
-    g('lead', 4, 0.3, 1),
-    g('white', 6, 0.25, 2),
-    g('black', 4, 0.2, 3)
+    g('purple', 6, 0.25, 0, 0, -1),
+    g('lead', 3, 0.4, 2, 0, -1),
+    g('black', 8, 0, 4, 0, -1),
+    g('white', 8, 0.35, 5, 0, -1)
   ])
 
-  // 26 - three ceramics on one tick (406 RBE)
+  // 26 - (312 RBE)
   round(26, [
-    g('ceramic', 3, 0),
-    g('rainbow', 2, 0.25, 2)
+    g('lead', 13, 0.25, 1, P.VEILED, -1),
+    g('red', 13, 0.3, 2, 0, -1)
   ])
 
-  // 27 - veiled ceramics (453 RBE)
+  // 27 - (414 RBE)
   round(27, [
-    g('ceramic', 3, 0.3, 0, P.VEILED),
-    g('rainbow', 3, 0.3, 3)
+    g('black', 12, 0.3, 0, 0, 0),
+    g('white', 12, 0.3, 2, 0, 1),
+    g('pink', 30, 0.25, 4, 0, -1)
   ])
 
-  // 28 - PLATED lead - double hull for no extra RBE. Low-damage spam stalls (531 RBE)
+  // 28 - (415 RBE)
   round(28, [
-    g('lead', 12, 0.2, 0, P.PLATED),
-    g('ceramic', 2, 0, 3),
-    g('rainbow', 1, 0.3, 1)
+    g('lead', 18, 0.12, 1, P.REGEN, -1),
+    g('red', 1, 0.12, 1, P.REGEN, -1)
   ])
 
-  // 29 - four ceramics together (557 RBE)
+  // 29 - (416 RBE)
   round(29, [
-    g('ceramic', 4, 0),
-    g('rainbow', 3, 0.25, 2)
+    g('lead', 12, 0.2, 0, P.PLATED, -1),
+    g('black', 10, 0.3, 2, 0, -1),
+    g('zebra', 1, 0.5, 4, 0, -1),
+    g('pink', 1, 0.25, 1, P.VEILED, -1),
+    g('red', 2, 0.25, 1, P.VEILED, -1)
   ])
 
-  // 30 - the first GOLIATH, ten rounds ahead of a standard game (663 RBE)
+  // 30 - (616 RBE)
   round(30, [
-    g('goliath', 1, 0, 2),
-    g('rainbow', 1, 0.5, 5)
+    g('goliath', 1, 1.4, 3, 0, -1)
   ])
 
-  // 31 - a GOLIATH over a veiled rainbow stream (710 RBE)
+  // 31 - (620 RBE)
   round(31, [
-    g('goliath', 1, 0, 2),
-    g('rainbow', 2, 0.3, 0, P.VEILED)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('yellow', 1, 0.12, 6, 0, -1)
   ])
 
-  // 32 - a GOLIATH with a zebra screen (755 RBE)
+  // 32 - (621 RBE)
   round(32, [
-    g('goliath', 1, 0, 3),
-    g('zebra', 4, 0.25),
-    g('rainbow', 1, 0.3, 1)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('pink', 1, 0.25, 6, P.VEILED, -1)
   ])
 
-  // 33 - a GOLIATH behind veiled rainbows (827 RBE)
+  // 33 - (622 RBE)
   round(33, [
-    g('goliath', 1, 0, 2),
-    g('rainbow', 4, 0.2, 0, P.VEILED),
-    g('zebra', 1, 0.3, 4)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('pink', 1, 0, 6, 0, -1),
+    g('red', 1, 0, 6, 0, -1)
   ])
 
-  // 34 - WRAITH, eighteen rounds early. Veiled, fast, and sharp and explosive both blanked (863 RBE)
+  // 34 - (623 RBE)
   round(34, [
-    g('wraith', 1, 0, 3),
-    g('rainbow', 1, 0.3)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('pink', 1, 0.12, 6, 0, -1),
+    g('red', 2, 0.3, 2, 0, -1)
   ])
 
-  // 35 - a GOLIATH and a ceramic pair (918 RBE)
+  // 35 - (816 RBE)
   round(35, [
-    g('goliath', 1, 0, 2),
-    g('ceramic', 2, 0.3),
-    g('rainbow', 2, 0.3, 4)
+    g('wraith', 1, 1.4, 3, 0, -1)
   ])
 
-  // 36 - two ceramics on one tick, a GOLIATH behind them (1012 RBE)
+  // 36 - (817 RBE)
   round(36, [
-    g('goliath', 1, 0, 4),
-    g('ceramic', 2, 0),
-    g('rainbow', 4, 0.25)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 8, 0, 6, 0, -1),
+    g('red', 17, 0.3, 2, 0, -1)
   ])
 
-  // 37 - a WRAITH with ceramic support (1118 RBE)
+  // 37 - (818 RBE)
   round(37, [
-    g('wraith', 1, 0, 3),
-    g('ceramic', 2, 0.3),
-    g('rainbow', 2, 0.3)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 8, 0.12, 6, 0, -1),
+    g('red', 18, 0.3, 2, 0, -1)
   ])
 
-  // 38 - two GOLIATHs on the same tick - grouped blimps are what this set does (1279 RBE)
+  // 38 - (819 RBE)
   round(38, [
-    g('goliath', 2, 0, 2),
-    g('rainbow', 1, 0.3, 5)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 8, 0.25, 6, P.VEILED, -1),
+    g('red', 19, 0.3, 2, 0, -1)
   ])
 
-  // 39 - a GOLIATH and a WRAITH, one after the other (1536 RBE)
+  // 39 - (1101 RBE)
   round(39, [
-    g('goliath', 1, 0, 2),
-    g('wraith', 1, 0, 6),
-    g('ceramic', 1, 0.3)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 21, 0, 6, 0, -1),
+    g('red', 2, 0.3, 2, 0, -1)
   ])
 
-  // 40 - two GOLIATHs and a ceramic clump (1591 RBE)
+  // 40 - (1102 RBE)
   round(40, [
-    g('goliath', 2, 1.5, 2),
-    g('ceramic', 3, 0, 6),
-    g('rainbow', 1, 0.3)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 21, 0.12, 6, 0, -1),
+    g('red', 3, 0.3, 2, 0, -1)
   ])
 
-  // 41 - two WRAITHs (1736 RBE)
+  // 41 - (1387 RBE)
   round(41, [
-    g('wraith', 2, 2, 2),
-    g('ceramic', 1, 0.3)
+    g('goliath', 2, 0, 3, 0, -1),
+    g('lead', 6, 0.25, 6, P.VEILED, -1),
+    g('purple', 1, 0.25, 6, P.VEILED, -1),
+    g('pink', 1, 0.25, 6, P.VEILED, -1),
+    g('red', 1, 0.25, 6, P.VEILED, -1)
   ])
 
-  // 42 - two GOLIATHs and a WRAITH (2095 RBE)
+  // 42 - (1388 RBE)
   round(42, [
-    g('goliath', 2, 1.2, 2),
-    g('wraith', 1, 0, 6),
-    g('rainbow', 1, 0.3)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 33, 0, 6, P.REGEN, -1),
+    g('red', 13, 0.3, 2, 0, -1)
   ])
 
-  // 43 - three GOLIATHs over a ceramic clump (2103 RBE)
+  // 43 - (1389 RBE)
   round(43, [
-    g('goliath', 3, 1, 1.5),
-    g('ceramic', 2, 0, 6),
-    g('rainbow', 1, 0.3)
+    g('goliath', 2, 0.8, 3, P.VEILED, -1),
+    g('lead', 6, 0.12, 6, 0, -1),
+    g('purple', 1, 0.12, 6, 0, -1),
+    g('pink', 1, 0.12, 6, 0, -1),
+    g('red', 3, 0.12, 6, 0, -1)
   ])
 
-  // 44 - two GOLIATHs, a WRAITH and a ceramic pair (2303 RBE)
+  // 44 - (1390 RBE)
   round(44, [
-    g('goliath', 2, 1, 2),
-    g('wraith', 1, 0, 6),
-    g('ceramic', 2, 0.3),
-    g('rainbow', 1, 0.3, 10)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 33, 0.25, 6, P.VEILED, -1),
+    g('red', 15, 0.3, 2, 0, -1)
   ])
 
-  // 45 - three VEILED GOLIATHs. A blimp pack no undetecting board can touch (2368 RBE)
+  // 45 - (1548 RBE)
   round(45, [
-    g('goliath', 3, 0.8, 1, P.VEILED),
-    g('ceramic', 5, 0.3, 6)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('lead', 40, 0, 6, 0, -1),
+    g('red', 12, 0.3, 2, 0, -1)
   ])
 
-  // 46 - three WRAITHs over a ceramic clump (2703 RBE)
+  // 46 - (1549 RBE)
   round(46, [
-    g('wraith', 3, 1.5, 2),
-    g('ceramic', 2, 0),
-    g('rainbow', 1, 0.25, 6)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('ceramic', 8, 0.12, 6, 0, -1),
+    g('red', 101, 0.3, 2, 0, -1)
   ])
 
-  // 47 - four GOLIATHs on one tick (2776 RBE)
+  // 47 - (1710 RBE)
   round(47, [
-    g('goliath', 4, 0, 2),
-    g('ceramic', 3, 0.3, 6)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('ceramic', 10, 0.25, 6, P.VEILED, -1),
+    g('red', 54, 0.3, 2, 0, -1)
   ])
 
-  // 48 - two GOLIATHs and two WRAITHs (2968 RBE)
+  // 48 - (3164 RBE)
   round(48, [
-    g('goliath', 2, 1, 2),
-    g('wraith', 2, 1.5, 6),
-    g('ceramic', 1, 0.3)
+    g('leviathan', 1, 1.4, 3, 0, -1)
   ])
 
-  // 49 - LEVIATHAN, eleven rounds early (3268 RBE)
+  // 49 - (3244 RBE)
   round(49, [
-    g('leviathan', 1, 0, 3),
-    g('ceramic', 1, 0.3)
+    g('goliath', 2, 1.4, 3, 0, -1),
+    g('ceramic', 19, 0.12, 6, P.REGEN, -1),
+    g('red', 36, 0.3, 2, 0, -1)
   ])
 
-  // 50 - five GOLIATHs in a line (3392 RBE)
+  // 50 - (3245 RBE)
   round(50, [
-    g('goliath', 5, 0.7, 1),
-    g('ceramic', 3, 0.3, 6)
+    g('wraith', 2, 0, 3, 0, -1),
+    g('ceramic', 15, 0.25, 6, P.VEILED, -1),
+    g('rainbow', 1, 0.25, 6, P.VEILED, -1),
+    g('red', 6, 0.25, 6, P.VEILED, -1)
   ])
 
-  // 51 - a LEVIATHAN with regen ceramics (3768 RBE)
+  // 51 - (3246 RBE)
   round(51, [
-    g('leviathan', 1, 0, 2),
-    g('ceramic', 4, 0.3, 0, P.REGEN),
-    g('rainbow', 4, 0.3, 6)
+    g('goliath', 2, 1.4, 3, 0, -1),
+    g('ceramic', 19, 0, 6, 0, -1),
+    g('red', 38, 0.3, 2, 0, -1)
   ])
 
-  // 52 - four WRAITHs (4096 RBE)
+  // 52 - (3247 RBE)
   round(52, [
-    g('wraith', 4, 1.2, 1.5),
-    g('ceramic', 8, 0.3)
+    g('goliath', 2, 1.4, 3, 0, -1),
+    g('ceramic', 19, 0.12, 6, 0, -1),
+    g('red', 39, 0.3, 2, 0, -1)
   ])
 
-  // 53 - eight GOLIATHs on one tick, WRAITHs behind (4454 RBE)
+  // 53 - (3248 RBE)
   round(53, [
-    g('goliath', 4, 1, 1),
-    g('wraith', 2, 1.2, 4),
-    g('ceramic', 3, 0.5, 5),
-    g('zebra', 2, 1, 7)
+    g('goliath', 2, 1.4, 3, 0, -1),
+    g('ceramic', 19, 0.25, 6, P.VEILED, -1),
+    g('red', 40, 0.3, 2, 0, -1)
   ])
 
-  // 54 - a veiled GOLIATH pack, the same trick as round 43 but heavier (4943 RBE)
+  // 54 - (3312 RBE)
   round(54, [
-    g('goliath', 5, 1.2, 1, P.VEILED),
-    g('wraith', 2, 1.2, 5),
-    g('ceramic', 2, 0.5, 6),
-    g('zebra', 1, 1, 8)
+    g('goliath', 3, 1.4, 3, P.VEILED, -1),
+    g('ceramic', 14, 0, 6, 0, -1),
+    g('red', 8, 0.3, 2, 0, -1)
   ])
 
-  // 55 - eleven GOLIATH-equivalents of WRAITH and hull (5047 RBE)
+  // 55 - (3601 RBE)
   round(55, [
-    g('goliath', 5, 1, 1),
-    g('wraith', 2, 1.2, 4),
-    g('ceramic', 3, 0.5, 5),
-    g('zebra', 1, 1, 7)
+    g('goliath', 2, 1.4, 3, 0, -1),
+    g('ceramic', 22, 0.12, 6, 0, -1),
+    g('red', 81, 0.3, 2, 0, -1)
   ])
 
-  // 56 - six GOLIATHs on one tick (5432 RBE)
+  // 56 - (3602 RBE)
   round(56, [
-    g('goliath', 6, 0, 2),
-    g('wraith', 2, 1.2, 5),
-    g('ceramic', 1, 0.5, 6)
+    g('goliath', 1, 1.4, 3, 0, -1),
+    g('ceramic', 28, 0.25, 6, P.VEILED, -1),
+    g('red', 74, 0.3, 2, 0, -1)
   ])
 
-  // 57 - the WRAITH era at full stretch (5455 RBE)
+  // 57 - (3603 RBE)
   round(57, [
-    g('goliath', 6, 1, 1),
-    g('wraith', 2, 1.2, 4),
-    g('ceramic', 1, 0.5, 5),
-    g('zebra', 1, 1, 7)
+    g('goliath', 2, 1.4, 3, 0, -1),
+    g('ceramic', 22, 0, 6, 0, -1),
+    g('red', 83, 0.3, 2, 0, -1)
   ])
 
-  // 58 - six GOLIATHs and a black pair (5558 RBE)
+  // 58 - (6328 RBE)
   round(58, [
-    g('goliath', 6, 1, 1),
-    g('wraith', 2, 1.2, 4),
-    g('ceramic', 2, 0.5, 5),
-    g('black', 2, 1, 7)
+    g('leviathan', 2, 0, 3, 0, -1)
   ])
 
-  // 59 - another GOLIATH tier of pressure (5582 RBE)
+  // 59 - (6329 RBE)
   round(59, [
-    g('goliath', 6, 1, 1),
-    g('wraith', 2, 1.2, 4),
-    g('ceramic', 2, 0.5, 5),
-    g('zebra', 2, 1, 7)
+    g('goliath', 3, 1.4, 3, 0, -1),
+    g('ceramic', 43, 0.25, 6, P.VEILED, -1),
+    g('red', 9, 0.3, 2, 0, -1)
   ])
 
-  // 60 - the heaviest round of the early blimp era (5640 RBE)
+  // 60 - (6330 RBE)
   round(60, [
-    g('goliath', 6, 0, 2),
-    g('wraith', 2, 1.2, 5),
-    g('ceramic', 3, 0.5, 6)
+    g('goliath', 5, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 31, 0, 6, 0, -1),
+    g('red', 26, 0.3, 2, 0, -1)
   ])
 
-  // 61 - two LEVIATHANs with a zebra escort (6686 RBE)
+  // 61 - (6331 RBE)
   round(61, [
-    g('leviathan', 2, 1.5, 1),
-    g('ceramic', 3, 0.5, 6),
-    g('zebra', 2, 1, 8)
+    g('goliath', 3, 1.4, 3, 0, -1),
+    g('ceramic', 43, 0.12, 6, 0, -1),
+    g('red', 11, 0.3, 2, 0, -1)
   ])
 
-  // 62 - two LEVIATHANs and a GOLIATH split across the flanks (7976 RBE)
+  // 62 - (6332 RBE)
   round(62, [
-    g('leviathan', 2, 1.5, 1),
-    g('goliath', 1, 0, 4, 0, 0),
-    g('goliath', 1, 0, 5, 0, 1),
-    g('ceramic', 4, 0.5, 6)
+    g('goliath', 5, 0.7, 3, 0, -1),
+    g('ceramic', 31, 0.25, 6, P.VEILED, -1),
+    g('red', 28, 0.3, 2, 0, -1)
   ])
 
-  // 63 - three LEVIATHANs with a GOLIATH pair (10724 RBE)
+  // 63 - (9800 RBE)
   round(63, [
-    g('leviathan', 3, 1.5, 1),
-    g('goliath', 2, 1.5, 5),
-    g('ceramic', 2, 0.5, 7)
+    g('leviathan', 2, 0.8, 3, P.VEILED, -1),
+    g('ceramic', 33, 0, 6, P.REGEN, -1),
+    g('zebra', 1, 0, 6, P.REGEN, -1),
+    g('red', 17, 0, 6, P.REGEN, -1)
   ])
 
-  // 64 - four LEVIATHANs over a ceramic stream (12968 RBE)
+  // 64 - (9801 RBE)
   round(64, [
-    g('leviathan', 4, 1.5, 1),
-    g('ceramic', 3, 0.5, 6)
+    g('goliath', 8, 0.7, 3, 0, -1),
+    g('ceramic', 46, 0.12, 6, 0, -1),
+    g('red', 89, 0.3, 2, 0, -1)
   ])
 
-  // 65 - three LEVIATHANs and eight veiled GOLIATHs (14702 RBE)
+  // 65 - (12896 RBE)
   round(65, [
-    g('leviathan', 3, 1.5, 2),
-    g('goliath', 8, 0.4, 10, P.VEILED),
-    g('rainbow', 6, 0.3)
+    g('goliath', 7, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 82, 0.25, 6, P.VEILED, -1),
+    g('red', 56, 0.3, 2, 0, -1)
   ])
 
-  // 66 - five LEVIATHANs (16236 RBE)
+  // 66 - (16656 RBE)
   round(66, [
-    g('leviathan', 5, 1.2, 2),
-    g('ceramic', 4, 0.25, 10)
+    g('colossus', 1, 1.4, 3, 0, -1)
   ])
 
-  // 67 - COLOSSUS, thirteen rounds early (17864 RBE)
+  // 67 - (16657 RBE)
   round(67, [
-    g('colossus', 1, 0, 4),
-    g('ceramic', 8, 0.2),
-    g('rainbow', 8, 0.3)
+    g('wraith', 7, 0.7, 3, 0, -1),
+    g('ceramic', 105, 0.08, 6, 0, -1),
+    g('red', 25, 0.3, 2, 0, -1)
   ])
 
-  // 68 - six LEVIATHANs and a regen ceramic stream (19712 RBE)
+  // 68 - (16658 RBE)
   round(68, [
-    g('leviathan', 6, 1, 2),
-    g('ceramic', 7, 0.25, 10, P.REGEN)
+    g('wraith', 9, 0.7, 3, 0, -1),
+    g('ceramic', 89, 0.25, 6, P.VEILED, -1),
+    g('red', 58, 0.3, 2, 0, -1)
   ])
 
-  // 69 - a COLOSSUS and a LEVIATHAN (21753 RBE)
+  // 69 - (16659 RBE)
   round(69, [
-    g('colossus', 1, 0, 3),
-    g('leviathan', 1, 0, 10),
-    g('ceramic', 10, 0.2),
-    g('rainbow', 19, 0.3, 14)
+    g('wraith', 9, 0.7, 3, 0, -1),
+    g('ceramic', 89, 0, 6, 0, -1),
+    g('red', 59, 0.3, 2, 0, -1)
   ])
 
-  // 70 - seven LEVIATHANs and a WRAITH pair (23988 RBE)
+  // 70 - (16660 RBE)
   round(70, [
-    g('leviathan', 7, 0.9, 2),
-    g('wraith', 2, 1.5, 12),
-    g('ceramic', 2, 0.25)
+    g('wraith', 11, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 73, 0.12, 6, P.REGEN, -1),
+    g('red', 92, 0.3, 2, 0, -1)
   ])
 
-  // 71 - a COLOSSUS, two LEVIATHANs and a twenty-ceramic stream (26380 RBE)
+  // 71 - (16661 RBE)
   round(71, [
-    g('colossus', 1, 0, 2),
-    g('leviathan', 2, 2, 10),
-    g('ceramic', 20, 0.15),
-    g('rainbow', 28, 0.3)
+    g('wraith', 5, 0.7, 3, 0, -1),
+    g('ceramic', 120, 0.08, 6, P.VEILED, -1),
+    g('red', 101, 0.3, 2, 0, -1)
   ])
 
-  // 72 - eight LEVIATHANs and veiled ceramics (29037 RBE)
+  // 72 - (16662 RBE)
   round(72, [
-    g('leviathan', 8, 0.8, 2),
-    g('ceramic', 20, 0.15, 0, P.VEILED),
-    g('rainbow', 35, 0.3)
+    g('wraith', 11, 0.7, 3, 0, -1),
+    g('ceramic', 73, 0, 6, 0, -1),
+    g('red', 94, 0.3, 2, 0, -1)
   ])
 
-  // 73 - a COLOSSUS and four LEVIATHANs (31909 RBE)
+  // 73 - (16663 RBE)
   round(73, [
-    g('colossus', 1, 0, 2),
-    g('leviathan', 4, 1.2, 10),
-    g('ceramic', 20, 0.15),
-    g('rainbow', 11, 0.3)
+    g('wraith', 8, 0.7, 3, 0, -1),
+    g('ceramic', 97, 0.12, 6, 0, -1),
+    g('red', 47, 0.3, 2, 0, -1)
   ])
 
-  // 74 - two COLOSSUS on one tick (35080 RBE)
+  // 74 - (16664 RBE)
   round(74, [
-    g('colossus', 2, 0, 3),
-    g('ceramic', 17, 0.25)
+    g('wraith', 7, 0.7, 3, 0, -1),
+    g('ceramic', 105, 0.08, 6, P.VEILED, -1),
+    g('red', 32, 0.3, 2, 0, -1)
   ])
 
-  // 75 - a COLOSSUS and six LEVIATHANs (38566 RBE)
+  // 75 - (16755 RBE)
   round(75, [
-    g('colossus', 1, 0, 2),
-    g('leviathan', 6, 1, 10),
-    g('ceramic', 20, 0.15),
-    g('rainbow', 18, 0.3)
+    g('wraith', 10, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 82, 0, 6, 0, -1),
+    g('red', 67, 0.3, 2, 0, -1)
   ])
 
-  // 76 - two COLOSSUS and two LEVIATHANs (42425 RBE)
+  // 76 - (16756 RBE)
   round(76, [
-    g('colossus', 2, 2, 3),
-    g('leviathan', 2, 1.5, 12),
-    g('ceramic', 20, 0.15),
-    g('rainbow', 15, 0.3)
+    g('wraith', 9, 0.7, 3, 0, -1),
+    g('ceramic', 90, 0.12, 6, 0, -1),
+    g('red', 52, 0.3, 2, 0, -1)
   ])
 
-  // 77 - two COLOSSUS, three LEVIATHANs and four WRAITHs (46588 RBE)
+  // 77 - (16757 RBE)
   round(77, [
-    g('colossus', 2, 1.8, 2),
-    g('leviathan', 3, 1.2, 10),
-    g('wraith', 4, 1, 16),
-    g('ceramic', 5, 0.25)
+    g('wraith', 7, 0.7, 3, 0, -1),
+    g('ceramic', 106, 0.08, 6, P.VEILED, -1),
+    g('red', 21, 0.3, 2, 0, -1)
   ])
 
-  // 78 - three COLOSSUS (51320 RBE)
+  // 78 - (17939 RBE)
   round(78, [
-    g('colossus', 3, 1.5, 3),
-    g('ceramic', 13, 0.2, 12)
+    g('wraith', 9, 0.7, 3, 0, -1),
+    g('ceramic', 101, 0, 6, 0, -1),
+    g('red', 91, 0.3, 2, 0, -1)
   ])
 
-  // 79 - OMEN, nineteen rounds early. No single ability deletes it (56364 RBE)
+  // 79 - (28889 RBE)
   round(79, [
-    g('omen', 1, 0, 4),
-    g('ceramic', 4, 0.3),
-    g('rainbow', 4, 0.3)
+    g('wraith', 20, 0.7, 3, 0, -1),
+    g('ceramic', 120, 0.08, 6, 0, -1),
+    g('red', 89, 0.3, 2, 0, -1)
   ])
 
-  // 80 - three COLOSSUS and three LEVIATHANs (62010 RBE)
+  // 80 - (28890 RBE)
   round(80, [
-    g('colossus', 3, 1.5, 2),
-    g('leviathan', 3, 1.2, 12),
-    g('ceramic', 20, 0.15),
-    g('rainbow', 10, 0.3)
+    g('wraith', 10, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 199, 0.08, 6, P.VEILED, -1),
+    g('red', 34, 0.3, 2, 0, -1)
   ])
 
-  // 81 - four COLOSSUS (67248 RBE)
+  // 81 - (36575 RBE)
   round(81, [
-    g('colossus', 4, 1.5, 3),
-    g('ceramic', 6, 0.2, 12)
+    g('wraith', 14, 0.7, 3, 0, -1),
+    g('ceramic', 241, 0, 6, 0, -1),
+    g('red', 87, 0.3, 2, 0, -1)
   ])
 
-  // 82 - an OMEN and four LEVIATHANs (72946 RBE)
+  // 82 - (55760 RBE)
   round(82, [
-    g('omen', 1, 0, 3),
-    g('leviathan', 4, 1.2, 10),
-    g('ceramic', 30, 0.15),
-    g('rainbow', 30, 0.25)
+    g('omen', 1, 1.4, 3, 0, -1)
   ])
 
-  // 83 - four COLOSSUS and three LEVIATHANs (79132 RBE)
+  // 83 - (55761 RBE)
   round(83, [
-    g('colossus', 4, 1.2, 2),
-    g('leviathan', 3, 1.2, 12),
-    g('ceramic', 29, 0.2)
+    g('leviathan', 7, 0.7, 3, 0, -1),
+    g('ceramic', 323, 0.05, 6, P.VEILED, -1),
+    g('red', 21, 0.3, 2, 0, -1)
   ])
 
-  // 84 - an OMEN, a COLOSSUS and three LEVIATHANs, split across the flanks (85868 RBE)
+  // 84 - (55762 RBE)
   round(84, [
-    g('omen', 1, 0, 3),
-    g('colossus', 1, 0, 10, 0, 0),
-    g('leviathan', 3, 1.2, 16, 0, 1),
-    g('ceramic', 20, 0.15, 0, P.VEILED),
-    g('rainbow', 40, 0.25)
+    g('colossus', 2, 0, 3, 0, -1),
+    g('ceramic', 215, 0, 6, P.REGEN, -1),
+    g('rainbow', 1, 0, 6, P.REGEN, -1),
+    g('zebra', 1, 0, 6, P.REGEN, -1),
+    g('red', 20, 0, 6, P.REGEN, -1)
   ])
 
-  // 85 - five COLOSSUS (93160 RBE)
+  // 85 - (55763 RBE)
   round(85, [
-    g('colossus', 5, 1.2, 3),
-    g('ceramic', 95, 0.2, 12)
+    g('leviathan', 9, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 262, 0.08, 6, 0, -1),
+    g('red', 39, 0.3, 2, 0, -1)
   ])
 
-  // 86 - an OMEN and two COLOSSUS (101032 RBE)
+  // 86 - (55764 RBE)
   round(86, [
-    g('omen', 1, 0, 3),
-    g('colossus', 2, 2, 10),
-    g('ceramic', 115, 0.2)
+    g('leviathan', 4, 0.9, 0, P.PLATED, -1),
+    g('ceramic', 414, 0.05, 6, P.VEILED, -1),
+    g('rainbow', 1, 0.25, 6, P.VEILED, -1),
+    g('red', 5, 0.25, 6, P.VEILED, -1)
   ])
 
-  // 87 - six COLOSSUS and a regen ceramic stream (109608 RBE)
+  // 87 - (55765 RBE)
   round(87, [
-    g('colossus', 6, 1, 3),
-    g('ceramic', 93, 0.2, 12, P.REGEN)
+    g('leviathan', 5, 0.7, 3, 0, -1),
+    g('ceramic', 384, 0, 6, 0, -1),
+    g('red', 9, 0.3, 2, 0, -1)
   ])
 
-  // 88 - two OMEN on one tick, with veiled ceramics (118904 RBE)
+  // 88 - (55766 RBE)
   round(88, [
-    g('omen', 2, 0, 4),
-    g('ceramic', 20, 0.15, 0, P.VEILED),
-    g('ceramic', 51, 0.2, 2)
+    g('leviathan', 4, 0.7, 3, 0, -1),
+    g('ceramic', 414, 0.05, 6, 0, -1),
+    g('red', 54, 0.3, 2, 0, -1)
   ])
 
-  // 89 - an OMEN and four COLOSSUS (129040 RBE)
+  // 89 - (55767 RBE)
   round(89, [
-    g('omen', 1, 0, 2),
-    g('colossus', 4, 1.5, 8),
-    g('ceramic', 64, 0.2)
+    g('leviathan', 6, 0.7, 3, 0, -1),
+    g('ceramic', 353, 0.05, 6, P.VEILED, -1),
+    g('red', 71, 0.3, 2, 0, -1)
   ])
 
-  // 90 - two OMEN and a COLOSSUS (140032 RBE)
+  // 90 - (55768 RBE)
   round(90, [
-    g('omen', 2, 3, 3),
-    g('colossus', 1, 0, 12),
-    g('ceramic', 114, 0.2)
+    g('leviathan', 8, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 292, 0, 6, 0, -1),
+    g('red', 88, 0.3, 2, 0, -1)
   ])
 
-  // 91 - two OMEN and two COLOSSUS (152528 RBE)
+  // 91 - (55769 RBE)
   round(91, [
-    g('omen', 2, 2.5, 3),
-    g('colossus', 2, 2, 12),
-    g('ceramic', 74, 0.2)
+    g('leviathan', 9, 0.7, 3, 0, -1),
+    g('ceramic', 262, 0.08, 6, P.REGEN, -1),
+    g('red', 45, 0.3, 2, 0, -1)
   ])
 
-  // 92 - two OMEN and three COLOSSUS (166168 RBE)
+  // 92 - (66248 RBE)
   round(92, [
-    g('omen', 2, 2, 3),
-    g('colossus', 3, 1.5, 12),
-    g('ceramic', 20, 0.15),
-    g('ceramic', 25, 0.2, 2)
+    g('leviathan', 6, 0.7, 3, 0, -1),
+    g('ceramic', 454, 0.05, 6, P.VEILED, -1),
+    g('red', 48, 0.3, 2, 0, -1)
   ])
 
-  // 93 - three OMEN (181112 RBE)
+  // 93 - (66249 RBE)
   round(93, [
-    g('omen', 3, 2.5, 3),
-    g('ceramic', 20, 0.15),
-    g('ceramic', 113, 0.2, 2)
+    g('leviathan', 6, 0.7, 3, 0, -1),
+    g('ceramic', 454, 0, 6, 0, -1),
+    g('red', 49, 0.3, 2, 0, -1)
   ])
 
-  // 94 - three OMEN and a COLOSSUS (197248 RBE)
+  // 94 - (121744 RBE)
   round(94, [
-    g('omen', 3, 2, 3),
-    g('colossus', 1, 0, 14),
-    g('ceramic', 20, 0.15),
-    g('ceramic', 108, 0.2, 2)
+    g('leviathan', 17, 0.7, 3, 0, -1),
+    g('ceramic', 653, 0.05, 6, 0, -1),
+    g('red', 44, 0.3, 2, 0, -1)
   ])
 
-  // 95 - three OMEN, two COLOSSUS and veiled ceramics (214944 RBE)
+  // 95 - (121745 RBE)
   round(95, [
-    g('omen', 3, 1.8, 3),
-    g('colossus', 2, 2, 14),
-    g('ceramic', 20, 0.15, 0, P.VEILED),
-    g('ceramic', 118, 0.2, 2)
+    g('leviathan', 15, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 714, 0.05, 6, P.VEILED, -1),
+    g('red', 29, 0.3, 2, 0, -1)
   ])
 
-  // 96 - four OMEN (234168 RBE)
+  // 96 - (149257 RBE)
   round(96, [
-    g('omen', 4, 2, 3),
-    g('ceramic', 107, 0.2, 12)
+    g('omen', 2, 0, 3, 0, -1),
+    g('colossus', 1, 1.2, 6, 0, -1),
+    g('ceramic', 202, 0, 6, 0, -1),
+    g('rainbow', 1, 0, 6, 0, -1),
+    g('zebra', 1, 0, 6, 0, -1),
+    g('red', 3, 0, 6, 0, -1)
   ])
 
-  // 97 - four OMEN and a COLOSSUS (255192 RBE)
+  // 97 - (149258 RBE)
   round(97, [
-    g('omen', 4, 1.8, 3),
-    g('colossus', 1, 0, 14),
-    g('ceramic', 20, 0.15),
-    g('ceramic', 129, 0.2, 2)
+    g('leviathan', 20, 0.7, 3, 0, -1),
+    g('ceramic', 826, 0.05, 6, 0, -1),
+    g('red', 74, 0.3, 2, 0, -1)
   ])
 
-  // 98 - five OMEN (278904 RBE)
+  // 98 - (155154 RBE)
   round(98, [
-    g('omen', 5, 1.5, 3),
-    g('ceramic', 1, 0.2, 12)
+    g('leviathan', 18, 0.7, 3, 0, -1),
+    g('ceramic', 944, 0.05, 6, P.VEILED, -1),
+    g('red', 26, 0.3, 2, 0, -1)
   ])
 
-  // 99 - five OMEN and a COLOSSUS (302840 RBE)
+  // 99 - (155155 RBE)
   round(99, [
-    g('omen', 5, 1.2, 3),
-    g('colossus', 1, 0, 14),
-    g('ceramic', 20, 0.15),
-    g('ceramic', 51, 0.2, 2)
+    g('leviathan', 16, 0.7, 3, 0, -1),
+    g('ceramic', 1005, 0, 6, 0, -1),
+    g('red', 11, 0.3, 2, 0, -1)
   ])
 
-  // 100 - five OMEN on one tick, two COLOSSUS, and a WRAITH escort. The wall (329976 RBE)
+  // 100 - (155156 RBE)
   round(100, [
-    g('omen', 5, 0, 5),
-    g('colossus', 2, 1.5, 14),
-    g('wraith', 8, 0.6, 30),
-    g('ceramic', 109, 0.15, 35)
+    g('leviathan', 16, 0.7, 3, P.PLATED, -1),
+    g('ceramic', 1005, 0.05, 6, 0, -1),
+    g('red', 12, 0.3, 2, 0, -1)
   ])
+
 
   OP.ROUNDS_ALTERNATE = ROUNDS
 

@@ -59,6 +59,21 @@
     return def
   }
 
+  /* Tower removal for suite hygiene. Test suites register throwaway towers into
+     the shared registry; undefine pulls one back out so later suites (playthroughs
+     especially) see exactly the shipped roster. Idempotent: unknown keys are fine. */
+  Towers.undefine = function (key) {
+    if (!OP.TOWERS[key]) return false
+    delete OP.TOWERS[key]
+    for (let i = OP.TOWER_ORDER.length - 1; i >= 0; i--) {
+      if (OP.TOWER_ORDER[i] === key) OP.TOWER_ORDER.splice(i, 1)
+    }
+    if (OP.Upgrades && typeof OP.Upgrades.clearTraitCache === 'function') {
+      OP.Upgrades.clearTraitCache()
+    }
+    return true
+  }
+
   function bad (def, msg) {
     throw new Error('tower "' + ((def && def.key) || '?') + '": ' + msg)
   }

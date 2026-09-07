@@ -292,9 +292,11 @@
     if (opts.expeditionCash != null) S.sim.cash = opts.expeditionCash
     if (opts.expeditionLives != null) S.sim.lives = opts.expeditionLives
     // Banked tower XP rides along on the sim so gating has one source of truth
-    // for "how much of this tower type may I spend". A shallow copy is fine —
-    // the map only ever grows at game over, never mid-run.
+    // for "which upgrades may this tower type buy". Shallow copying the XP map
+    // and cloning the unlock map lets a mid-run unlock spend on the run's own
+    // copy while the profile keeps the authoritative persistence.
     S.sim.towerXp = Object.assign({}, (S.profile && S.profile.towerXp) || {})
+    S.sim.towerUnlocks = OP.TowerXp ? OP.TowerXp.simUnlocks(S.profile) : {}
     S.screen = 'game'
     OP.FX.reset()
     OP.FX.view = S.view
@@ -315,8 +317,9 @@
     try {
       S.sim = OP.Sim.deserialize(run.snapshot, buildMapFor(def, run.snapshot.mode))
       // tower.runXp is per-tower inside the snapshot, so the run's own XP is
-      // already restored; this copy re-attaches the banked half.
+      // already restored; this copy re-attaches the banked half and the unlocks.
       S.sim.towerXp = Object.assign({}, (S.profile && S.profile.towerXp) || {})
+      S.sim.towerUnlocks = OP.TowerXp ? OP.TowerXp.simUnlocks(S.profile) : {}
       S.mapKey = run.mapKey
       S.difficulty = S.sim.difficulty
       S.mode = S.sim.mode

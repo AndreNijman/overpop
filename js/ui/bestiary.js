@@ -75,6 +75,12 @@
     return (OP.Menus && OP.Menus.profile) ? OP.Menus.profile(app) : null
   }
 
+  /** The live run, if one is open — so an unlock can spend the run's own XP
+      (banked + this run) rather than only the banked half. */
+  function simOf (app) {
+    return app && app.state ? app.state.sim : null
+  }
+
   /** type -> lifetime banked tower XP, for every shipped tower. Tolerant of an
       empty registry and a missing profile. */
   function totalXp (app) {
@@ -94,15 +100,41 @@
     return (M && M.compact) ? M.compact(n) : String(Math.floor(n))
   }
 
-  /** The first tier (1-5) this XP total cannot buy into, or null when it can
-      buy every tier. */
-  function firstLocked (xp) {
-    if (!OP.TowerXp || !OP.TowerXp.TIER_XP) return null
-    for (let i = 1; i < OP.TowerXp.TIER_XP.length; i++) {
-      const req = OP.TowerXp.tierRequired(i)
-      if (xp < req) return i
+  /** The cheapest locked upgrade across every branch of a tower, for the header
+      countdown — { cost, tier, path, name } or null when every cell is open. */
+  function nextUnlock (app, def) {
+    if (!OP.TowerXp || !OP.TowerXp.unlockCost) return null
+    const p = profileOf(app)
+    const paths = Array.isArray(def.paths) ? def.paths : []
+    let best = null
+    for (let b = 0; b < paths.length && b < 3; b++) {
+      const ups = Array.isArray(paths[b].tiers) ? paths[b].tiers : []
+      const tier = OP.TowerXp.pathUnlocked(p, def.key, b) + 1
+      if (tier > ups.length) continue
+      const cost = OP.TowerXp.unlockCost(tier)
+      if (!isFinite(cost)) continue
+      if (!best || (cost === best.cost && b < best.path) || cost < best.cost) {
+        best = { cost: cost, tier: tier, path: b, name: (ups[tier - 1] && ups[tier - 1].name) || '' }
+      }
     }
-    return null
+    return best
+  }
+
+  /** Handle an 'bestiary-unlock' widget: spend tower XP to open ONE upgrade
+      cell. Returns true when it was an unlock press (even a failed one). */
+  function doUnlock (app, w) {
+    if (!w || w.action !== 'bestiary-unlock') return false
+    const parts = String(w.arg === undefined ? '' : w.arg).split('|')
+    const key = parts[0]
+    const path = Number(parts[1])
+    const tier = Number(parts[2])
+    const notice = OP.Menus && OP.Menus.state ? function (s) { OP.Menus.state.notice = s } : function () {}
+    if (!key || !OP.TowerXp || !OP.TowerXp.unlockCell) return true
+    const profile = profileOf(app)
+    if (!profile) { notice('No profile yet — play a round first.'); return true }
+    const res = OP.TowerXp.unlockCell(profile, simOf(app), key, path, tier)
+    notice(res.ok ? 'Unlocked ' + key + ' branch ' + (path + 1) + ' tier ' + tier + '.' : res.reason)
+    return true
   }
 
   function dmgOrder () {
@@ -390,7 +422,7 @@
     const backId = mode.backId || 'bestiary.back'
     const screen = mode.screen || 'bestiary'
 
-    chrome(marks, widgets, list.length + (list.length === 1 ? ' tower' : ' towers') + ' · three branches · XP unlocks tiers, cash buys them', {
+    chrome(marks, widgets, list.length + (list.length === 1 ? ' tower' : ' towers') + ' · three branches · XP unlocks ONE upgrade each; money pays for it in a run', {
       title: mode.title, backId: backId, noTabs: mode.noTabs
     })
 
@@ -428,11 +460,11 @@
     /* ----- lifetime tower XP and the unlock ladder ----- */
     const selXp = xp[sel.key] || 0
     marks.push(U.text(dx, 270, 'TOWER XP  ' + fmtXp(selXp), { size: 10, colour: C.gold, weight: '600' }))
-    const nextLocked = firstLocked(selXp)
-    marks.push(U.text(dx + 130, 270, nextLocked === null
-      ? 'all tiers unlocked'
-      : 'next unlock at ' + fmtXp(OP.TowerXp.tierRequired(nextLocked)) + ' XP',
-      { size: 10, colour: nextLocked === null ? C.moss : C.dim }))
+    const selUnlock = nextUnlock(app, sel)
+    marks.push(U.text(dx + 130, 270, selUnlock === null
+      ? 'all upgrades unlocked'
+      : 'NEXT UNLOCK ' + (selUnlock.path + 1) + '-' + selUnlock.tier + ' · ' + fmtXp(selUnlock.cost) + ' XP',
+      { size: 10, colour: selUnlock === null ? C.moss : C.dim }))
 
     const blurb = U.wrapText(sel.blurb, 11, dw - 20, 3)
     for (let i = 0; i < blurb.length; i++) {
@@ -471,18 +503,25 @@
       for (let i = 0; i < ups.length; i++) {
         const up = ups[i] || {}
         const tier = i + 1
-        const unlocked = OP.TowerXp && OP.TowerXp.tierUnlocked
-          ? OP.TowerXp.tierUnlocked(profileOf(app), sel.key, tier)
+        const unlocked = OP.TowerXp && OP.TowerXp.pathUnlocked
+          ? OP.TowerXp.pathUnlocked(profileOf(app), sel.key, p) >= tier
           : true
         const y = 484 + i * 42
         marks.push(U.text(cx, y, String(tier), { size: 9, colour: unlocked ? C.faint : C.warn }))
         if (!unlocked) marks.push(U.text(cx + 5, y - 3, 'LOCKED', { size: 7, colour: C.warn }))
-        marks.push(U.text(cx + 14, y, U.clipText(up.name || '—', 11, colW - 76), {
+        marks.push(U.text(cx + 14, y, U.clipText(up.name || '—', 11, colW - 96), {
           size: 11, colour: unlocked ? C.ink : C.faint
         }))
-        marks.push(U.text(cx + colW - 20, y, unlocked ? '$' + (up.cost === undefined ? '?' : up.cost) : fmtXp(OP.TowerXp.tierRequired(tier)) + ' XP', {
+        marks.push(U.text(cx + colW - 20, y, unlocked ? '$' + (up.cost === undefined ? '?' : up.cost) : fmtXp(OP.TowerXp ? OP.TowerXp.unlockCost(tier) : 0) + ' XP', {
           size: 10, colour: unlocked ? C.gold : C.warn, align: 'right'
         }))
+        if (!unlocked && OP.TowerXp && OP.TowerXp.unlockCell) {
+          widgets.push(U.button('bestiary.unlock.' + sel.key + '.' + p + '.' + tier,
+            cx + colW - 66, y, 46, 15, {
+              label: 'UNLOCK', action: 'bestiary-unlock',
+              arg: [sel.key, p, tier].join('|')
+            }))
+        }
         const desc = U.wrapText(up.desc, 9, colW - 32, 2)
         for (let d = 0; d < desc.length; d++) {
           marks.push(U.text(cx + 14, y + 13 + d * 11, desc[d], { size: 9, colour: unlocked ? C.faint : C.deep }))
@@ -490,7 +529,7 @@
       }
     }
 
-    marks.push(U.text(PAD, 700, 'ESC back · XP unlocks tiers permanently; money pays for them in a run', { size: 10, colour: C.faint }))
+    marks.push(U.text(PAD, 700, 'ESC back · XP unlocks one upgrade permanently; UNLOCK it, then money pays for it in a run', { size: 10, colour: C.faint }))
     return model(marks, widgets, backId, screen)
   }
 
@@ -519,6 +558,7 @@
   }
 
   TowerMenu.activate = function (app, w) {
+    if (doUnlock(app, w)) return true
     if (!w) return false
     if (w.action === 'bestiary-tower') { state.towerKey = w.arg; return true }
     return false
@@ -572,6 +612,7 @@
   }
 
   Bestiary.activate = function (app, w) {
+    if (doUnlock(app, w)) return true
     if (!w) return false
     if (w.action === 'bestiary-tab') { state.tab = w.arg; return true }
     if (w.action === 'bestiary-tier') { state.tierKey = w.arg; return true }
