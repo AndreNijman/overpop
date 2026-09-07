@@ -206,7 +206,7 @@ logins, achievements, upgrade paths. Status after this audit:
 | daily LOGINS | streak exists, but no per-day LOGIN REWARD calendar | daily login calendar pays escalating rewards | – **gap - build next** |
 | achievements | 16 | ~145 + 14 hidden | – depth gap - author more |
 
-### Build backlog raised by this audit
+### Build backlog raised by this audit (updated 2026-09-07: modes, boss roster, powers, artifacts and knowledge depth DONE; upgrade-path content parity + balance + UI remain)
 
 1. **Daily login calendar** — consecutive-day login rewards (escalating
    knowledge points / draft tokens / powers), persisted via OP.Save, streak
