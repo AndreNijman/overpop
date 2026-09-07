@@ -443,11 +443,13 @@
     }))
 
     if (OP.POWER_ORDER && OP.POWERS && sim.powers) {
+      // Ten consumables fit one row at a 59px pitch; keep the last button inside
+      // the 1280px canvas.
       for (let i = 0; i < OP.POWER_ORDER.length; i++) {
         const key = OP.POWER_ORDER[i]
         const def = OP.POWERS[key]
         const count = sim.powers[key] || 0
-        widgets.push(U.button('hud.power.' + key, 668 + i * 70, by, 66, 34, {
+        widgets.push(U.button('hud.power.' + key, 668 + i * 59, by, 56, 34, {
           label: def.short + ' ' + count,
           align: 'center',
           action: 'hud-power',
