@@ -514,8 +514,14 @@ if (farms.length < FARM_TARGET) {
     const buff = sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
     if (!buff) return false
     return own.some(t => {
-      if (OP.TOWERS[t.key].income) return false
-      if (!OP.Buffs.applies(buff, t)) return false
+      const d = OP.TOWERS[t.key]
+      // Support stats can LOOK Wraith-compatible (camo + normal damage) while
+      // the tower has no fire() at all — the pairing needs a real attacker.
+      if (d.income) return false
+      if (typeof d.fire !== 'function' || d.base.damage <= 0) return false
+      // Native detection (owl Night Vision) counts exactly like aura coverage —
+      // the pairing needs SEE + DAMAGE, wherever the seeing comes from.
+      if (!t.s.camoDetect && !OP.Buffs.applies(buff, t)) return false
       return t.s.dmgType !== 'sharp' && t.s.dmgType !== 'explosive'
     })
   }
@@ -795,35 +801,43 @@ if (farms.length < FARM_TARGET) {
            ~790 of 816). Runs only while the aura is already on the ground, and
            stops the moment any non-sharp attacker sits in its radius, so it
            places at most a couple of towers rather than spraying fresh ones. */
-        if (supportAllowed && own.some(t => t.key === SUPPORT_KEY) && !wrathSolved()) {
-          const aura = own.find(t => t.key === SUPPORT_KEY && t.s.range)
-          const buff = aura && sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
-          if (buff) {
+        /* WRAITH-BOUND: get a veiled-tolerant DPS tower inside the aura's radius
+           before the era arrives. Runs only inside the wraith window — a
+           pre-Keen hall outside the window must not hold the budget hostage
+           (measured: the unconditional return deadlocked every r30 fixture). */
+        if (inWraithWindow && supportAllowed && own.some(t => t.key === SUPPORT_KEY) && !wrathSolved()) {
+          /* Any hall's coverage zone works: with mutually granted detection two
+             halls together cover a wider stretch of track than either alone. */
+          const halls = own.filter(t => t.key === SUPPORT_KEY && t.s.range)
+          let counter = null
+          for (const aura of halls) {
+            const buff = sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
+            if (!buff) continue
             const wrathKey = attackers.find(k => {
               const d = OP.TOWERS[k]
               if (d.base.dmgType === 'sharp' || d.base.dmgType === 'explosive') return false
               return true
             })
-            if (wrathKey && affordable(wrathKey)) {
-              /* The counter is only a counter UNDER the aura. Spots are ranked
-                 by distance to the hall, engine-tested with Buffs.applies on a
-                 probe at the spot — the old first-legal-spot tryPlace measured
-                 placing 20+ snails, every one of them blind, while the Wraith
-                 window leaked. */
-              const ranked = spots.map(s => ({ s, d: OP.M.dist(s.x, s.y, aura.x, aura.y) }))
-                .sort((a, b) => a.d - b.d)
-              let counter = null
-              for (const r of ranked) {
-                if (OP.M.dist(r.s.x, r.s.y, aura.x, aura.y) > buff.radius) break
-                if (!OP.Towers.canPlace(sim, wrathKey, r.s.x, r.s.y).ok) continue
-                counter = OP.Towers.place(sim, wrathKey, r.s.x, r.s.y)
-                if (counter) { own.push(counter); placed++; break }
-              }
-              if (counter) { slog('wraith-counter ' + wrathKey + ' covered'); continue }
-              /* No legal covered spot: bank rather than buy a blind counter. */
-              return
+            if (!wrathKey || !affordable(wrathKey)) break
+            /* The counter is only a counter UNDER the aura. Spots are ranked
+               by distance to the hall, engine-tested with Buffs.applies on a
+               probe at the spot — the old first-legal-spot tryPlace measured
+               placing 20+ snails, every one of them blind, while the Wraith
+               window leaked. */
+            const ranked = spots.map(s => ({ s, d: OP.M.dist(s.x, s.y, aura.x, aura.y) }))
+              .sort((a, b) => a.d - b.d)
+            for (const r of ranked) {
+              if (OP.M.dist(r.s.x, r.s.y, aura.x, aura.y) > buff.radius) break
+              if (!OP.Towers.canPlace(sim, wrathKey, r.s.x, r.s.y).ok) continue
+              counter = OP.Towers.place(sim, wrathKey, r.s.x, r.s.y)
+              if (counter) { own.push(counter); placed++; break }
             }
+            if (counter) break
           }
+          if (counter) { slog('wraith-counter ' + counter.key + ' covered'); continue }
+          /* No legal covered spot in any hall's zone: bank rather than buy a
+             blind counter — and do not let the deepen feed a blind carry. */
+          return
         }
 
         // THEN deepen — CONCENTRATED, not round-robin. The mid-game towers cost too
