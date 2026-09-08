@@ -48,6 +48,7 @@ const QUIET = has('--quiet')
 const EXPLAIN = has('--explain')
 const REPORT = arg('--report', 'docs/BALANCE.md')
 const TRACE = has('--trace')
+const SPEND_TRACE = has('--trace-spend')
 
 /* ---------- picking a map ---------- */
 
@@ -219,6 +220,7 @@ function playReference (sim, map) {
   const allowed = OP.TOWER_ORDER.filter(k => OP.Economy.towerAllowed(sim, OP.TOWERS[k]))
   if (!allowed.length) return { placed: 0, note: 'no tower family is allowed in this mode' }
 
+  function slog (m) { if (SPEND_TRACE) console.error('[spend r' + (sim.roundIndex || 0) + ' c' + Math.round(sim.cash) + '] ' + m) }
   const byCost = allowed.slice().sort((a, b) => OP.TOWERS[a].cost - OP.TOWERS[b].cost)
   const SUPPORT_KEY = 'warren-hall'
   const supportAllowed = allowed.indexOf(SUPPORT_KEY) >= 0
@@ -502,16 +504,19 @@ if (farms.length < FARM_TARGET) {
   /* The companion WRAITH-BOUND gate: is a non-sharp attacker already sitting
      inside the aura's radius? Until the aura and its target overlap, a Wraith
      cannot be hurt by the build — this is what the deepen loop cannot see.
-     Recomputes against current tower positions every call. */
+     Resolved with the ENGINE's own buff test, not a distance approximation:
+     a tower at radius + 10 still reads as "covered" under a +20 slack but the
+     engine truthfully rejects it (measured: the approximation said solved and
+     the Wraith leaked). */
   function wrathSolved () {
     const aura = own.find(t => t.key === SUPPORT_KEY && t.s.range)
     if (!aura) return false
+    const buff = sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
+    if (!buff) return false
     return own.some(t => {
       if (OP.TOWERS[t.key].income) return false
-      if (t.s.dmgType === 'sharp' || t.s.dmgType === 'explosive') return false
-      const auraR = (aura.s.range || 130) + 20
-      if (OP.M.dist(t.x, t.y, aura.x, aura.y) > auraR) return false
-      return (t.invested || 0) >= 700
+      if (!OP.Buffs.applies(buff, t)) return false
+      return t.s.dmgType !== 'sharp' && t.s.dmgType !== 'explosive'
     })
   }
 
@@ -714,7 +719,7 @@ if (farms.length < FARM_TARGET) {
         const threats = unanswerableTiers(sim, Object.keys(ownedTypes()), (sim.roundIndex || 0) + 1, 4)
         if (threats.length) {
           const answer = answerTo(threats[0])
-          if (answer && !affordable(answer)) return
+          if (answer && !affordable(answer)) { slog('bank threat ' + threats[0]); return }
           if (answer && tryPlace(answer)) continue
         }
 
@@ -734,14 +739,19 @@ if (farms.length < FARM_TARGET) {
            the damage-2 stars are the difference between 42 and 0, and once
            s.damage reaches 2 the hold ends by itself. */
         if (veiledGap(sim, (sim.roundIndex || 0) + 1, 5)) {
-          const haveCamo = own.some(t => t.s.camoDetect)
+          // A Keen Watch hall owns the camo job — the native-camo reserve must
+          // not compete with it for the budget (measured: at r85 the marten
+          // reserve bought 520 of shadow-marten while the aura-covered counter
+          // the pairing actually wanted went unbought).
+          const auraCamo = own.some(t => t.key === SUPPORT_KEY && (t.tiers[1] || 0) >= 3)
+          const haveCamo = own.some(t => t.s.camoDetect) || auraCamo
           const camoKey = attackers.find(k => OP.TOWERS[k].base.camoDetect && !OP.TOWERS[k].income)
-          if (!haveCamo && camoKey) {
-            if (!affordable(camoKey)) return
+          if (!haveCamo && camoKey && !own.some(t => t.key === SUPPORT_KEY)) {
+            if (!affordable(camoKey)) { slog('bank camo'); return }
             if (tryPlace(camoKey)) continue
           }
           const marten = own.find(t => OP.TOWERS[t.key].base.camoDetect)
-          if (marten && marten.s.damage < 2) {
+          if (!auraCamo && marten && marten.s.damage < 2) {
             let bestCost = Infinity
             for (let p = 0; p <= 2; p++) {
               if (OP.Upgrades.canBuy(marten, p).ok) {
@@ -768,7 +778,7 @@ if (farms.length < FARM_TARGET) {
         // Watch before the first Wraith arrives. Runs after the pure-immunity
         // reserve and before the farms so the ~4k milestone is neither starved
         // by farming nor trumped by a deepen nudge.
-        if (auraStep()) continue
+        if (auraStep()) { slog('auraStep bank'); continue }
 
         /* WRAITH-BOUND: get a veiled-tolerant DPS tower inside the aura's radius
            before the era arrives. The build's native camo (marten) is sharp and
@@ -822,10 +832,13 @@ if (farms.length < FARM_TARGET) {
           // aura radius for the whole window; everything else stands down.
           const aura = own.find(t => t.key === SUPPORT_KEY && t.s.range)
           if (aura) {
-            const auraR = (aura.s.range || 130) + 20
-            const inAura = byInvested.filter(t =>
-              OP.M.dist(t.x, t.y, aura.x, aura.y) <= auraR)
-            if (inAura.length) byInvested = inAura
+            // Engine-resolved coverage, not a +20 slack: a tower the buff
+            // genuinely reaches is the only one the Wraith window can use.
+            const buff = sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
+            if (buff) {
+              const inAura = byInvested.filter(t => OP.Buffs.applies(buff, t))
+              if (inAura.length) byInvested = inAura
+            }
             // Within the in-aura set, shatter is the designed anti-Wraith tool
             // (the Wraith is immune to sharp AND explosive; shatter is the
             // conversion that the acorn-fox carry reaches). "Deepest first"
@@ -854,19 +867,24 @@ if (farms.length < FARM_TARGET) {
            goalCost — so it cannot deadlock: round bonuses keep arriving until
            the step is affordable. */
         let goalCost = Infinity
-        for (const tower of byInvested) {
+        /* The milestone is the CARRY's next big step — byInvested[0], the tower
+           the deepen loop feeds first. A huge tier-5 sitting on a tower the
+           aura filter already excluded must not hold the whole budget hostage
+           (measured: the blind 4-2-0 snail's 24k tier-5 froze the bank while
+           the detected attacker the window actually needed sat un-upgraded). */
+        if (byInvested.length) {
+          const tower = byInvested[0]
           const order = [0, 1, 2].sort((a, b) => (tower.tiers[b] || 0) - (tower.tiers[a] || 0))
           for (let pi = 0; pi < order.length; pi++) {
             const path = order[pi]
             const tier = tower.tiers[path] || 0
-            if (tier < 3) continue
+            if (tier < 3) break
             if (!OP.Upgrades.canBuy(tower, path).ok) continue
-            goalCost = Math.min(goalCost, OP.Upgrades.nextCost(sim, tower, path))
+            goalCost = OP.Upgrades.nextCost(sim, tower, path)
             break
           }
-          if (goalCost < 10000) break
         }
-        if (goalCost !== Infinity && goalCost >= 10000 && (sim.roundIndex || 0) >= 40 && sim.cash - 30 < goalCost) return
+        if (goalCost !== Infinity && goalCost >= 10000 && (sim.roundIndex || 0) >= 40 && sim.cash - 30 < goalCost) { slog('bank milestone ' + Math.round(goalCost)); return }
 
         for (let n = 0; n < byInvested.length && !bought; n++) {
           const tower = byInvested[n]
@@ -889,7 +907,7 @@ if (farms.length < FARM_TARGET) {
            guard from farmFirst), but a *gap* does not — an income step on a
            farm that already exists is 225-600 of surplus, and the bullet that
            would have popped the leak went to the defence first. */
-        if (economyStep()) continue
+        if (economyStep()) { slog('economyStep'); continue }
 
         // During the Wraith window the deepen is concentrated on the in-aura
         // shatter towers; a fresh 0-0-0 copy is the OPPOSITE of that — it is a
@@ -898,7 +916,7 @@ if (farms.length < FARM_TARGET) {
         // surplus into 20+ 0-0-0 foxes while the shatter carry sat frozen at
         // 3-2-0 (leak ~689). Stand down and bank instead: the next shatter tier
         // is what actually clears the Wraith.
-        if (nonsharpLock(sim, (sim.roundIndex || 0) + 1, 6)) return
+        if (nonsharpLock(sim, (sim.roundIndex || 0) + 1, 6)) { slog('standdown nonsharp'); return }
 
         // Finally, another copy of a tower already earning its keep — cheapest
         // first, so the stack deepens on the workhorses rather than a fresh
