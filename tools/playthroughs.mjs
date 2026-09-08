@@ -555,16 +555,23 @@ if (farms.length < FARM_TARGET) {
        blimp left the aura while still alive (speed 2.75 x 46 u/s). Watchtower
        tier 3 (+45 = 200) and Lantern Ring (+60 = 260, plus +2 damage) extend
        the visible window by ~40%/100%; both are cheap enough to land before the
-       Wraith if the bigger early milestones are done. */
+       Wraith if the bigger early milestones are done.
+
+       Crosspath legality picks the rung: once Lantern Ring (path 1, tier 4)
+       is up, Watchtower tier 3 is locked forever, and once Keen Watch is up a
+       Watchtower step past tier 2 is locked — so each rung must re-check
+       canBuy and the ladder SKIPS a rung it cannot legally take instead of
+       banking on it forever (measured: at 2-3-0 the ladder chose the illegal
+       Watchtower tier 3 and the bank held the whole budget hostage). */
     let goal = -1
-    if ((aura.tiers[1] || 0) < 3) goal = 1
-    else if ((aura.tiers[0] || 0) < 3) goal = 0
-    else if ((aura.tiers[1] || 0) < 4) goal = 1
-    else return -1
+    const LADDER = [[1, 3], [0, 3], [1, 4]]
+    for (const [p, tierGoal] of LADDER) {
+      if ((aura.tiers[p] || 0) < tierGoal && OP.Upgrades.canBuy(aura, p).ok) { goal = p; break }
+    }
+    if (goal === -1) return -1
     if (goal === 1 && (aura.tiers[1] || 0) < 3) {
       if (r < 26 || r > 40) return -1
     } else if (r > 48) return -1
-    if (!OP.Upgrades.canBuy(aura, goal).ok) return 0
     const next = OP.Upgrades.nextCost(sim, aura, goal)
     if (next === null) return 0
     if (next <= sim.cash - 200) { return OP.Upgrades.buy(sim, aura, goal).ok ? 1 : 0 }

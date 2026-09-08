@@ -117,7 +117,7 @@ export async function run (t, OP) {
       t.ok(OP.canDamage('wraith', hall.s.dmgType), 'support stats look Wraith-compatible to a types-only check')
       t.notOk(typeof hall.def.fire === 'function', 'the apparently compatible Hall still cannot fire')
     }
-    sim.roundIndex = 49
+    sim.roundIndex = 85
     sim.cash = OP.Economy.price(sim, OP.TOWERS[SNAIL].cost) + 30
     const count = plan.own.length
     plan.spend()
@@ -143,7 +143,7 @@ export async function run (t, OP) {
     t.gt(blind.invested, detected.invested, 'blind tower would win investment-only ranking')
     t.notOk(blind.s.camoDetect, 'radius + 10 is not detection')
     t.ok(detected.s.camoDetect, 'the less-invested attacker has engine-resolved detection')
-    sim.roundIndex = 49
+    sim.roundIndex = 85
     sim.cash = OP.Upgrades.nextCost(sim, detected, 0) + 30
     const count = plan.own.length
     plan.spend()
@@ -167,7 +167,7 @@ export async function run (t, OP) {
       'legal Night Vision supplies a native Wraith answer without the Hall')
     t.notOk(blind.s.camoDetect, 'near-Hall acid carry is still blind')
     t.eq(sim.buffs.some(b => b.mods.camoDetect), keen, 'only a Hall that reached Keen Watch emits detection')
-    sim.roundIndex = 49
+    sim.roundIndex = 85
     sim.cash = OP.Upgrades.nextCost(sim, owl, 1) + 30
     const count = plan.own.length
     const before = sim.events.length
@@ -193,3 +193,4 @@ export async function run (t, OP) {
       `${map}: the entire final board has legal upgrades`)
   }
 }
+
