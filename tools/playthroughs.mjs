@@ -693,10 +693,16 @@ if (farms.length < FARM_TARGET) {
         if (ac === 1) continue
         if (ac === 0) return
 
-        // Widen the roster first while anything is still missing — that is how the
-        // camo and blimp answers get onto the board before they are needed.
-        const missing = nextMissing()
-        if (missing && tryPlace(missing)) continue
+        /* Inside the Wraith window the widen step stands down. A missing
+           damage type is an EARLY-game answer; six rounds out from a Wraith,
+           a fresh 0-0-0 of anything cannot help in time, and the widen buys
+           measured as spray: towers 4, 5, 6 of the wrong types placed while
+           the window's actual job (one aura-covered counter, then deepening
+           the Wraith-capable carry) went unfunded. */
+        const wraithRound = nonsharpLock(sim, (sim.roundIndex || 0) + 1, 6)
+        const inWraithWindow = wraithRound > 0
+        const missing = inWraithWindow ? null : nextMissing()
+        if (missing && tryPlace(missing)) { slog('widen ' + missing); continue }
 
         /* SAVE for an answer to a tier that is actually coming and that the board
            genuinely cannot damage.
@@ -720,7 +726,7 @@ if (farms.length < FARM_TARGET) {
         if (threats.length) {
           const answer = answerTo(threats[0])
           if (answer && !affordable(answer)) { slog('bank threat ' + threats[0]); return }
-          if (answer && tryPlace(answer)) continue
+          if (answer && tryPlace(answer)) { slog('threat ' + answer + ' for ' + threats[0]); continue }
         }
 
         /* CAMO — the widen step's other blind spot. "Buy each missing damage
@@ -748,7 +754,7 @@ if (farms.length < FARM_TARGET) {
           const camoKey = attackers.find(k => OP.TOWERS[k].base.camoDetect && !OP.TOWERS[k].income)
           if (!haveCamo && camoKey && !own.some(t => t.key === SUPPORT_KEY)) {
             if (!affordable(camoKey)) { slog('bank camo'); return }
-            if (tryPlace(camoKey)) continue
+            if (tryPlace(camoKey)) { slog('camo ' + camoKey); continue }
           }
           const marten = own.find(t => OP.TOWERS[t.key].base.camoDetect)
           if (!auraCamo && marten && marten.s.damage < 2) {
@@ -790,12 +796,34 @@ if (farms.length < FARM_TARGET) {
            stops the moment any non-sharp attacker sits in its radius, so it
            places at most a couple of towers rather than spraying fresh ones. */
         if (supportAllowed && own.some(t => t.key === SUPPORT_KEY) && !wrathSolved()) {
-          const wrathKey = attackers.find(k => {
-            const d = OP.TOWERS[k]
-            if (d.base.dmgType === 'sharp' || d.base.dmgType === 'explosive') return false
-            return true
-          })
-          if (wrathKey && affordable(wrathKey)) { if (tryPlace(wrathKey)) continue }
+          const aura = own.find(t => t.key === SUPPORT_KEY && t.s.range)
+          const buff = aura && sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
+          if (buff) {
+            const wrathKey = attackers.find(k => {
+              const d = OP.TOWERS[k]
+              if (d.base.dmgType === 'sharp' || d.base.dmgType === 'explosive') return false
+              return true
+            })
+            if (wrathKey && affordable(wrathKey)) {
+              /* The counter is only a counter UNDER the aura. Spots are ranked
+                 by distance to the hall, engine-tested with Buffs.applies on a
+                 probe at the spot — the old first-legal-spot tryPlace measured
+                 placing 20+ snails, every one of them blind, while the Wraith
+                 window leaked. */
+              const ranked = spots.map(s => ({ s, d: OP.M.dist(s.x, s.y, aura.x, aura.y) }))
+                .sort((a, b) => a.d - b.d)
+              let counter = null
+              for (const r of ranked) {
+                if (OP.M.dist(r.s.x, r.s.y, aura.x, aura.y) > buff.radius) break
+                if (!OP.Towers.canPlace(sim, wrathKey, r.s.x, r.s.y).ok) continue
+                counter = OP.Towers.place(sim, wrathKey, r.s.x, r.s.y)
+                if (counter) { own.push(counter); placed++; break }
+              }
+              if (counter) { slog('wraith-counter ' + wrathKey + ' covered'); continue }
+              /* No legal covered spot: bank rather than buy a blind counter. */
+              return
+            }
+          }
         }
 
         // THEN deepen — CONCENTRATED, not round-robin. The mid-game towers cost too
@@ -832,13 +860,18 @@ if (farms.length < FARM_TARGET) {
           // aura radius for the whole window; everything else stands down.
           const aura = own.find(t => t.key === SUPPORT_KEY && t.s.range)
           if (aura) {
-            // Engine-resolved coverage, not a +20 slack: a tower the buff
-            // genuinely reaches is the only one the Wraith window can use.
+            // Engine-resolved WRAITH-CAPABILITY, not a distance approximation:
+            // the deepen budget inside this window goes exclusively to towers
+            // that can BOTH see the veiled Wraith (natively or under the aura
+            // buff, engine-tested) AND damage it (not sharp/explosive). A
+            // richer tower the buff does not reach is not a candidate, and
+            // neither is a blind carry outside the aura — the old +20 slack
+            // read radius + 10 as covered and the Wraith leaked.
             const buff = sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
-            if (buff) {
-              const inAura = byInvested.filter(t => OP.Buffs.applies(buff, t))
-              if (inAura.length) byInvested = inAura
-            }
+            const capable = byInvested.filter(t =>
+              (t.s.camoDetect || (buff && OP.Buffs.applies(buff, t))) &&
+              OP.canDamage('wraith', t.s.dmgType))
+            if (capable.length) byInvested = capable
             // Within the in-aura set, shatter is the designed anti-Wraith tool
             // (the Wraith is immune to sharp AND explosive; shatter is the
             // conversion that the acorn-fox carry reaches). "Deepest first"
