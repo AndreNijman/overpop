@@ -220,7 +220,7 @@ function playReference (sim, map) {
   const allowed = OP.TOWER_ORDER.filter(k => OP.Economy.towerAllowed(sim, OP.TOWERS[k]))
   if (!allowed.length) return { placed: 0, note: 'no tower family is allowed in this mode' }
 
-  function slog (m) { if (SPEND_TRACE) console.error('[spend r' + (sim.roundIndex || 0) + ' c' + Math.round(sim.cash) + '] ' + m) }
+  function slog (m) { if (SPEND_TRACE) console.log('[spend r' + (sim.roundIndex || 0) + ' c' + Math.round(sim.cash) + '] ' + m) }
   const byCost = allowed.slice().sort((a, b) => OP.TOWERS[a].cost - OP.TOWERS[b].cost)
   const SUPPORT_KEY = 'warren-hall'
   const supportAllowed = allowed.indexOf(SUPPORT_KEY) >= 0
@@ -688,7 +688,7 @@ if (farms.length < FARM_TARGET) {
         // The committed next farm buys (or banks) before ANY other spend — see
         // farmCommit(). The widen/deepen steps below must never eat its fund.
         const ff = farmCommit()
-        if (ff === 0) return
+        if (ff === 0) { slog('bank farmCommit'); return }
         if (ff === 1) continue
 
         /* The camo aura is a named milestone too: place the hall and reach Keen
@@ -697,7 +697,7 @@ if (farms.length < FARM_TARGET) {
            ready, 0 banking, 1 spent. */
         const ac = auraCommit()
         if (ac === 1) continue
-        if (ac === 0) return
+        if (ac === 0) { slog('bank auraCommit'); return }
 
         /* Inside the Wraith window the widen step stands down. A missing
            damage type is an EARLY-game answer; six rounds out from a Wraith,
