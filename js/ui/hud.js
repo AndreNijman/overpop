@@ -42,10 +42,11 @@
      two files inventing the same number is two files that can disagree. */
 
   HUD.LAYOUT = {
-    top: { x: 0, y: 0, w: FIELD_W, h: 44 },
-    bottom: { x: 0, y: FIELD_H - 44, w: 960, h: 44 },
-    hero: { x: 16, y: 548, w: 312, h: 116 },
-    sidebar: { x: 960, y: 52, w: FIELD_W - 960, h: FIELD_H - 60 }
+    top: { x: 0, y: 0, w: FIELD_W, h: 60 },
+    bottom: { x: 0, y: FIELD_H - 68, w: 960, h: 68 },
+    hero: { x: 16, y: 524, w: 312, h: 116 },
+    powers: { x: 344, y: 548, w: 600, h: 92 },
+    sidebar: { x: 960, y: 68, w: FIELD_W - 960, h: FIELD_H - 76 }
   }
 
   const L = HUD.LAYOUT
@@ -266,7 +267,7 @@
   function roundIsIdle (sim) { return !sim.round || sim.round.done }
 
   function label (marks, x, y, text, colour) {
-    marks.push(ui().text(x, y, text, { size: 8, colour: colour || colours().faint }))
+    marks.push(ui().text(x, y, text, { size: 9, colour: colour || colours().dim, weight: '700' }))
   }
 
   function value (marks, x, y, text, colour, size) {
@@ -307,44 +308,50 @@
 
     // Low cash and low lives must be obvious without reading a number, so each
     // gets a tinted field behind it as well as a colour.
-    if (lowCash) marks.push(U.box(12, 6, 148, 32, { fill: C.warn, alpha: 0.14 }))
-    if (lowLives) marks.push(U.box(168, 6, 120, 32, { fill: C.bad, alpha: 0.18 }))
+    marks.push(U.box(12, 5, 224, 49, { fill: lowCash ? C.warn : C.deep, alpha: lowCash ? 0.24 : 0.65 }))
+    marks.push(U.box(244, 5, 156, 49, { fill: lowLives ? C.bad : C.deep, alpha: lowLives ? 0.3 : 0.65 }))
+    marks.push(U.box(408, 5, 192, 49, { fill: C.deep, alpha: 0.65 }))
+    if (U.icon) {
+      marks.push(U.icon(36, 30, 17, 'coin', { colour: C.gold }))
+      marks.push(U.icon(268, 30, 17, 'heart', { colour: C.bad }))
+      marks.push(U.icon(432, 30, 17, 'flag', { colour: C.moss }))
+    }
 
     const cashLabel = sim.coop ? 'PLAYER ' + (sim.coop.active + 1) + ' CASH' : 'CASH'
-    label(marks, 20, 18, lowCash ? cashLabel + ' / TOO LOW TO BUILD' : cashLabel, lowCash ? C.warn : C.faint)
-    value(marks, 20, 35, M.money(sim.cash), lowCash ? C.warn : C.moss, 17)
+    label(marks, 60, 19, lowCash ? cashLabel + ' / TOO LOW' : cashLabel, lowCash ? C.warn : C.dim)
+    value(marks, 60, 46, U.clipText(M.money(sim.cash), 26, 164), lowCash ? C.warn : C.gold, 26)
 
-    label(marks, 176, 18, lowLives ? 'LIVES · CRITICAL' : 'LIVES', lowLives ? C.bad : C.faint)
-    value(marks, 176, 35, M.compact(Math.max(0, sim.lives)), lowLives ? C.bad : C.ink, 17)
+    label(marks, 292, 19, lowLives ? 'LIVES / CRITICAL' : 'LIVES', lowLives ? C.bad : C.dim)
+    value(marks, 292, 46, M.compact(Math.max(0, sim.lives)), lowLives ? C.bad : C.ink, 26)
 
-    label(marks, 300, 18, sim.freeplay ? 'ROUND · FREEPLAY' : 'ROUND')
+    label(marks, 456, 19, sim.freeplay ? 'ROUND / FREEPLAY' : 'ROUND')
     const lastRound = rules.lastRound || 0
-    value(marks, 300, 35,
+    value(marks, 456, 46,
       Math.max(0, sim.roundIndex) + (sim.freeplay || !lastRound ? '' : ' / ' + lastRound),
-      C.ink, 17)
+      C.ink, 24)
 
     const rbe = roundIsIdle(sim) ? nextRoundRBE(sim) : sim.round.rbe
-    label(marks, 452, 18, roundIsIdle(sim) ? 'NEXT ROUND RBE' : 'ROUND RBE')
-    value(marks, 452, 35, rbe === null || rbe === undefined ? '—' : M.compact(rbe), C.dim, 15)
+    label(marks, 620, 21, roundIsIdle(sim) ? 'NEXT ROUND RBE' : 'ROUND RBE')
+    value(marks, 620, 44, rbe === null || rbe === undefined ? '—' : M.compact(rbe), C.ink, 19)
 
     const pressure = OP.Sim && OP.Sim.pressure ? OP.Sim.pressure(sim) : 0
-    label(marks, 600, 18, 'ON THE BOARD')
-    value(marks, 600, 35, pressure > 0 ? M.compact(pressure) : '—',
-      pressure > 0 ? C.warn : C.faint, 15)
+    label(marks, 760, 21, 'ON THE BOARD')
+    value(marks, 760, 44, pressure > 0 ? M.compact(pressure) : '—',
+      pressure > 0 ? C.warn : C.dim, 19)
 
     // A short pressure bar: RBE alone means little until you have watched a few
     // rounds, but a bar that fills as the board loads up reads immediately.
     if (pressure > 0 && rbe > 0) {
       const frac = M.clamp01(pressure / Math.max(1, rbe))
-      marks.push(U.box(668, 14, 92, 6, { fill: C.deep }))
-      marks.push(U.box(668, 14, Math.max(1, Math.round(92 * frac)), 6, { fill: C.warn, alpha: 0.9 }))
+      marks.push(U.box(760, 49, 100, 4, { fill: C.deep }))
+      marks.push(U.box(760, 49, Math.max(1, Math.round(100 * frac)), 4, { fill: C.warn, alpha: 0.9 }))
     }
 
     const diff = OP.DIFFICULTIES && OP.DIFFICULTIES[sim.difficulty]
     const mode = OP.MODES && OP.MODES[sim.mode]
-    marks.push(U.text(FIELD_W - 20, 20, ((diff && diff.name) || sim.difficulty || '?').toUpperCase(),
+    marks.push(U.text(FIELD_W - 20, 21, ((diff && diff.name) || sim.difficulty || '?').toUpperCase(),
       { size: 11, colour: C.ink, align: 'right', weight: '600' }))
-    marks.push(U.text(FIELD_W - 20, 34, ((mode && mode.name) || sim.mode || '?').toUpperCase(),
+    marks.push(U.text(FIELD_W - 20, 38, U.clipText(((mode && mode.name) || sim.mode || '?').toUpperCase(), 9, 250),
       { size: 9, colour: C.moss, align: 'right' }))
 
     /* ----- mini-game goal ----- */
@@ -371,22 +378,22 @@
       const ok = (mini.type === OP.LegendsData.LEAST_CASH || mini.type === OP.LegendsData.RACE)
         ? false
         : ((sim.stats && sim.stats.popped) || 0) >= mini.goal
-      marks.push(U.text(FIELD_W - 20, 46, readout,
+      marks.push(U.text(FIELD_W - 20, 53, U.clipText(readout, 9, 370),
         { size: 9, colour: ok ? C.gold : C.dim, align: 'right' }))
     }
 
     /* ----- race timer ----- */
     if (OP.Race && OP.Race.isActive && OP.Race.isActive(sim)) {
       var raceTime = OP.Race.elapsed(sim)
-      label(marks, 850, 18, 'TIME')
-      value(marks, 850, 35, OP.Race.formatTime(raceTime), C.gold, 17)
+      label(marks, 888, 21, 'TIME')
+      value(marks, 888, 44, OP.Race.formatTime(raceTime), C.gold, 19)
     }
 
     /* ----- boss health bar ----- */
     if (OP.Boss && OP.Boss.isActive && OP.Boss.isActive(sim)) {
       const bi = OP.Boss.info(sim)
       if (bi) {
-        const bx = 12, by2 = 48, bw = 420, bh = 18
+        const bx = 16, by2 = 82, bw = 420, bh = 20
         // Boss name and tier
         marks.push(U.text(bx, by2 - 2, bi.name.toUpperCase() + ' T' + bi.tier + (bi.elite ? ' ELITE' : ''),
           { size: 10, colour: bi.colour, weight: '600' }))
@@ -410,47 +417,58 @@
     marks.push(U.box(L.bottom.x, L.bottom.y, L.bottom.w, L.bottom.h, { fill: C.panel, alpha: 0.93 }))
     marks.push(U.rule(L.bottom.x, L.bottom.y, L.bottom.w, { colour: C.line }))
 
-    const by = L.bottom.y + 5
+    const by = L.bottom.y + 10
     if (roundIsIdle(sim)) {
-      widgets.push(U.button('hud.start', 16, by, 176, 34, {
-        label: 'START ROUND', tone: 'primary', align: 'center', action: 'hud-start'
+      widgets.push(U.button('hud.start', 16, by, 216, 48, {
+        label: 'START ROUND', icon: 'play', labelSize: 17,
+        tone: 'primary', align: 'center', action: 'hud-start'
       }))
     } else {
       const r = sim.round
       const total = r.released + remainingInRound(r)
-      marks.push(U.box(16, by, 176, 34, { fill: C.panelHi, stroke: C.line }))
-      over.push(U.text(26, by + 15, 'ROUND ' + r.index, { size: 11, colour: C.ink, weight: '600' }))
-      over.push(U.text(182, by + 15, r.released + '/' + total, { size: 10, colour: C.dim, align: 'right' }))
+      marks.push(U.box(16, by, 216, 48, { fill: C.panelHi, stroke: C.moss }))
+      over.push(U.text(28, by + 21, 'ROUND ' + r.index, { size: 15, colour: C.ink, weight: '700' }))
+      over.push(U.text(220, by + 21, r.released + '/' + total, { size: 11, colour: C.dim, align: 'right' }))
       const frac = total > 0 ? M.clamp01(r.released / total) : 1
-      over.push(U.box(26, by + 22, 156, 5, { fill: C.deep }))
-      over.push(U.box(26, by + 22, Math.max(1, Math.round(156 * frac)), 5, { fill: C.moss }))
+      over.push(U.box(28, by + 32, 192, 7, { fill: C.deep }))
+      over.push(U.box(28, by + 32, Math.max(1, Math.round(192 * frac)), 7, { fill: C.moss }))
     }
 
     for (let i = 1; i <= 3; i++) {
-      widgets.push(U.button('hud.speed' + i, 204 + (i - 1) * 48, by, 44, 34, {
-        label: i + '×', align: 'center', selected: sim.speed === i,
+      widgets.push(U.button('hud.speed' + i, 248 + (i - 1) * 76, by, 68, 48, {
+        label: i + 'x', icon: i === 1 ? 'play' : 'fast', labelSize: 16,
+        align: 'center', selected: sim.speed === i, tint: C.moss,
         action: 'hud-speed', arg: i
       }))
     }
 
-    widgets.push(U.button('hud.pause', 352, by, 96, 34, {
-      label: sim.paused ? 'RESUME' : 'PAUSE', align: 'center',
+    widgets.push(U.button('hud.pause', 488, by, 140, 48, {
+      label: sim.paused ? 'RESUME' : 'PAUSE', icon: sim.paused ? 'play' : 'pause', labelSize: 14, align: 'center',
       selected: !!sim.paused, action: 'hud-pause'
     }))
 
-    widgets.push(U.toggle('hud.autostart', 462, by, 190, 34, {
+    widgets.push(U.toggle('hud.autostart', 648, by, 152, 48, {
       label: 'AUTOSTART', on: !!sim.autostart, action: 'hud-autostart'
     }))
 
     if (OP.POWER_ORDER && OP.POWERS && sim.powers) {
-      // Ten consumables fit one row at a 59px pitch; keep the last button inside
-      // the 1280px canvas.
+      // A separate tray keeps every power out of both the controls and sidebar.
+      const P = L.powers
+      marks.push(U.box(P.x, P.y, P.w, P.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
+      label(marks, P.x + 10, P.y + 15, rules.allowPowers ? 'POWERS' : 'POWERS / DISABLED IN THIS MODE', C.gold)
+      const cols = 5
+      const rows = Math.max(2, Math.ceil(OP.POWER_ORDER.length / cols))
+      const pw = (P.w - 24) / cols
+      const ph = (P.h - 24) / rows
       for (let i = 0; i < OP.POWER_ORDER.length; i++) {
         const key = OP.POWER_ORDER[i]
         const def = OP.POWERS[key]
+        if (!def) continue
         const count = sim.powers[key] || 0
-        widgets.push(U.button('hud.power.' + key, 668 + i * 59, by, 56, 34, {
-          label: def.short + ' ' + count,
+        widgets.push(U.button('hud.power.' + key, P.x + 8 + (i % cols) * (pw + 2), P.y + 22 + Math.floor(i / cols) * ph, pw - 2, ph - 4, {
+          label: def.short + ' ' + M.compact(count), labelSize: 10,
+          icon: def.effect === 'cash' ? 'coin' : def.effect === 'lives' ? 'heart' : def.effect === 'slow' ? 'shield' : 'bolt',
+          tint: def.effect === 'cash' ? C.gold : def.effect === 'lives' ? C.bad : C.moss,
           align: 'center',
           action: 'hud-power',
           arg: key,
@@ -458,12 +476,9 @@
           reason: !sim.rules.allowPowers ? 'Powers are disabled in this mode.' : 'None left.'
         }))
       }
-    } else {
-      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 14,
-        'SPACE start / 1 2 3 speed / P pause', { size: 9, colour: C.faint, align: 'right' }))
-      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 27,
-        'right-click a tower cycles its targeting', { size: 9, colour: C.faint, align: 'right' }))
     }
+    marks.push(U.text(938, by + 19, 'SPACE: START', { size: 9, colour: C.dim, align: 'right' }))
+    marks.push(U.text(938, by + 35, 'P: PAUSE', { size: 9, colour: C.dim, align: 'right' }))
 
     if (sim.paused) {
       marks.push(U.text(FIELD_W / 2, 90, 'PAUSED', { size: 22, colour: C.warn, align: 'center', weight: '600' }))
@@ -505,19 +520,20 @@
     const r = L.hero
 
     marks.push(U.box(r.x, r.y, r.w, r.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
-    marks.push(U.text(r.x + 12, r.y + 22, U.clipText(displayName(hero), 13, r.w - 90),
-      { size: 13, colour: C.ink, weight: '600' }))
+    marks.push(U.portrait(r.x + 30, r.y + 29, 22, hero.key || hero.heroKey, {}))
+    marks.push(U.text(r.x + 60, r.y + 22, U.clipText(displayName(hero), 14, r.w - 72),
+      { size: 14, colour: C.ink, weight: '700' }))
 
     const maxLevel = OP.Heroes.MAX_LEVEL || 20
-    marks.push(U.text(r.x + r.w - 12, r.y + 22, 'LV ' + hero.level + ' / ' + maxLevel,
+    marks.push(U.text(r.x + r.w - 12, r.y + 38, 'LV ' + hero.level + ' / ' + maxLevel,
       { size: 10, colour: C.moss, align: 'right' }))
 
     let progress = 0
     try { progress = OP.Heroes.progress(hero) } catch (e) { progress = 0 }
-    marks.push(U.box(r.x + 12, r.y + 30, r.w - 24, 6, { fill: C.deep }))
-    marks.push(U.box(r.x + 12, r.y + 30, Math.max(1, Math.round((r.w - 24) * M.clamp01(progress))), 6,
+    marks.push(U.box(r.x + 60, r.y + 30, 140, 6, { fill: C.deep }))
+    marks.push(U.box(r.x + 60, r.y + 30, Math.max(1, Math.round(140 * M.clamp01(progress))), 6,
       { fill: hero.level >= maxLevel ? C.gold : C.moss }))
-    marks.push(U.text(r.x + 12, r.y + 50,
+    marks.push(U.text(r.x + 60, r.y + 50,
       hero.level >= maxLevel
         ? 'fully levelled'
         : Math.round(progress * 100) + '% to level ' + (hero.level + 1),
@@ -618,6 +634,7 @@
     const sim = simOf(app)
     if (!sim || sim.over) return false
     if (inRect(L.top, x, y) || inRect(L.bottom, x, y)) return true
+    if (OP.POWER_ORDER && OP.POWERS && sim.powers && inRect(L.powers, x, y)) return true
     return !!heroOf(sim) && inRect(L.hero, x, y)
   }
 

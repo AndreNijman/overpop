@@ -54,20 +54,19 @@
 
   /* ---------- palette ----------
      A map author may supply none, some or all of these. Whatever is missing must
-     still look deliberate, so the defaults are a complete woodland scheme rather
-     than placeholders: #0e1410 forest floor, mossy greens for buildable ground,
-     warm damp earth for the road. */
+     still look deliberate. These are presentation colours, not map data: sunny
+     meadow greens, sandy roads and clear blue water. */
 
   Terrain.DEFAULT_PALETTE = {
-    base: '#0e1410',       // the deepest shade; the shell background
-    grass: '#31482d',      // buildable ground
-    grassAlt: '#3d5837',   // the second green, for mottling and tufts
-    path: '#6d5a41',       // the walked road
-    pathEdge: '#48381f',   // its trodden-down rim
-    water: '#25485c',      // water regions — no land tower may stand here
-    rock: '#4d4c45',       // blocked terrain, LOS blockers, removable boulders
+    base: '#365b36',       // contact shadows
+    grass: '#75bd43',      // buildable ground
+    grassAlt: '#98d65a',   // sunlit lawn and leaf tips
+    path: '#e6c18a',       // the walked road
+    pathEdge: '#aa7848',   // packed earth beneath the sandy surface
+    water: '#2bb8d5',      // water regions — no land tower may stand here
+    rock: '#a6ac9b',       // blocked terrain, LOS blockers, removable boulders
     accent: '#c9a227',     // the "you can pay to clear this" ring
-    fog: '#0e1410',        // edge vignette and the field frame
+    fog: '#48713b',        // a light touch of shade at the field edge
     entry: '#d8c06a',      // entry markers ONLY (see invariants above)
     exit: '#b8503c'        // exit markers ONLY
   }
@@ -80,6 +79,34 @@
     const p = map && map.palette
     if (p && typeof p === 'object') {
       for (const k in p) if (typeof p[k] === 'string' && p[k]) out[k] = p[k]
+    }
+    // Lift the shipped dark biome hints without flattening their hue differences.
+    // Semantic marker/accent colours and non-hex CSS colours remain author-owned.
+    const materials = {
+      base: [0.27, 0.3], grass: [0.5, 0.52], grassAlt: [0.6, 0.56],
+      path: [0.71, 0.56], pathEdge: [0.46, 0.42], water: [0.5, 0.68],
+      rock: [0.61, 0.14], fog: [0.34, 0.3]
+    }
+    for (const k in materials) {
+      if (!p || !p[k]) continue
+      let c = parseHex(out[k])
+      if (!c) continue
+      const floor = materials[k][0]
+      let hi = Math.max(c.r, c.g, c.b) / 255
+      let lo = Math.min(c.r, c.g, c.b) / 255
+      if ((hi + lo) * 0.5 >= floor) continue
+      // Roads stay recognisably sand, even in cool slate or purple biomes.
+      if (k === 'path' || k === 'pathEdge') {
+        c = parseHex(mix(out[k], d[k], 0.55))
+        hi = Math.max(c.r, c.g, c.b) / 255
+        lo = Math.min(c.r, c.g, c.b) / 255
+      }
+      const delta = hi - lo
+      const sat = Math.max(materials[k][1], delta / Math.max(0.001, 1 - Math.abs(hi + lo - 1)))
+      const span = (1 - Math.abs(2 * floor - 1)) * Math.min(sat, 0.78)
+      const low = floor - span * 0.5
+      const channel = v => 255 * (low + (delta > 0.001 ? (v / 255 - lo) / delta : 0.5) * span)
+      out[k] = '#' + hex2(channel(c.r)) + hex2(channel(c.g)) + hex2(channel(c.b))
     }
     return out
   }
@@ -161,12 +188,6 @@
     return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h
   }
 
-  function inAny (list, x, y) {
-    if (!Array.isArray(list)) return false
-    for (let i = 0; i < list.length; i++) if (inRegion(list[i], x, y)) return true
-    return false
-  }
-
   function list (v) { return Array.isArray(v) ? v : [] }
 
   /** Cleared obstacles are read from map.cleared — an array of integer indices. */
@@ -216,22 +237,6 @@
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
   }
 
-  /** Parallel polyline `d` units to the left of `pts`, for wheel ruts. */
-  function offsetPoints (pts, d) {
-    const out = []
-    const n = pts.length
-    for (let i = 0; i < n; i++) {
-      const a = pts[i === 0 ? 0 : i - 1]
-      const b = pts[i === n - 1 ? i : i + 1]
-      let dx = b.x - a.x, dy = b.y - a.y
-      const len = Math.hypot(dx, dy)
-      if (!(len > 1e-9)) { out.push({ x: pts[i].x, y: pts[i].y }); continue }
-      dx /= len; dy /= len
-      out.push({ x: pts[i].x - dy * d, y: pts[i].y + dx * d })
-    }
-    return out
-  }
-
   /* ============================================================================
      THE PAINT
      ============================================================================ */
@@ -270,9 +275,8 @@
 
   /* ---------- 1. ground ----------
      Buildable ground has to be unmistakably not-road and not-water at a glance,
-     because that distinction is the placement rule. It gets: a warm-dark base, a
-     mossy diagonal gradient, broad soft mottling, then a dense tuft-and-pebble
-     texture that neither the road nor the water has. */
+     because that distinction is the placement rule. Broad sunlit lawns and sparse
+     low groundcover leave quiet space for towers and projectiles. */
 
   function paintGround (ctx, map, pal, seed, paths) {
     const W = OP.FIELD_W, H = OP.FIELD_H
@@ -283,39 +287,42 @@
     ctx.fillStyle = pal.base
     ctx.fillRect(0, 0, W, H)
 
-    // Moss, lit from the top-left.
+    // A broad, consistent top-left light, shared by every terrain material.
     const g = ctx.createLinearGradient(0, 0, W * 0.75, H)
     g.addColorStop(0, pal.grassAlt)
     g.addColorStop(0.45, pal.grass)
-    g.addColorStop(1, shade(pal.grass, -0.22))
+    g.addColorStop(1, shade(pal.grass, -0.06))
     ctx.fillStyle = g
     ctx.fillRect(0, 0, W, H)
 
     // Broad clearings and shade patches. Soft, low contrast, deliberately large:
     // this is what stops a flat fill reading as a colour swatch.
-    const light = rgba(shade(pal.grassAlt, 0.18), 0.14)
-    const dark = rgba(shade(pal.grass, -0.4), 0.16)
+    const light = rgba(shade(pal.grassAlt, 0.18), 0.16)
+    const dark = rgba(shade(pal.grass, -0.22), 0.1)
     for (let pass = 0; pass < 2; pass++) {
       ctx.fillStyle = pass === 0 ? light : dark
       ctx.beginPath()
-      for (let i = 0; i < 22; i++) {
+      for (let i = 0; i < 12; i++) {
         const k = pass * 100 + i
         const x = rnd(seed, k, 11) * W
         const y = rnd(seed, k, 12) * H
         const rx = 60 + rnd(seed, k, 13) * 150
         const ry = rx * (0.4 + rnd(seed, k, 14) * 0.5)
-        blob(ctx, x, y, rx, ry, srnd(seed, k, 15) * Math.PI)
+        // Overlapping lobes form broad, scalloped lawn patches, not fine noise.
+        blob(ctx, x, y, rx, ry, 0)
+        blob(ctx, x - rx * 0.55, y + ry * 0.15, rx * 0.65, ry * 0.85, 0)
+        blob(ctx, x + rx * 0.5, y - ry * 0.1, rx * 0.7, ry * 0.8, 0)
       }
       ctx.fill()
     }
 
     groundTexture(ctx, map, pal, seed, paths)
 
-    // Edge vignette: the field is a clearing in a wood, so it darkens outward.
+    // Frame the board without burying the outer lanes in a dark vignette.
     const v = ctx.createRadialGradient(W * 0.5, H * 0.5, H * 0.28, W * 0.5, H * 0.5, H * 0.95)
     v.addColorStop(0, rgba(pal.fog, 0))
-    v.addColorStop(0.65, rgba(pal.fog, 0.22))
-    v.addColorStop(1, rgba(pal.fog, 0.72))
+    v.addColorStop(0.65, rgba(pal.fog, 0.025))
+    v.addColorStop(1, rgba(pal.fog, 0.14))
     ctx.fillStyle = v
     ctx.fillRect(0, 0, W, H)
 
@@ -339,13 +346,13 @@
    */
   function groundTexture (ctx, map, pal, seed, paths) {
     const W = OP.FIELD_W, H = OP.FIELD_H
-    const step = 36
-    const margin = roadHalf(map) + 6
+    const step = 54
+    const margin = roadHalf(map) + 14
     const water = list(map.water)
 
     const tufts = [[], [], []]
     const pebbles = []
-    const twigs = []
+    const clover = []
 
     let i = 0
     for (let gy = step * 0.5; gy < H; gy += step) {
@@ -354,38 +361,36 @@
         const x = gx + srnd(seed, i, 1) * step * 0.45
         const y = gy + srnd(seed, i, 2) * step * 0.45
         if (paths.length && distToPath(paths, x, y) < margin) continue
-        if (inAny(water, x, y)) continue
+        if (water.some(r => inRegion(r, x, y) ||
+          (regionIsCircle(r) ? M.dist2(x, y, r.cx, r.cy) < (r.r + 12) * (r.r + 12) :
+            x > r.x - 12 && x < r.x + r.w + 12 && y > r.y - 12 && y < r.y + r.h + 12))) continue
 
         const roll = rnd(seed, i, 3)
-        if (roll < 0.62) {
+        if (roll < 0.65) {
           tufts[(i + ((rnd(seed, i, 4) * 3) | 0)) % 3].push({
             x: x, y: y,
-            h: 4 + rnd(seed, i, 5) * 7,
+            h: 3 + rnd(seed, i, 5) * 4,
             lean: srnd(seed, i, 6) * 4
           })
-        } else if (roll < 0.86) {
+        } else if (roll < 0.82) {
           pebbles.push({
             x: x, y: y,
-            r: 1.4 + rnd(seed, i, 7) * 2.6,
+            r: 1.2 + rnd(seed, i, 7) * 1.6,
             rot: srnd(seed, i, 8) * Math.PI
           })
         } else {
-          twigs.push({
-            x: x, y: y,
-            dx: srnd(seed, i, 9) * 9,
-            dy: srnd(seed, i, 10) * 5
-          })
+          clover.push({ x: x, y: y, r: 3 + rnd(seed, i, 9) * 2 })
         }
       }
     }
 
     // Three shades of tuft, from shadowed to sunlit.
     const tuftColours = [
-      rgba(shade(pal.grass, -0.35), 0.55),
-      rgba(pal.grassAlt, 0.7),
-      rgba(shade(pal.grassAlt, 0.28), 0.5)
+      rgba(shade(pal.grass, -0.24), 0.4),
+      rgba(pal.grassAlt, 0.6),
+      rgba(shade(pal.grassAlt, 0.28), 0.55)
     ]
-    ctx.lineWidth = 1.2
+    ctx.lineWidth = 1.8
     for (let s = 0; s < 3; s++) {
       const batch = tufts[s]
       if (!batch.length) continue
@@ -413,16 +418,19 @@
       ctx.fill()
     }
 
-    if (twigs.length) {
-      ctx.strokeStyle = rgba(shade(pal.pathEdge, 0.1), 0.4)
-      ctx.lineWidth = 1.6
+    // Low clover rosettes, not trees: buildable ground must still look buildable.
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.fillStyle = pass ? rgba(shade(pal.grassAlt, 0.12), 0.8) : rgba(shade(pal.grass, -0.3), 0.35)
       ctx.beginPath()
-      for (let k = 0; k < twigs.length; k++) {
-        const w = twigs[k]
-        ctx.moveTo(w.x, w.y)
-        ctx.lineTo(w.x + w.dx, w.y + w.dy)
+      for (let k = 0; k < clover.length; k++) {
+        const c = clover[k]
+        for (let leaf = 0; leaf < 3; leaf++) {
+          const a = leaf * TAU / 3 - 0.5
+          blob(ctx, c.x + Math.cos(a) * c.r * 0.7,
+            c.y + Math.sin(a) * c.r * 0.5 + (pass ? -1 : 1.5), c.r, c.r * 0.55, a)
+        }
       }
-      ctx.stroke()
+      ctx.fill()
     }
   }
 
@@ -444,32 +452,48 @@
       const rx = circle ? r.r : r.w * 0.5
       const ry = circle ? r.r : r.h * 0.5
 
-      // Damp shore: the ground gets darker and muddier where it meets water.
-      ctx.strokeStyle = rgba(shade(pal.grass, -0.55), 0.75)
-      ctx.lineWidth = 7
+      // Turf lip, sandy bank and a cut earth edge. The water boundary itself
+      // stays exactly on the authored region; only the dry bank grows outward.
+      ctx.strokeStyle = rgba(shade(pal.grass, -0.35), 0.45)
+      ctx.lineWidth = 10
       shapePath(ctx, r, 3)
       ctx.stroke()
+      ctx.strokeStyle = shade(pal.path, 0.12)
+      ctx.lineWidth = 6
+      shapePath(ctx, r, 2)
+      ctx.stroke()
+      ctx.strokeStyle = pal.pathEdge
+      ctx.lineWidth = 2
+      shapePath(ctx, r, 0)
+      ctx.stroke()
 
-      // The body, deep at the far edge and lighter toward the near shore.
+      // A cool deep shelf fading to turquoise shallows.
       const g = ctx.createLinearGradient(cx, cy - ry, cx, cy + ry)
-      g.addColorStop(0, shade(pal.water, -0.35))
+      g.addColorStop(0, shade(pal.water, -0.18))
       g.addColorStop(0.55, pal.water)
-      g.addColorStop(1, shade(pal.water, -0.18))
+      g.addColorStop(1, mix(pal.water, '#a9f1d9', 0.45))
       ctx.fillStyle = g
       shapePath(ctx, r, 0)
       ctx.fill()
 
-      // Inner rim, so the surface sits *below* the ground rather than on it.
-      ctx.strokeStyle = rgba(shade(pal.water, -0.5), 0.9)
-      ctx.lineWidth = 2.5
-      shapePath(ctx, r, -1.5)
+      // All surface details are clipped, including ripples in small round ponds.
+      ctx.save()
+      shapePath(ctx, r, 0)
+      ctx.clip()
+      ctx.strokeStyle = rgba(shade(pal.water, 0.7), 0.6)
+      ctx.lineWidth = 7
+      shapePath(ctx, r, -3)
+      ctx.stroke()
+      ctx.strokeStyle = rgba(shade(pal.water, -0.5), 0.65)
+      ctx.lineWidth = 2
+      shapePath(ctx, r, 0)
       ctx.stroke()
 
       // Ripples. Long, flat, horizontal — the read that says "water".
-      ctx.strokeStyle = rgba(shade(pal.water, 0.5), 0.3)
-      ctx.lineWidth = 1.6
+      ctx.strokeStyle = rgba(shade(pal.water, 0.8), 0.55)
+      ctx.lineWidth = 2.2
       ctx.beginPath()
-      const rings = 5 + ((rnd(seed, i, 21) * 4) | 0)
+      const rings = 4 + ((rnd(seed, i, 21) * 3) | 0)
       for (let k = 0; k < rings; k++) {
         const j = i * 37 + k
         const px = cx + srnd(seed, j, 22) * rx * 0.62
@@ -483,11 +507,12 @@
       // A single soft glint, top-left, so the surface has a light source.
       const gl = ctx.createRadialGradient(cx - rx * 0.35, cy - ry * 0.4, 1,
         cx - rx * 0.35, cy - ry * 0.4, Math.max(12, rx * 0.7))
-      gl.addColorStop(0, rgba(shade(pal.water, 0.65), 0.22))
+      gl.addColorStop(0, rgba(shade(pal.water, 0.65), 0.3))
       gl.addColorStop(1, rgba(pal.water, 0))
       ctx.fillStyle = gl
       shapePath(ctx, r, 0)
       ctx.fill()
+      ctx.restore()
     }
     ctx.restore()
   }
@@ -518,14 +543,16 @@
     if (regionIsCircle(r)) {
       ctx.arc(r.cx, r.cy, Math.max(0.5, r.r + grow), 0, TAU)
     } else {
-      ctx.rect(r.x - grow, r.y - grow, r.w + grow * 2, r.h + grow * 2)
+      const w = Math.max(0.5, r.w + grow * 2)
+      const h = Math.max(0.5, r.h + grow * 2)
+      ctx.rect(r.x + (r.w - w) * 0.5, r.y + (r.h - h) * 0.5, w, h)
     }
   }
 
   /* ---------- 3. the path ----------
      The single most important thing on the screen. It must read as a walked track
-     at a glance and be impossible to confuse with buildable ground: warm earth
-     against cold moss, a trodden rim, two ruts down the middle and loose stones. */
+     at a glance and be impossible to confuse with buildable ground: pale sand,
+     a packed-earth bevel, a softly worn centre and a few inset stones. */
 
   function paintPaths (ctx, map, pal, seed, paths) {
     if (!paths.length) return
@@ -537,46 +564,32 @@
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
 
+    const samples = paths.map(track => typeof track.sample === 'function' ? track.sample(9) : track.points || [])
+    const bevel = ctx.createLinearGradient(0, 0, 0, OP.FIELD_H)
+    bevel.addColorStop(0, shade(pal.path, 0.38))
+    bevel.addColorStop(0.5, shade(pal.path, 0.16))
+    bevel.addColorStop(1, mix(pal.path, pal.pathEdge, 0.38))
+    const passes = [
+      [w + 11, rgba(pal.base, 0.22)],
+      [w + 8, mix(pal.grass, pal.grassAlt, 0.5)],
+      [w + 5, pal.pathEdge],
+      [w + 1.5, bevel],
+      [w - 3, pal.path],
+      [w * 0.55, rgba(shade(pal.path, 0.18), 0.4)]
+    ]
+    // Finish each material across ALL lanes before the next. Crossings then
+    // read as joined roads, rather than one lane's dark rim cutting another.
+    for (const pass of passes) {
+      ctx.lineWidth = Math.max(1, pass[0])
+      ctx.strokeStyle = pass[1]
+      for (const pts of samples) {
+        if (pts.length < 2) continue
+        polyline(ctx, pts)
+        ctx.stroke()
+      }
+    }
     for (let i = 0; i < paths.length; i++) {
-      const track = paths[i]
-      const pts = typeof track.sample === 'function'
-        ? track.sample(9)
-        : track.points || []
-      if (pts.length < 2) continue
-
-      // Sunk into the ground: a soft dark spread under the whole road.
-      polyline(ctx, pts)
-      ctx.strokeStyle = rgba(pal.base, 0.5)
-      ctx.lineWidth = w + 13
-      ctx.stroke()
-
-      // Trodden rim — the ring of packed dirt either side of the walking line.
-      polyline(ctx, pts)
-      ctx.strokeStyle = pal.pathEdge
-      ctx.lineWidth = w + 5
-      ctx.stroke()
-
-      // The road surface.
-      polyline(ctx, pts)
-      ctx.strokeStyle = pal.path
-      ctx.lineWidth = w
-      ctx.stroke()
-
-      // Worn centre, walked pale by everything that has come through.
-      polyline(ctx, pts)
-      ctx.strokeStyle = rgba(shade(pal.path, 0.2), 0.75)
-      ctx.lineWidth = Math.max(2, w * 0.5)
-      ctx.stroke()
-
-      // Two ruts. These are what make it read as *walked* rather than painted.
-      ctx.strokeStyle = rgba(shade(pal.path, -0.4), 0.5)
-      ctx.lineWidth = Math.max(1.2, w * 0.06)
-      polyline(ctx, offsetPoints(pts, half * 0.42))
-      ctx.stroke()
-      polyline(ctx, offsetPoints(pts, -half * 0.42))
-      ctx.stroke()
-
-      pathDetail(ctx, track, pal, seed, i, half)
+      pathDetail(ctx, paths[i], pal, seed, i, half)
     }
     ctx.restore()
   }
@@ -585,7 +598,7 @@
   function pathDetail (ctx, track, pal, seed, pathIndex, half) {
     const len = track.length
     if (!(len > 0)) return
-    const step = 24
+    const step = 46
     const stones = []
     const scuffs = []
 
@@ -596,35 +609,35 @@
       const p = track.posAt(t)
       const a = typeof track.angleAt === 'function' ? track.angleAt(t) : 0
       const nx = -Math.sin(a), ny = Math.cos(a)
-      const off = srnd(seed, j, 31) * half * 0.8
+      const off = srnd(seed, j, 31) * half * 0.7
       const x = p.x + nx * off
       const y = p.y + ny * off
       if (rnd(seed, j, 32) < 0.55) {
-        stones.push({ x: x, y: y, r: 1.2 + rnd(seed, j, 33) * 2.4, rot: a })
+        stones.push({ x: x, y: y, r: 1 + rnd(seed, j, 33) * 1.6, rot: a })
       } else {
         scuffs.push({ x: x, y: y, dx: Math.cos(a) * (3 + rnd(seed, j, 34) * 6), dy: Math.sin(a) * (3 + rnd(seed, j, 34) * 6) })
       }
     }
 
     if (stones.length) {
-      ctx.fillStyle = rgba(shade(pal.rock, 0.12), 0.5)
+      ctx.fillStyle = rgba(pal.pathEdge, 0.28)
       ctx.beginPath()
       for (let i = 0; i < stones.length; i++) {
         const s = stones[i]
         blob(ctx, s.x, s.y, s.r, s.r * 0.7, s.rot)
       }
       ctx.fill()
-      ctx.fillStyle = rgba(pal.base, 0.35)
+      ctx.fillStyle = rgba(shade(pal.path, 0.55), 0.65)
       ctx.beginPath()
       for (let i = 0; i < stones.length; i++) {
         const s = stones[i]
-        blob(ctx, s.x + 0.7, s.y + 0.9, s.r * 0.8, s.r * 0.55, s.rot)
+        blob(ctx, s.x - 0.4, s.y - 0.6, s.r * 0.8, s.r * 0.55, s.rot)
       }
       ctx.fill()
     }
 
     if (scuffs.length) {
-      ctx.strokeStyle = rgba(shade(pal.pathEdge, -0.15), 0.45)
+      ctx.strokeStyle = rgba(pal.pathEdge, 0.2)
       ctx.lineWidth = 1.4
       ctx.beginPath()
       for (let i = 0; i < scuffs.length; i++) {
@@ -638,7 +651,7 @@
 
   /* ---------- 4. blocked terrain ----------
      Nothing may ever be built here, and it does NOT block line of sight, so it
-     reads as flat scree rather than as a wall: hatched rubble, no height. */
+     reads as flat scree rather than as a wall: fitted rubble, no tall canopy. */
 
   function paintBlocked (ctx, map, pal, seed) {
     const regions = list(map.blocked)
@@ -654,27 +667,44 @@
       const y1 = circle ? r.cy + r.r : r.y + r.h
 
       const g = ctx.createLinearGradient(x0, y0, x0, y1)
-      g.addColorStop(0, shade(pal.rock, 0.1))
+      g.addColorStop(0, shade(pal.rock, 0.24))
       g.addColorStop(0.45, pal.rock)
-      g.addColorStop(1, shade(pal.rock, -0.4))
+      g.addColorStop(1, shade(pal.rock, -0.16))
       ctx.fillStyle = g
       shapePath(ctx, r, 0)
       ctx.fill()
 
-      // Diagonal hatch, clipped to the region: reads "impassable" without
-      // pretending to have height.
+      // Low, interlocking stone plates instead of a busy warning hatch.
       ctx.save()
       shapePath(ctx, r, 0)
       ctx.clip()
-      ctx.strokeStyle = rgba(pal.base, 0.4)
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      const span = (x1 - x0) + (y1 - y0)
-      for (let d = 0; d <= span; d += 9) {
-        ctx.moveTo(x0 + d, y0)
-        ctx.lineTo(x0 + d - (y1 - y0), y1)
+      ctx.lineWidth = 1.5
+      let tile = 0
+      for (let py = y0 - 8; py < y1 + 20; py += 26) {
+        for (let px = x0 - 12; px < x1 + 24; px += 34) {
+          const j = i * 701 + tile++
+          const x = px + srnd(seed, j, 45) * 6
+          const y = py + srnd(seed, j, 46) * 5
+          ctx.fillStyle = shade(pal.rock, 0.06 + rnd(seed, j, 47) * 0.2)
+          ctx.strokeStyle = rgba(shade(pal.rock, -0.4), 0.5)
+          ctx.beginPath()
+          ctx.moveTo(x - 14, y - 6)
+          ctx.lineTo(x - 5, y - 12)
+          ctx.lineTo(x + 13, y - 9)
+          ctx.lineTo(x + 17, y + 5)
+          ctx.lineTo(x + 5, y + 12)
+          ctx.lineTo(x - 13, y + 8)
+          ctx.closePath()
+          ctx.fill()
+          ctx.stroke()
+          ctx.strokeStyle = rgba(shade(pal.rock, 0.65), 0.6)
+          ctx.beginPath()
+          ctx.moveTo(x - 13, y - 5)
+          ctx.lineTo(x - 5, y - 10)
+          ctx.lineTo(x + 11, y - 8)
+          ctx.stroke()
+        }
       }
-      ctx.stroke()
 
       // A scatter of loose chunks inside.
       ctx.fillStyle = rgba(shade(pal.rock, 0.3), 0.45)
@@ -689,7 +719,7 @@
       ctx.fill()
       ctx.restore()
 
-      ctx.strokeStyle = rgba(shade(pal.rock, -0.55), 0.85)
+      ctx.strokeStyle = rgba(shade(pal.rock, -0.4), 0.8)
       ctx.lineWidth = 2
       shapePath(ctx, r, -1)
       ctx.stroke()
@@ -720,16 +750,16 @@
       const lift = M.clamp(b.h * 0.34 + 8, 10, 34)
 
       // Cast shadow, down and to the right of the light.
-      ctx.fillStyle = rgba(pal.base, 0.5)
+      ctx.fillStyle = rgba(pal.base, 0.3)
       ctx.beginPath()
       ctx.ellipse(b.x + b.w * 0.5 + 5, b.y + b.h + 2, b.w * 0.58, Math.max(4, b.h * 0.18), 0, 0, TAU)
       ctx.fill()
 
       // The dark face.
       const face = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h)
-      face.addColorStop(0, shade(pal.rock, -0.28))
+      face.addColorStop(0, shade(pal.rock, -0.14))
       face.addColorStop(0.4, pal.rock)
-      face.addColorStop(1, shade(pal.rock, -0.62))
+      face.addColorStop(1, shade(pal.rock, -0.34))
       ctx.fillStyle = face
       ctx.fillRect(b.x, b.y, b.w, b.h)
 
@@ -770,23 +800,47 @@
       }
       ctx.stroke()
 
-      // Moss on the cap, because this is a wood and not a quarry.
-      ctx.fillStyle = rgba(pal.grassAlt, 0.5)
+      // Cushions of foliage sit on existing solid terrain, never on a new
+      // unmarked placement obstacle. Leave the stone face visible underneath.
+      ctx.save()
       ctx.beginPath()
-      for (let k = 0; k < 5; k++) {
-        const j = i * 71 + k
-        const px = b.x + M.lerp(0.05, 0.95, rnd(seed, j, 56)) * b.w
-        const py = b.y - lift + rnd(seed, j, 57) * lift * 0.8
-        const pr = 1.8 + rnd(seed, j, 58) * 3.4
-        blob(ctx, px, py, pr, pr * 0.6, 0)
+      ctx.rect(b.x - 2, b.y - lift, b.w + 4, lift + 2)
+      ctx.clip()
+      for (let k = 0; k < 3; k++) {
+        foliage(ctx, b.x + b.w * (0.18 + k * 0.31), b.y - lift * 0.5,
+          Math.min(24, b.w * 0.27), lift * 0.48, pal, seed, i * 71 + k)
       }
-      ctx.fill()
+      ctx.restore()
 
-      ctx.strokeStyle = rgba(shade(pal.rock, -0.7), 0.8)
+      ctx.strokeStyle = rgba(shade(pal.rock, -0.5), 0.8)
       ctx.lineWidth = 1.5
       ctx.strokeRect(b.x, b.y, b.w, b.h)
     }
     ctx.restore()
+  }
+
+  // Broad leaf masses with a shaded skirt and a few sun-facing lobes. Shared by
+  // mossy ledges and removable thickets; callers keep them inside their footprint.
+  function foliage (ctx, x, y, rx, ry, pal, seed, index) {
+    ctx.fillStyle = shade(pal.grass, -0.32)
+    ctx.beginPath()
+    blob(ctx, x, y + ry * 0.18, rx, ry, 0)
+    ctx.fill()
+    for (let k = 0; k < 4; k++) {
+      const a = k * 2.4 + rnd(seed, index, 58) * 0.4
+      const px = x + Math.cos(a) * rx * 0.4
+      const py = y + Math.sin(a) * ry * 0.3 - ry * 0.15
+      ctx.fillStyle = k % 2 ? pal.grassAlt : mix(pal.grass, pal.grassAlt, 0.45)
+      ctx.beginPath()
+      blob(ctx, px, py, rx * 0.6, ry * 0.65, 0)
+      ctx.fill()
+      ctx.strokeStyle = rgba(shade(pal.grassAlt, 0.4), 0.65)
+      ctx.lineWidth = 1.8
+      ctx.beginPath()
+      ctx.moveTo(px - rx * 0.35, py - ry * 0.1)
+      ctx.quadraticCurveTo(px - rx * 0.25, py - ry * 0.55, px + rx * 0.15, py - ry * 0.45)
+      ctx.stroke()
+    }
   }
 
   /* ---------- 6. removable obstacles ----------
@@ -806,25 +860,48 @@
       if (!o || !(o.r > 0)) continue
 
       const x = o.x, y = o.y, r = o.r
+      const woody = /stump|log|alder|oak|snag|limb|root|gate/i.test(o.name || '')
+      const leafy = /bramble|thicket|briar|bush|thorn|fern|gorse|hedge|tussock/i.test(o.name || '')
+      const body = woody ? pal.pathEdge : leafy ? shade(pal.grass, -0.22) : pal.rock
 
       // Contact shadow.
-      ctx.fillStyle = rgba(pal.base, 0.5)
+      ctx.fillStyle = rgba(pal.base, 0.32)
       ctx.beginPath()
       ctx.ellipse(x + 3, y + r * 0.55, r * 0.95, r * 0.4, 0, 0, TAU)
       ctx.fill()
 
       // Body, lit from the top-left.
       const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.15, x, y, r)
-      g.addColorStop(0, shade(pal.rock, 0.42))
-      g.addColorStop(0.6, pal.rock)
-      g.addColorStop(1, shade(pal.rock, -0.55))
+      g.addColorStop(0, shade(body, 0.38))
+      g.addColorStop(0.6, body)
+      g.addColorStop(1, shade(body, -0.32))
       ctx.fillStyle = g
       ctx.beginPath()
       ctx.arc(x, y, r, 0, TAU)
       ctx.fill()
 
+      // A broad shoulder and a cool side plane give the stone a carved form,
+      // rather than the old glossy sphere. Both facets stay inside its circle.
+      ctx.fillStyle = shade(body, 0.3)
+      ctx.beginPath()
+      ctx.moveTo(x - r * 0.88, y - r * 0.12)
+      ctx.lineTo(x - r * 0.48, y - r * 0.72)
+      ctx.lineTo(x + r * 0.18, y - r * 0.86)
+      ctx.lineTo(x + r * 0.58, y - r * 0.36)
+      ctx.lineTo(x + r * 0.12, y + r * 0.05)
+      ctx.closePath()
+      ctx.fill()
+      ctx.fillStyle = rgba(shade(body, -0.38), 0.5)
+      ctx.beginPath()
+      ctx.moveTo(x + r * 0.58, y - r * 0.36)
+      ctx.lineTo(x + r * 0.93, y + r * 0.12)
+      ctx.lineTo(x + r * 0.5, y + r * 0.74)
+      ctx.lineTo(x + r * 0.12, y + r * 0.05)
+      ctx.closePath()
+      ctx.fill()
+
       // Highlight along the lit shoulder.
-      ctx.strokeStyle = rgba(shade(pal.rock, 0.6), 0.5)
+      ctx.strokeStyle = rgba(shade(body, 0.6), 0.65)
       ctx.lineWidth = Math.max(1.5, r * 0.12)
       ctx.beginPath()
       ctx.arc(x, y, r * 0.78, Math.PI * 1.05, Math.PI * 1.75)
@@ -843,19 +920,32 @@
       }
       ctx.stroke()
 
-      // Moss on the shaded side.
-      ctx.fillStyle = rgba(pal.grassAlt, 0.6)
+      ctx.save()
       ctx.beginPath()
-      for (let k = 0; k < 6; k++) {
-        const j = i * 97 + k
-        const a0 = M.lerp(0.15, 1.5, rnd(seed, j, 62)) * Math.PI
-        const rr = r * (0.35 + rnd(seed, j, 63) * 0.55)
-        const pr = 1.6 + rnd(seed, j, 64) * 3.2
-        blob(ctx, x + Math.cos(a0) * rr, y + Math.sin(a0) * rr, pr, pr * 0.65, 0)
+      ctx.arc(x, y, r, 0, TAU)
+      ctx.clip()
+      if (woody) {
+        // A cut timber top with growth rings distinguishes wood from stone.
+        ctx.fillStyle = shade(pal.path, 0.12)
+        ctx.beginPath()
+        blob(ctx, x - r * 0.08, y - r * 0.24, r * 0.78, r * 0.52, -0.15)
+        ctx.fill()
+        ctx.strokeStyle = rgba(pal.pathEdge, 0.65)
+        ctx.lineWidth = 1.5
+        for (let ring = 1; ring <= 3; ring++) {
+          ctx.beginPath()
+          blob(ctx, x - r * 0.08, y - r * 0.24, r * ring * 0.21, r * ring * 0.13, -0.15)
+          ctx.stroke()
+        }
       }
-      ctx.fill()
+      if (leafy) {
+        foliage(ctx, x, y - r * 0.12, r * 0.94, r * 0.86, pal, seed, i * 97)
+      } else {
+        foliage(ctx, x - r * 0.42, y + r * 0.5, r * 0.46, r * 0.25, pal, seed, i * 97)
+      }
+      ctx.restore()
 
-      ctx.strokeStyle = rgba(shade(pal.rock, -0.7), 0.85)
+      ctx.strokeStyle = rgba(shade(body, -0.5), 0.85)
       ctx.lineWidth = 1.6
       ctx.beginPath()
       ctx.arc(x, y, r, 0, TAU)

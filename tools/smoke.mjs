@@ -19,7 +19,7 @@
 import { spawn } from 'node:child_process'
 import { readFileSync, existsSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { tmpdir } from 'node:os'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -39,6 +39,11 @@ function findChrome () {
   }
   const candidates = [
     process.env.CHROME_PATH,
+    ...[process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]
+      .filter(Boolean).flatMap(base => [
+        resolve(base, 'Google/Chrome/Application/chrome.exe'),
+        resolve(base, 'Microsoft/Edge/Application/msedge.exe')
+      ]),
     `${process.env.HOME}/.local/bin/chrome-headless-shell`,
     `${process.env.HOME}/.local/share/overpop-tools/chrome-headless-shell-linux64/chrome-headless-shell`,
     '/usr/bin/chromium', '/usr/bin/chromium-browser',
@@ -156,7 +161,7 @@ async function main () {
   const arg = (f, d) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : d }
   const rounds = parseInt(arg('--rounds', '3'), 10)
   const shot = resolve(ROOT, arg('--shot', 'docs/smoke-shot.png'))
-  const url = arg('--url', 'file://' + resolve(ROOT, 'index.html'))
+  const url = arg('--url', pathToFileURL(resolve(ROOT, 'index.html')).href)
   const headful = argv.includes('--headful')
 
   const chrome = findChrome()

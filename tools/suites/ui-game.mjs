@@ -1324,6 +1324,71 @@ t.section('expedition victories keep their dedicated actions')
   t.notOk(HUD.inRect(HUD.LAYOUT.bottom, HUD.LAYOUT.hero.x, HUD.LAYOUT.hero.y + HUD.LAYOUT.hero.h),
     'the hero panel sits above the bottom strip')
 
+  t.section('portrait cards use two columns and clip their hit targets with their paint')
+  const gridApp = wireShell(makeApp(sim()))
+  Shop.state.scroll = 0
+  const grid = Shop.build(gridApp)
+  const gridCards = grid.widgets.filter(w => w.action === 'shop-buy')
+  t.eq(gridCards[0].y, gridCards[1].y, 'the first two purchases share a row')
+  t.gt(gridCards[1].x, gridCards[0].x + gridCards[0].w, 'the second purchase is in a separate column')
+  Shop.scrollBy(70)
+  const clippedGrid = Shop.build(gridApp)
+  const clippedCard = clippedGrid.cardWidgets.find(w => w.y < clippedGrid.clip.y)
+  t.ok(clippedCard, 'a partially visible card exercises the clip boundary')
+  t.eq(Shop.hitAt(gridApp, clippedCard.x + 4, clippedGrid.clip.y - 2), null,
+    'the hidden part of a card cannot buy through the header')
+  t.eq(Shop.hitAt(gridApp, clippedCard.x + 4, clippedGrid.clip.y + 2).id, clippedCard.id,
+    'the visible portion of that same card remains interactive')
+  t.eq(Shop.hitAt(gridApp, clippedCard.x + 4, clippedGrid.clip.y + clippedGrid.clip.h + 2), null,
+    'nor can a card buy through the detail strip')
+  Shop.state.scroll = 0
+
+  t.section('powers have their own reachable tray, clear of the sidebar and controls')
+  const powerSim = sim()
+  const powerApp = wireShell(makeApp(powerSim))
+  powerSim.powers['wild-cache'] = 1
+  const powerWidgets = HUD.build(powerApp).widgets.filter(w => w.action === 'hud-power')
+  t.eq(powerWidgets.length, OP.POWER_ORDER.length, 'every consumable keeps its own action')
+  t.ok(powerWidgets.every(w => w.x >= HUD.LAYOUT.powers.x && w.x + w.w <= sb.x &&
+    w.y >= HUD.LAYOUT.powers.y && w.y + w.h < HUD.LAYOUT.bottom.y),
+  'all power hit targets stay in the tray, above the controls and left of the sidebar')
+  const cache = powerWidgets.find(w => w.arg === 'wild-cache')
+  const cacheAt = centre(cache)
+  const powerCash = powerSim.cash
+  t.ok(HUD.chromeAtOwn(powerApp, cacheAt.x, cacheAt.y), 'the tray is claimed by the HUD router')
+  tapAt(powerApp, cacheAt.x, cacheAt.y)
+  t.eq(powerSim.powers['wild-cache'], 0, 'a real pointer tap activates the consumable')
+  t.gt(powerSim.cash, powerCash, 'and the engine awards its cash')
+
+  t.section('every shipped tower branch and max-level hero fits the selected panel')
+  const layoutIssues = []
+  for (const [isHero, keys] of [[false, OP.TOWER_ORDER], [true, OP.HERO_ORDER]]) {
+    for (const key of keys) {
+      const s = sim({ cash: 100000000 })
+      const app = makeApp(s)
+      const selected = place(s, key, isHero)
+      if (!selected) { layoutIssues.push(key + ': could not place'); continue }
+      app.state.io.selectedId = selected.id
+      if (isHero) OP.Heroes.grantXP(s, 1000000)
+      for (const tiers of isHero ? [null] : [[0, 0, 0], [5, 0, 0], [0, 5, 0], [0, 0, 5], [3, 2, 0]]) {
+        if (tiers) { selected.tiers = tiers; OP.Towers.restat(s, selected) }
+        const m = Panel.build(app)
+        for (let i = 0; i < m.widgets.length; i++) {
+          const a = m.widgets[i]
+          if (a.x < sb.x || a.y < sb.y || a.x + a.w > sb.x + sb.w || a.y + a.h > sb.y + sb.h) {
+            layoutIssues.push(key + ': out of bounds ' + a.id)
+          }
+          for (const b of m.widgets.slice(i + 1)) {
+            if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) {
+              layoutIssues.push(key + ': ' + a.id + ' overlaps ' + b.id)
+            }
+          }
+        }
+      }
+    }
+  }
+  t.deep(layoutIssues, [], 'all branches, targeting modes, abilities and footers stay separate inside the sidebar')
+
   /* ==========================================================================
      EMPTY REGISTRIES
      ========================================================================== */

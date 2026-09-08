@@ -46,7 +46,7 @@
   /** The sidebar rect is published by the HUD so two files cannot disagree. */
   function sidebar () {
     const L = OP.HUD && OP.HUD.LAYOUT && OP.HUD.LAYOUT.sidebar
-    return L || { x: 960, y: 52, w: FIELD_W - 960, h: 660 }
+    return L || { x: 960, y: 68, w: FIELD_W - 960, h: 644 }
   }
 
   function simOf (app) { return app && app.state ? app.state.sim : null }
@@ -307,9 +307,10 @@
     // Smoked, not opaque: maps run to the field edge, so the sidebar always sits
     // over live board and a balloon crossing behind it must not simply vanish.
     marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
-    marks.push(U.tracked(x0, S.y + 22, 'BUILD', { size: 11, colour: C.moss, track: 0.3 }))
-    marks.push(U.text(S.x + S.w - padX, S.y + 22, M.money(sim.cash), { size: 12, colour: C.ink, align: 'right', weight: '600' }))
-    marks.push(U.rule(x0, S.y + 30, innerW, { colour: C.line }))
+    if (U.icon) marks.push(U.icon(x0 + 15, S.y + 23, 15, 'shield', { colour: C.moss }))
+    marks.push(U.text(x0 + 38, S.y + 29, 'BUILD', { size: 21, colour: C.ink, weight: '800' }))
+    marks.push(U.text(S.x + S.w - padX, S.y + 27, M.money(sim.cash), { size: 15, colour: C.gold, align: 'right', weight: '700' }))
+    marks.push(U.rule(x0, S.y + 40, innerW, { colour: C.line }))
 
     const list = groups()
     // Token cards sit at the top, above the roster: they are owned content, the
@@ -318,9 +319,9 @@
     if (draftGroup.defs.length) list.unshift(draftGroup)
 
     /* ----- the detail strip, reserved before the grid so the grid can size to fit ----- */
-    const detailH = 96
-    const detailY = S.y + S.h - detailH - 22
-    const top = S.y + 40
+    const detailH = 152
+    const detailY = S.y + S.h - detailH - 12
+    const top = S.y + 48
     const bottom = detailY - 8
 
     if (!list.length) {
@@ -331,15 +332,11 @@
       return model(marks, widgets, over, app)
     }
 
-    /* ONE COLUMN of tall cards, scrolled — not a grid of shrinking cells.
-       The old grid divided the remaining height by the row count, so every tower
-       added made every card shorter; at 31 towers and 20 heroes a cell was 16px,
-       which fits a clipped name and nothing else. A card has to carry the
-       critter's portrait to be worth looking at, and a portrait needs real
-       height. So the card size is FIXED and the list scrolls instead. */
-    const cardH = 44
-    const rowGap = 4
-    const headerH = 22
+    // Fixed-size portrait cards, two per row; new content adds scroll, not density.
+    const cols = 2
+    const cardH = 132
+    const rowGap = 8
+    const headerH = 36
     const listMarks = []
     const listOver = []
 
@@ -350,13 +347,15 @@
     // height, and the cull below needs to know where each card would land.
     let contentH = 0
     for (let g = 0; g < list.length; g++) {
-      contentH += headerH + list[g].defs.length * (cardH + rowGap)
+      contentH += headerH + Math.ceil(list[g].defs.length / cols) * (cardH + rowGap)
     }
     const viewH = bottom - top
     // The scrollbar only takes width when it is actually needed.
     const overflowing = contentH > viewH
     const barW = overflowing ? 5 : 0
-    const cardW = innerW - (overflowing ? barW + 4 : 0)
+    const listW = innerW - (overflowing ? barW + 4 : 0)
+    const cardW = Math.floor((listW - rowGap) / cols)
+    const clip = { x: x0, y: top, w: listW, h: viewH }
 
     state.maxScroll = Math.max(0, contentH - viewH)
     state.scroll = M.clamp(state.scroll, 0, state.maxScroll)
@@ -377,37 +376,37 @@
       }
 
       if (y + headerH > top && y < bottom) {
-        listMarks.push(U.tracked(x0, y + 13, group.label.toUpperCase(), { size: 9, colour: groupReason ? C.warn : C.moss, track: 0.28 }))
+        listMarks.push(U.tracked(x0, y + 13, group.label.toUpperCase(), { size: 11, colour: groupReason ? C.warn : C.moss, track: 0.12 }))
         if (groupReason) {
-          listOver.push(U.text(x0 + cardW, y + 13, U.clipText(groupReason, 8, cardW - 84),
-            { size: 8, colour: C.warn, align: 'right' }))
+          listOver.push(U.text(x0, y + 27, U.clipText(groupReason, 9, listW),
+            { size: 9, colour: C.warn }))
         } else {
-          listOver.push(U.text(x0 + cardW, y + 13, group.defs.length + (group.draft ? ' drafts' : (group.hero ? ' heroes' : ' towers')),
-            { size: 8, colour: C.faint, align: 'right' }))
+          listOver.push(U.text(x0 + listW, y + 13, group.defs.length + (group.draft ? ' drafts' : (group.hero ? ' heroes' : ' towers')),
+            { size: 9, colour: C.dim, align: 'right' }))
         }
-        listMarks.push(U.rule(x0, y + 18, cardW, { colour: C.line, alpha: 0.6 }))
+        listMarks.push(U.rule(x0, y + 32, listW, { colour: C.line, alpha: 0.6 }))
       }
       y += headerH
 
       for (let i = 0; i < group.defs.length; i++) {
         const def = group.defs[i]
         const st = states[i]
-        const cy = y
-        y += cardH + rowGap
+        const cx = x0 + (i % cols) * (cardW + rowGap)
+        const cy = y + Math.floor(i / cols) * (cardH + rowGap)
 
         /* CULL, rather than clip alone. A card scrolled out of view must not be
            in `widgets` at all — otherwise it still answers hit tests and the
            player buys a tower they cannot see. Clipping fixes the picture and
            would leave the bug. */
-        if (cy + cardH < top || cy > bottom) continue
+        if (cy + cardH <= top || cy >= bottom) continue
 
         // The buy area STOPS where the tree strip starts, rather than sitting under
         // it. No overlap means the hit test does not depend on push order, and the
         // panel keeps the "no two widgets overlap" invariant the suite enforces.
         const hasTree = !!(def.paths && def.paths.length) && !group.draft
         const buyW = cardW - (hasTree ? TREE_W : 0)
-        const w = U.button('shop.' + def.key, x0, cy, buyW, cardH, {
-          label: '',
+        const w = U.button('shop.' + def.key, cx, cy, buyW, cardH, {
+          label: '', tint: group.hero ? C.gold : C.moss, hitClip: clip,
           disabled: st.state !== 'ok',
           selected: placingKey === def.key,
           action: 'shop-buy',
@@ -434,8 +433,8 @@
            Pushed AFTER the card so it wins the hit test — UI.hit scans backwards —
            and given a strip of the card's full height so it is an easy target. */
         if (hasTree) {
-          const tw = U.button('shop.tree.' + def.key, x0 + buyW, cy, TREE_W, cardH, {
-            label: '',
+          const tw = U.button('shop.tree.' + def.key, cx + buyW, cy, TREE_W, cardH, {
+            label: '', tint: C.gold, hitClip: clip,
             action: 'shop-tree',
             arg: def.key
           })
@@ -446,8 +445,9 @@
           widgets.push(tw)
         }
 
-        card(sim, listOver, def, st, x0, cy, cardW, cardH, group.hero, group.draft)
+        card(sim, listOver, def, st, cx, cy, cardW, cardH, group.hero, group.draft)
       }
+      y += Math.ceil(group.defs.length / cols) * (cardH + rowGap)
     }
 
     /* The scrollbar is an indicator, not a control: the thumb shows where you are
@@ -469,7 +469,7 @@
       listOver: listOver,
       cardWidgets: cardWidgets,
       chromeWidgets: [],
-      clip: { x: S.x, y: top, w: S.w, h: viewH },
+      clip: clip,
       contentH: contentH,
       viewH: viewH,
       scroll: state.scroll,
@@ -508,7 +508,7 @@
   /* ---------- one card ----------
      Portrait, name, what it deals, what it costs, and the one trait a player
      actually decides on: whether it can see camo. Everything else is in the
-     detail strip — a card that tries to say everything says nothing at 44px. */
+     detail strip keeps the smaller card focused on the purchase. */
 
   function card (sim, out, def, st, x, y, w, h, isHero, isDraft) {
     const U = ui(); const C = colours()
@@ -518,23 +518,17 @@
     if (hasTree) w -= TREE_W
     const dim = st.state !== 'ok'
     const nameColour = st.state === 'ok' ? C.ink : (st.state === 'poor' ? C.dim : C.faint)
-    const r = Math.floor(h * 0.36)
-    const px = x + 6 + r
-    const tx = px + r + 8
-
-    out.push(U.portrait(px, y + h / 2, r, def.key, { dim: dim }))
-
-    out.push(U.text(tx, y + 15, U.clipText(def.name || def.key, 11, w - (tx - x) - 54),
-      { size: 11, colour: nameColour, weight: '600' }))
-
-    if (st.state === 'blocked') {
-      out.push(U.text(x + w - 8, y + 15, 'LOCKED', { size: 8, colour: C.warn, align: 'right' }))
-    } else if (st.free) {
-      out.push(U.text(x + w - 8, y + 15, 'FREE', { size: 10, colour: C.gold, align: 'right', weight: '600' }))
-    } else {
-      out.push(U.text(x + w - 8, y + 15, M.money(st.price),
-        { size: 10, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right', weight: '600' }))
+    out.push(U.box(x + 8, y + 7, w - 16, 51, { fill: C.deep, alpha: 0.45 }))
+    out.push(U.portrait(x + w / 2, y + 32, 25, def.key, { dim: dim }))
+    const names = U.wrapText(def.name || def.key, 11, w - 10, 2)
+    for (let i = 0; i < names.length; i++) {
+      out.push(U.text(x + w / 2, y + 72 + i * 12, names[i],
+        { size: 11, colour: nameColour, weight: '700', align: 'center' }))
     }
+    const priceColour = st.state === 'blocked' ? C.warn : st.state === 'poor' ? C.bad : C.gold
+    out.push(U.box(x + 8, y + 90, w - 16, 23, { fill: C.deep, stroke: priceColour }))
+    out.push(U.text(x + w / 2, y + 106, st.state === 'blocked' ? 'LOCKED' : st.free ? 'FREE' : M.money(st.price),
+      { size: 13, colour: priceColour, weight: '800', align: 'center' }))
 
     const traits = OP.Upgrades && OP.Upgrades.traits ? OP.Upgrades.traits(def, sim) : null
     const bits = []
@@ -542,28 +536,17 @@
     if (isDraft) bits.push('LEVEL ' + def.draftLevel, '\xD7' + def.draftCount)
     if (traits) {
       bits.push(String(traits.dmgType).toUpperCase())
-      if (traits.camoNow) bits.push('SEES CAMO')
-      else if (traits.camoLater) bits.push('CAMO VIA UPG')
+      if (traits.camoNow) bits.push('CAMO')
     }
-    out.push(U.text(tx, y + 30, U.clipText(bits.join(' · '), 8, w - (tx - x) - 12),
-      { size: 8, colour: C.faint }))
+    out.push(U.text(x + w / 2, y + 125, U.clipText(bits.join(' / '), 8, w - 8),
+      { size: 8, colour: C.dim, align: 'center' }))
 
     // A permanent blind spot is the one thing worth shouting on the card itself:
     // it is the difference between a tower that needs an upgrade and one that will
     // never answer a round no matter what you spend.
     if (hasTree) {
-      // A quiet chevron: discoverable without competing with the price.
-      out.push(U.text(x + w + TREE_W / 2, y + h / 2 - 5, '\u25B8', { size: 11, colour: C.moss, align: 'center' }))
-      out.push(U.text(x + w + TREE_W / 2, y + h / 2 + 9, 'UPG', { size: 6, colour: C.faint, align: 'center' }))
-      out.push(U.rule(x + w, y + 6, 0, { colour: C.line }))
-    }
-
-    if (traits && traits.blindTo.length) {
-      out.push(U.text(x + w - 8, y + 30, 'never: ' + U.clipText(traits.blindTo.join(','), 8, 70),
-        { size: 8, colour: C.bad, align: 'right' }))
-    } else if (traits && traits.fixable.length) {
-      out.push(U.text(x + w - 8, y + 30, 'upg: ' + U.clipText(traits.fixable.join(','), 8, 70),
-        { size: 8, colour: C.warn, align: 'right' }))
+      if (U.icon) out.push(U.icon(x + w + TREE_W / 2, y + h / 2 - 8, 9, 'book', { colour: C.gold }))
+      out.push(U.text(x + w + TREE_W / 2, y + h / 2 + 14, 'UPG', { size: 8, colour: C.gold, align: 'center', weight: '700' }))
     }
   }
 
@@ -642,13 +625,13 @@
     /* No upgrade-tree button here any more — it lives on each card instead.
        A duplicate would also collide on id, since the strip describes a card that
        is usually still on screen. The strip just says how to get there. */
-    over.push(U.text(x0 + 10, y + h - 8, 'press \u25B8 UPG on a card for its full tree',
+    over.push(U.text(x0 + 10, y + h - 8, 'Press UPG on a card for its full tree',
       { size: 8, colour: C.faint }))
 
     if (st.reason) {
-      const lines = U.wrapText(st.reason, 9, innerW - 118, 2)
+      const lines = U.wrapText(st.reason, 9, innerW - 20, 2)
       for (let i = 0; i < lines.length; i++) {
-        over.push(U.text(x0 + 10, y + h - 16 + i * 11 - (lines.length - 1) * 11, lines[i],
+        over.push(U.text(x0 + 10, y + h - 24 + i * 11 - (lines.length - 1) * 11, lines[i],
           { size: 9, colour: st.state === 'blocked' ? C.warn : C.bad }))
       }
     }
@@ -686,9 +669,9 @@
        So each row is as tall as its own text, each column accumulates its own
        height, and the line cap drops only if the tallest column would not fit on
        screen. Clipping is the last resort, not the default. */
-    const W = 920
+    const W = 1000
     const PAD = 26
-    const HEAD = 102
+    const HEAD = 116
     const FOOT = 34
     const colW = Math.floor((W - PAD * 2 - 12 * (paths.length - 1)) / Math.max(1, paths.length))
     const MAX_H = OP.FIELD_H - 48
@@ -703,8 +686,8 @@
         for (let t = 0; t < tiers.length; t++) {
           const up = tiers[t]
           if (!up) continue
-          const lines = U.wrapText(up.desc || '', 8, colW - 22, cap)
-          const h = 22 + lines.length * 10 + 6
+          const lines = U.wrapText(up.desc || '', 10, colW - 24, cap)
+          const h = 26 + lines.length * 12 + 8
           rows.push({ up: up, tier: t, dy: y, h: h, lines: lines })
           y += h + 5
         }
@@ -726,53 +709,53 @@
 
     marks.push(U.box(x0, y0, W, H, { fill: C.panel, stroke: C.line, alpha: 0.985 }))
 
-    const r = 22
-    marks.push(U.portrait(x0 + PAD + r, y0 + 30, r, def.key, {}))
-    over.push(U.text(x0 + PAD + r * 2 + 12, y0 + 26, def.name || def.key, { size: 15, colour: C.ink, weight: '600' }))
-    over.push(U.text(x0 + PAD + r * 2 + 12, y0 + 42, 'UPGRADE PATHS · ' + M.money(OP.Economy.price(sim, def.cost)) + ' to place',
-      { size: 9, colour: C.moss }))
+    const r = 30
+    marks.push(U.portrait(x0 + PAD + r, y0 + 38, r, def.key, {}))
+    over.push(U.text(x0 + PAD + r * 2 + 16, y0 + 32, def.name || def.key, { size: 22, colour: C.ink, weight: '800' }))
+    over.push(U.text(x0 + PAD + r * 2 + 16, y0 + 53, 'UPGRADE PATHS · ' + M.money(OP.Economy.price(sim, def.cost)) + ' to place',
+      { size: 11, colour: C.moss, weight: '700' }))
 
-    const close = U.button('shop.tree.close', x0 + W - 36, y0 + 14, 24, 24, {
+    const close = U.button('shop.tree.close', x0 + W - 50, y0 + 14, 36, 36, {
       label: '', action: 'shop-tree-close'
     })
     widgets.push(close)
     // Drawn as an explicit mark rather than relying on the button's own label: the
     // footer promises "× closes", and a promise the player cannot see is a lie.
-    over.push(U.text(x0 + W - 24, y0 + 31, '\u00d7', { size: 16, colour: C.dim, align: 'center' }))
+    over.push(U.text(x0 + W - 32, y0 + 39, '\u00d7', { size: 23, colour: C.ink, align: 'center' }))
 
     // The crosspath rule is the single most surprising thing about a BTD-shaped
     // upgrade tree, and it decides which of these columns a player can finish.
-    over.push(U.text(x0 + PAD, y0 + 64,
+    over.push(U.text(x0 + PAD, y0 + 80,
       'At most one branch past tier 2, at most two branches touched — so 5-2-0 and its permutations.',
-      { size: 8, colour: C.faint }))
+      { size: 10, colour: C.dim }))
 
 
 
     for (let p = 0; p < paths.length; p++) {
       const path = paths[p]
       const cx = x0 + PAD + p * (colW + 12)
-      over.push(U.text(cx, y0 + 88, U.clipText(String(path.name || 'PATH ' + (p + 1)).toUpperCase(), 9, colW),
-        { size: 9, colour: C.moss, weight: '600' }))
-      marks.push(U.rule(cx, y0 + 94, colW, { colour: C.line }))
+      over.push(U.text(cx, y0 + 103, U.clipText(String(path.name || 'PATH ' + (p + 1)).toUpperCase(), 12, colW),
+        { size: 12, colour: C.moss, weight: '800' }))
+      marks.push(U.rule(cx, y0 + 109, colW, { colour: C.line }))
 
       const rows = plan.cols[p] || []
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
         const ry = y0 + HEAD + row.dy
         marks.push(U.box(cx, ry, colW, row.h, { fill: C.panelHi, stroke: C.line, alpha: 0.7 }))
-        over.push(U.text(cx + 6, ry + 13, String(row.tier + 1), { size: 8, colour: C.faint }))
-        over.push(U.text(cx + 18, ry + 13, U.clipText(row.up.name || '', 9, colW - 62),
-          { size: 9, colour: C.ink, weight: '600' }))
-        over.push(U.text(cx + colW - 6, ry + 13, M.money(OP.Economy.price(sim, row.up.cost)),
-          { size: 8, colour: C.moss, align: 'right' }))
+        over.push(U.text(cx + 8, ry + 17, String(row.tier + 1), { size: 10, colour: C.gold, weight: '700' }))
+        over.push(U.text(cx + 24, ry + 17, U.clipText(row.up.name || '', 11, colW - 104),
+          { size: 11, colour: C.ink, weight: '700' }))
+        over.push(U.text(cx + colW - 8, ry + 17, M.money(OP.Economy.price(sim, row.up.cost)),
+          { size: 11, colour: C.gold, align: 'right', weight: '700' }))
         for (let n = 0; n < row.lines.length; n++) {
-          over.push(U.text(cx + 18, ry + 25 + n * 10, row.lines[n], { size: 8, colour: C.dim }))
+          over.push(U.text(cx + 12, ry + 31 + n * 12, row.lines[n], { size: 10, colour: C.dim }))
         }
       }
     }
 
     over.push(U.text(x0 + PAD, y0 + H - 12, 'ESC or × closes · this is a preview, nothing is bought here',
-      { size: 8, colour: C.faint }))
+      { size: 10, colour: C.dim }))
 
     return model(marks, widgets, over, app, { screen: 'shop-tree', backdrop: 'scrim' })
   }
@@ -815,7 +798,7 @@
     // Chrome widgets are NOT clipped: the upgrade-tree button lives in the detail
     // strip, below the list viewport, and clipping it would paint it nowhere while
     // leaving it clickable.
-    n += U.paint(ctx, { marks: [], widgets: m.chromeWidgets || [] }, { hoverId: m.hoverId })
+    n += U.paint(ctx, { marks: [], widgets: m.chromeWidgets || (m.clip ? [] : m.widgets) || [] }, { hoverId: m.hoverId })
     if (m.over && m.over.length) n += U.paint(ctx, { marks: m.over, widgets: [] }, {})
     return n
   }

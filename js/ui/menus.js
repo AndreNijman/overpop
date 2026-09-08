@@ -241,6 +241,16 @@
     }
   }
 
+  /** A small vector icon. Recognisable shapes drawn procedurally, no bitmaps. */
+  UI.icon = function (x, y, r, key, opts) {
+    opts = opts || {}
+    return {
+      kind: 'icon', x: x, y: y, r: r, key: String(key || ''),
+      colour: opts.colour || C.ink, bg: opts.bg || '',
+      alpha: opts.alpha === undefined ? 1 : opts.alpha
+    }
+  }
+
   /**
    * A miniature of a map's track shape. `paths` is an array of point arrays in
    * field coordinates; the mark scales the whole field into the box so previews
@@ -454,6 +464,331 @@
     ctx.fillText((m.key[0] || '?').toUpperCase(), m.x, m.y + 1)
   }
 
+  function drawIconMark (ctx, m) {
+    ctx.save()
+    if (m.alpha !== 1) ctx.globalAlpha = m.alpha
+    const r = m.r
+    const x = m.x
+    const y = m.y
+    const c = m.colour
+    ctx.strokeStyle = c
+    ctx.fillStyle = c
+    ctx.lineWidth = Math.max(1.5, r * 0.18)
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    switch (m.key) {
+      case 'heart': {
+        ctx.beginPath()
+        ctx.moveTo(x, y + r * 0.3)
+        ctx.bezierCurveTo(x - r, y - r * 0.5, x - r * 0.4, y - r, x, y - r * 0.4)
+        ctx.bezierCurveTo(x + r * 0.4, y - r, x + r, y - r * 0.5, x, y + r * 0.3)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'coin': {
+        ctx.beginPath()
+        ctx.arc(x, y, r, 0, M.TAU)
+        ctx.fill()
+        ctx.fillStyle = m.bg || '#b8860b'
+        ctx.beginPath()
+        ctx.arc(x, y, r * 0.7, 0, M.TAU)
+        ctx.fill()
+        ctx.fillStyle = c
+        ctx.font = 'bold ' + Math.round(r * 0.9) + 'px ' + FONT
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText('$', x, y + 1)
+        break
+      }
+      case 'star': {
+        ctx.beginPath()
+        for (let i = 0; i < 5; i++) {
+          const a = (i * 72 - 90) * Math.PI / 180
+          const a2 = ((i * 72 + 36) - 90) * Math.PI / 180
+          ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r)
+          ctx.lineTo(x + Math.cos(a2) * r * 0.45, y + Math.sin(a2) * r * 0.45)
+        }
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'play': {
+        ctx.beginPath()
+        ctx.moveTo(x - r * 0.3, y - r)
+        ctx.lineTo(x - r * 0.3, y + r)
+        ctx.lineTo(x + r * 0.85, y)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'pause': {
+        const pw = r * 0.3
+        ctx.fillRect(x - r * 0.5, y - r, pw, r * 2)
+        ctx.fillRect(x + r * 0.5 - pw, y - r, pw, r * 2)
+        break
+      }
+      case 'fast': {
+        ctx.beginPath()
+        ctx.moveTo(x - r * 0.6, y - r)
+        ctx.lineTo(x - r * 0.6, y + r)
+        ctx.lineTo(x + r * 0.1, y)
+        ctx.closePath()
+        ctx.fill()
+        ctx.beginPath()
+        ctx.moveTo(x, y - r)
+        ctx.lineTo(x, y + r)
+        ctx.lineTo(x + r * 0.85, y)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'gear': {
+        ctx.beginPath()
+        ctx.arc(x, y, r * 0.45, 0, M.TAU)
+        ctx.fill()
+        for (let i = 0; i < 6; i++) {
+          const a = i * 60 * Math.PI / 180
+          const cos = Math.cos(a)
+          const sin = Math.sin(a)
+          ctx.beginPath()
+          ctx.moveTo(x + cos * r * 0.55, y + sin * r * 0.55)
+          ctx.lineTo(x + cos * r, y + sin * r)
+          ctx.lineWidth = Math.max(2, r * 0.28)
+          ctx.stroke()
+        }
+        break
+      }
+      case 'book': {
+        ctx.beginPath()
+        ctx.moveTo(x - r, y - r)
+        ctx.quadraticCurveTo(x, y - r * 0.7, x + r, y - r)
+        ctx.lineTo(x + r, y + r)
+        ctx.quadraticCurveTo(x, y + r * 0.7, x - r, y + r)
+        ctx.closePath()
+        ctx.fill()
+        ctx.strokeStyle = m.bg || '#4a2f18'
+        ctx.lineWidth = Math.max(1.5, r * 0.12)
+        ctx.beginPath()
+        ctx.moveTo(x, y - r * 0.85)
+        ctx.lineTo(x, y + r * 0.85)
+        ctx.stroke()
+        break
+      }
+      case 'shield': {
+        ctx.beginPath()
+        ctx.moveTo(x, y - r)
+        ctx.lineTo(x + r * 0.85, y - r * 0.5)
+        ctx.lineTo(x + r * 0.7, y + r * 0.5)
+        ctx.lineTo(x, y + r)
+        ctx.lineTo(x - r * 0.7, y + r * 0.5)
+        ctx.lineTo(x - r * 0.85, y - r * 0.5)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'trophy': {
+        ctx.beginPath()
+        ctx.moveTo(x - r * 0.6, y - r)
+        ctx.lineTo(x + r * 0.6, y - r)
+        ctx.lineTo(x + r * 0.5, y + r * 0.2)
+        ctx.quadraticCurveTo(x + r, y + r * 0.1, x + r * 0.7, y + r * 0.5)
+        ctx.lineTo(x + r * 0.2, y + r * 0.3)
+        ctx.lineTo(x + r * 0.2, y + r * 0.7)
+        ctx.lineTo(x - r * 0.2, y + r * 0.7)
+        ctx.lineTo(x - r * 0.2, y + r * 0.3)
+        ctx.lineTo(x - r * 0.7, y + r * 0.5)
+        ctx.quadraticCurveTo(x - r, y + r * 0.1, x - r * 0.5, y + r * 0.2)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'bolt': {
+        ctx.beginPath()
+        ctx.moveTo(x + r * 0.15, y - r)
+        ctx.lineTo(x - r * 0.5, y + r * 0.1)
+        ctx.lineTo(x + r * 0.05, y + r * 0.1)
+        ctx.lineTo(x - r * 0.15, y + r)
+        ctx.lineTo(x + r * 0.5, y - r * 0.1)
+        ctx.lineTo(x - r * 0.05, y - r * 0.1)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'home': {
+        ctx.beginPath()
+        ctx.moveTo(x, y - r)
+        ctx.lineTo(x + r, y + r * 0.1)
+        ctx.lineTo(x + r * 0.55, y + r * 0.1)
+        ctx.lineTo(x + r * 0.55, y + r)
+        ctx.lineTo(x + r * 0.15, y + r)
+        ctx.lineTo(x + r * 0.15, y + r * 0.35)
+        ctx.lineTo(x - r * 0.15, y + r * 0.35)
+        ctx.lineTo(x - r * 0.15, y + r)
+        ctx.lineTo(x - r * 0.55, y + r)
+        ctx.lineTo(x - r * 0.55, y + r * 0.1)
+        ctx.lineTo(x - r, y + r * 0.1)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      case 'gift': {
+        ctx.fillStyle = m.bg || c
+        ctx.fillRect(x - r, y - r * 0.3, r * 2, r * 1.3)
+        ctx.fillStyle = c
+        ctx.fillRect(x - r * 0.12, y - r * 0.3, r * 0.24, r * 1.3)
+        ctx.fillRect(x - r, y - r * 0.5, r * 2, r * 0.25)
+        ctx.beginPath()
+        ctx.arc(x - r * 0.3, y - r * 0.5, r * 0.25, Math.PI, 0)
+        ctx.arc(x + r * 0.3, y - r * 0.5, r * 0.25, Math.PI, 0)
+        ctx.fill()
+        break
+      }
+      case 'flag': {
+        ctx.beginPath()
+        ctx.moveTo(x - r * 0.6, y - r)
+        ctx.lineTo(x - r * 0.6, y + r)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(x - r * 0.55, y - r)
+        ctx.lineTo(x + r * 0.6, y - r * 0.35)
+        ctx.lineTo(x - r * 0.55, y + r * 0.3)
+        ctx.closePath()
+        ctx.fill()
+        break
+      }
+      default: {
+        ctx.beginPath()
+        ctx.arc(x, y, r * 0.6, 0, M.TAU)
+        ctx.stroke()
+        break
+      }
+    }
+    ctx.restore()
+  }
+
+  function drawLogoMark (ctx, m) {
+    ctx.save()
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'alphabetic'
+    const size = m.size || 74
+    const step = size * (ADV + (m.track || 0.18))
+    const s = m.text || ''
+
+    /* Shadow */
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
+    setFont(ctx, size, '800')
+    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), m.x + i * step + 3, m.y + 4)
+
+    /* Dark outline for readability against sky */
+    ctx.strokeStyle = m.stroke || '#2a1a0a'
+    ctx.lineWidth = Math.max(3, size * 0.06)
+    ctx.lineJoin = 'round'
+    for (let i = 0; i < s.length; i++) ctx.strokeText(s.charAt(i), m.x + i * step, m.y)
+
+    /* White fill */
+    ctx.fillStyle = m.colour || C.ink
+    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), m.x + i * step, m.y)
+
+    ctx.restore()
+  }
+
+  function drawTitleBackdrop (ctx, m) {
+    ctx.save()
+    const W = FIELD_W
+    const H = FIELD_H
+
+    /* Sky gradient */
+    let sky = null
+    if (typeof ctx.createLinearGradient === 'function') {
+      try { sky = ctx.createLinearGradient(0, 0, 0, H) } catch (e) { sky = null }
+    }
+    if (sky) {
+      sky.addColorStop(0, '#87CEEB')
+      sky.addColorStop(0.45, '#B0E0F6')
+      sky.addColorStop(0.7, '#d4eef8')
+      sky.addColorStop(1, '#7ec850')
+      ctx.fillStyle = sky
+    } else {
+      ctx.fillStyle = '#87CEEB'
+    }
+    ctx.fillRect(0, 0, W, H)
+
+    /* Sun glow */
+    const sunX = W * 0.78
+    const sunY = H * 0.18
+    let sg = null
+    if (typeof ctx.createRadialGradient === 'function') {
+      try { sg = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 120) } catch (e) { sg = null }
+    }
+    if (sg) {
+      sg.addColorStop(0, 'rgba(255, 248, 180, 0.9)')
+      sg.addColorStop(0.3, 'rgba(255, 240, 140, 0.4)')
+      sg.addColorStop(1, 'rgba(255, 240, 140, 0)')
+      ctx.fillStyle = sg
+      ctx.fillRect(0, 0, W, H * 0.7)
+    }
+
+    /* Clouds */
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
+    function cloud (cx, cy, s) {
+      ctx.beginPath()
+      ctx.arc(cx, cy, 22 * s, 0, M.TAU)
+      ctx.arc(cx + 28 * s, cy - 6 * s, 18 * s, 0, M.TAU)
+      ctx.arc(cx + 50 * s, cy, 24 * s, 0, M.TAU)
+      ctx.arc(cx + 24 * s, cy + 4 * s, 16 * s, 0, M.TAU)
+      ctx.fill()
+    }
+    cloud(W * 0.12, H * 0.11, 1.1)
+    cloud(W * 0.35, H * 0.07, 0.8)
+    cloud(W * 0.55, H * 0.14, 1.0)
+    cloud(W * 0.88, H * 0.09, 0.7)
+
+    /* Distant hills — two overlapping curves for depth */
+    ctx.fillStyle = '#5fb84a'
+    ctx.beginPath()
+    ctx.moveTo(0, H * 0.72)
+    ctx.quadraticCurveTo(W * 0.25, H * 0.62, W * 0.5, H * 0.68)
+    ctx.quadraticCurveTo(W * 0.75, H * 0.74, W, H * 0.66)
+    ctx.lineTo(W, H)
+    ctx.lineTo(0, H)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.fillStyle = '#4fa83a'
+    ctx.beginPath()
+    ctx.moveTo(0, H * 0.78)
+    ctx.quadraticCurveTo(W * 0.3, H * 0.7, W * 0.6, H * 0.76)
+    ctx.quadraticCurveTo(W * 0.8, H * 0.8, W, H * 0.74)
+    ctx.lineTo(W, H)
+    ctx.lineTo(0, H)
+    ctx.closePath()
+    ctx.fill()
+
+    /* Grass strip at bottom — BTD6-style bright green band */
+    ctx.fillStyle = '#6abf4b'
+    ctx.fillRect(0, H * 0.82, W, H * 0.18)
+
+    /* Grass tufts */
+    ctx.strokeStyle = '#5aa83d'
+    ctx.lineWidth = 1.5
+    ctx.lineCap = 'round'
+    for (let i = 0; i < 60; i++) {
+      const gx = (i / 60) * W + Math.sin(i * 3.7) * 12
+      const gy = H * 0.82 + Math.abs(Math.sin(i * 2.1)) * 8
+      ctx.beginPath()
+      ctx.moveTo(gx, gy)
+      ctx.lineTo(gx - 2, gy - 6 - Math.abs(Math.sin(i * 1.3)) * 4)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(gx + 3, gy)
+      ctx.lineTo(gx + 5, gy - 5 - Math.abs(Math.cos(i * 1.7)) * 3)
+      ctx.stroke()
+    }
+
+    ctx.restore()
+  }
+
   function drawPreview (ctx, m) {
     ctx.save()
     ctx.fillStyle = m.bg
@@ -498,6 +833,9 @@
       case 'chip': drawChip(ctx, m); break
       case 'balloon': drawBalloonMark(ctx, m); break
       case 'portrait': drawPortraitMark(ctx, m); break
+      case 'icon': drawIconMark(ctx, m); break
+      case 'titleBg': drawTitleBackdrop(ctx, m); break
+      case 'logo': drawLogoMark(ctx, m); break
       case 'preview': drawPreview(ctx, m); break
       default: break        // an unknown mark is skipped, never thrown over
     }
@@ -521,20 +859,30 @@
     switch (w.kind) {
       case 'button': {
         drawBox(ctx, UI.box(w.x, w.y, w.w, w.h, { fill: t.fill, stroke: t.stroke, alpha: 1 }))
-        const cx = w.align === 'center' ? w.x + w.w / 2 : w.x + 16
+        const hasIcon = w.icon && typeof drawIconMark === 'function'
+        const iconSpace = hasIcon ? 20 : 0
+        const cx = w.align === 'center' ? w.x + w.w / 2 : w.x + 16 + iconSpace
         const baseY = w.sub ? w.y + w.h / 2 - 2 : w.y + w.h / 2 + 5
+        if (hasIcon) {
+          drawIconMark(ctx, { kind: 'icon', x: w.x + 18, y: w.y + w.h / 2, r: 10, key: w.icon, colour: t.ink })
+        }
         drawTracked(ctx, UI.tracked(w.align === 'center' ? cx - UI.trackedWidth(UI.tracked(0, 0, w.label, { size: 14 })) / 2 : cx,
           baseY, w.label, { size: 14, colour: t.ink, track: 0.18 }))
-        if (w.sub) drawText(ctx, cx, w.y + w.h / 2 + 14, UI.clipText(w.sub, 10, w.w - 24), 10, w.disabled ? C.faint : C.dim, w.align === 'center' ? 'center' : 'left')
+        if (w.sub) drawText(ctx, cx, w.y + w.h / 2 + 14, UI.clipText(w.sub, 10, w.w - 24 - iconSpace), 10, w.disabled ? C.faint : C.dim, w.align === 'center' ? 'center' : 'left')
         if (hover && !w.disabled) {
-          ctx.save(); ctx.fillStyle = C.moss; ctx.fillRect(w.x, w.y, 2, w.h); ctx.restore()
+          ctx.save(); ctx.fillStyle = C.moss
+          ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, Math.min(10, w.w / 3, w.h / 3)); ctx.clip()
+          ctx.fillRect(w.x, w.y, 3, w.h); ctx.restore()
         }
         break
       }
       case 'row': {
         drawBox(ctx, UI.box(w.x, w.y, w.w, w.h, { fill: t.fill, stroke: w.selected ? C.moss : '' }))
-        if (w.selected) { ctx.save(); ctx.fillStyle = C.moss; ctx.fillRect(w.x, w.y, 3, w.h); ctx.restore() }
-        else if (hover && !w.disabled) { ctx.save(); ctx.fillStyle = C.lineHi; ctx.fillRect(w.x, w.y, 3, w.h); ctx.restore() }
+        if (w.selected || (hover && !w.disabled)) {
+          ctx.save(); ctx.fillStyle = w.selected ? C.moss : C.lineHi
+          ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, Math.min(10, w.w / 3, w.h / 3)); ctx.clip()
+          ctx.fillRect(w.x, w.y, 3, w.h); ctx.restore()
+        }
         if (w.swatch) {
           ctx.save(); ctx.fillStyle = w.swatch; ctx.fillRect(w.x + 12, w.y + w.h / 2 - 4, 8, 8); ctx.restore()
         }
@@ -547,7 +895,7 @@
       }
       case 'card': {
         drawBox(ctx, UI.box(w.x, w.y, w.w, w.h, { fill: t.fill, stroke: t.stroke }))
-        if (w.selected) { ctx.save(); ctx.fillStyle = C.moss; ctx.fillRect(w.x, w.y, w.w, 2); ctx.restore() }
+        if (w.selected) { ctx.save(); ctx.fillStyle = C.moss; ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, Math.min(10, w.w / 3, w.h / 3)); ctx.clip(); ctx.fillRect(w.x, w.y, w.w, 3); ctx.restore() }
         const previewW = 76
         const textW = w.w - previewW - 34
         drawText(ctx, w.x + 14, w.y + 24, UI.clipText(w.label, 14, textW), 14, t.ink, 'left', '600')
@@ -879,19 +1227,25 @@
     const widgets = []
     const p = profileOf(app)
 
-    marks.push(UI.tracked(PAD, 190, 'OVERPOP', { size: 74, colour: C.ink, track: 0.18, weight: '600' }))
-    marks.push(UI.tracked(PAD + 4, 224, 'AN ORIGINAL TOWER DEFENSE', { size: 11, colour: C.moss, track: 0.34 }))
-    marks.push(UI.rule(PAD, 252, 400))
-    marks.push(UI.text(PAD, 276, 'Every sprite drawn in code. Every sound synthesised.', { size: 11, colour: C.faint }))
+    /* Illustrated backdrop — sky gradient, sun, clouds, hills, grass */
+    marks.push({ kind: 'titleBg', x: 0, y: 0, w: FIELD_W, h: FIELD_H })
 
-    /* Two columns so every button stays on the 720px field: the primary/utility
-       stack on the left, the content/mode screens on the right. A single column
-       ran past 720 once DAILY, EXPEDITION and TRIALS were added; the right column
-       now carries eight screens, so the gap stays tight to fit the field. */
-    const bx = PAD, bw = 330, bh = 46, gap = 4
-    const gx = PAD + bw + 24, gw = 250
-    let byL = 320
-    let byR = 320
+    /* Big logo with outline shadow — the BTD6-style hero title */
+    marks.push({ kind: 'logo', x: PAD, y: 130, text: 'OVERPOP', size: 80, colour: C.ink, stroke: '#2a1a0a', track: 0.18 })
+    marks.push(UI.tracked(PAD + 6, 175, 'AN ORIGINAL TOWER DEFENSE', { size: 12, colour: C.gold, track: 0.34 }))
+    marks.push(UI.text(PAD, 198, 'Every sprite drawn in code. Every sound synthesised.', { size: 10, colour: C.dim }))
+
+    /* Decorative balloon row — floats in the sky area */
+    const tiers = Array.isArray(OP.BALLOON_TIERS) ? OP.BALLOON_TIERS : []
+    const shown = tiers.slice(0, 6)
+    for (let i = 0; i < shown.length; i++) {
+      marks.push(UI.balloon(PAD + 420 + i * 40, 110 + Math.sin(i * 1.8) * 14, 10, shown[i]))
+    }
+
+    /* Left column: primary buttons on a wooden panel background */
+    marks.push(UI.box(PAD - 12, 220, 400, 320, { fill: 'rgba(90, 55, 25, 0.55)', stroke: '#4a2f18' }))
+    const bx = PAD + 8, bw = 370, bh = 50, gap = 6
+    let byL = 240
 
     widgets.push(UI.button('title.play', bx, byL, bw, bh, {
       label: 'PLAY', tone: 'primary', action: 'goto', arg: 'maps',
@@ -908,75 +1262,79 @@
       label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'volume, trails, round autostart'
     }))
 
-    widgets.push(UI.button('title.bestiary', gx, byR, gw, bh, {
+    /* Right column: content screens on a panel */
+    const gx = 540, gw = 220, gh = 38
+    marks.push(UI.box(gx - 10, 220, 240, 320, { fill: 'rgba(90, 55, 25, 0.55)', stroke: '#4a2f18' }))
+    let byR = 240
+    widgets.push(UI.button('title.bestiary', gx, byR, gw, gh, {
       label: 'BESTIARY', action: 'goto', arg: 'bestiary', sub: 'balloons, immunities and towers'
     }))
-    byR += bh + gap
-    widgets.push(UI.button('title.towers', gx, byR, gw, bh, {
+    byR += gh + gap
+    widgets.push(UI.button('title.towers', gx, byR, gw, gh, {
       label: 'TOWERS', action: 'goto', arg: 'towers', sub: 'upgrades, costs and tower XP'
     }))
-    byR += bh + gap
+    byR += gh + gap
     if (OP.Drafts && OP.Drafts.list) {
       var draftsOwned = OP.Drafts.count(profileOf(app))
       if (draftsOwned > 0) {
-        widgets.push(UI.button('title.drafts', gx, byR, gw, bh, {
+        widgets.push(UI.button('title.drafts', gx, byR, gw, gh, {
           label: 'DRAFTS', action: 'goto', arg: 'drafts',
           sub: draftsOwned + ' token' + (draftsOwned === 1 ? '' : 's') + ' — free placed towers'
         }))
-        byR += bh + gap
+        byR += gh + gap
       }
     }
-    widgets.push(UI.button('title.knowledge', gx, byR, gw, bh, {
+    widgets.push(UI.button('title.knowledge', gx, byR, gw, gh, {
       label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'spend knowledge points on permanent bonuses'
     }))
-    byR += bh + gap
+    byR += gh + gap
     if (OP.Daily && OP.DailyCore) {
       var daily = OP.DailyCore.summary ? OP.DailyCore.summary(profileOf(app)) : null
       var dailyDone = daily && daily.done
       var dailySub = dailyDone ? 'already completed today — come back tomorrow' : 'a fresh challenge every day'
-      widgets.push(UI.button('title.daily', gx, byR, gw, bh, {
+      widgets.push(UI.button('title.daily', gx, byR, gw, gh, {
         label: 'DAILY CHALLENGE', action: 'goto', arg: 'daily', sub: dailySub,
         disabled: dailyDone
       }))
-      byR += bh + gap
+      byR += gh + gap
     }
     if (OP.Expedition && OP.Expeditions) {
       var expActive = OP.Expedition.isActive(profileOf(app))
       var expSub = expActive ? 'resume your active expedition' : 'multi-map campaigns with resource carry-over'
-      widgets.push(UI.button('title.expedition', gx, byR, gw, bh, {
+      widgets.push(UI.button('title.expedition', gx, byR, gw, gh, {
         label: 'EXPEDITION', action: 'goto', arg: 'expedition', sub: expSub
       }))
-      byR += bh + gap
+      byR += gh + gap
     }
     if (OP.Trial && OP.Trials) {
       var trialActive = OP.Trial.isActive(profileOf(app))
       var trialSub = trialActive ? 'resume your active trial' : 'curated challenge scenarios with unique rules'
-      widgets.push(UI.button('title.trial', gx, byR, gw, bh, {
+      widgets.push(UI.button('title.trial', gx, byR, gw, gh, {
         label: 'TRIALS', action: 'goto', arg: 'trials', sub: trialSub
       }))
-      byR += bh + gap
+      byR += gh + gap
     }
     if (OP.Legends && OP.LegendsData) {
       var legendsActive = OP.Legends.isActive(profileOf(app))
       var legendsSub = legendsActive ? 'resume your active campaign' : 'a rogue-lite campaign across escalating stages'
-      widgets.push(UI.button('title.legends', gx, byR, gw, bh, {
+      widgets.push(UI.button('title.legends', gx, byR, gw, gh, {
         label: 'LEGENDS', action: 'goto', arg: 'legends', sub: legendsSub
       }))
-      byR += bh + gap
+      byR += gh + gap
     }
     if (OP.BossEvent && OP.Boss) {
       var bossSub = 'weekly rotating boss fights with tier rewards'
-      widgets.push(UI.button('title.bossEvent', gx, byR, gw, bh, {
+      widgets.push(UI.button('title.bossEvent', gx, byR, gw, gh, {
         label: 'BOSS EVENT', action: 'goto', arg: 'boss-event', sub: bossSub
       }))
-      byR += bh + gap
+      byR += gh + gap
     }
 
-    /* Right column: the record. Restrained on purpose — a wall of counters would
-       compete with the four things a player came here to press. */
-    const rx = 720
-    marks.push(UI.tracked(rx, 190, 'RECORD', { size: 11, colour: C.moss, track: 0.3 }))
-    marks.push(UI.rule(rx, 202, FIELD_W - PAD - rx))
+    /* Record panel — far right column */
+    const rx = 800
+    marks.push(UI.box(rx - 10, 60, 400, 420, { fill: 'rgba(90, 55, 25, 0.55)', stroke: '#4a2f18' }))
+    marks.push(UI.tracked(rx, 82, 'RECORD', { size: 12, colour: C.gold, track: 0.3 }))
+    marks.push(UI.rule(rx, 94, 370))
     const stats = (p && p.stats) || {}
     const xp = OP.Save && OP.Save.xpProgress
       ? OP.Save.xpProgress(p)
@@ -995,22 +1353,12 @@
       ['Next level', xp.current + ' / ' + xp.needed + ' XP']
     ]
     for (let i = 0; i < rows.length; i++) {
-      const y = 232 + i * 26
+      const y = 118 + i * 26
       marks.push(UI.text(rx, y, rows[i][0], { size: 11, colour: C.dim }))
-      marks.push(UI.text(FIELD_W - PAD, y, String(rows[i][1]), { size: 12, colour: C.ink, align: 'right' }))
+      marks.push(UI.text(rx + 360, y, String(rows[i][1]), { size: 12, colour: C.ink, align: 'right' }))
     }
 
-    // A quiet row of the roster, so the title screen shows the game's subject.
-    const tiers = Array.isArray(OP.BALLOON_TIERS) ? OP.BALLOON_TIERS : []
-    const shown = tiers.slice(0, 12)
-    for (let i = 0; i < shown.length; i++) {
-      marks.push(UI.balloon(rx + 12 + i * 34, 470, 11, shown[i]))
-    }
-    if (shown.length) {
-      marks.push(UI.text(rx, 508, shown.length + ' of ' + tiers.length + ' tiers · see the bestiary', { size: 10, colour: C.faint }))
-    }
-
-    marks.push(UI.text(PAD, 700, 'v' + (OP.VERSION || '?') + ' · no downloads, works offline', { size: 10, colour: C.faint }))
+    marks.push(UI.text(PAD, FIELD_H - 12, 'v' + (OP.VERSION || '?') + ' · no downloads, works offline', { size: 10, colour: C.dim }))
     noticeMark(marks)
 
     return {

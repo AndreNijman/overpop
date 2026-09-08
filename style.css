@@ -3,10 +3,10 @@
    crawlers and screen readers, and cover the boot gap. */
 
 :root {
-  --bg: #0e1410;
-  --bg-deep: #070a08;
-  --ink: #e8efe6;
-  --moss: #6fae7f;
+  --bg: #4db3f0;
+  --bg-deep: #2f8fd4;
+  --ink: #ffffff;
+  --moss: #7ec850;
   --mono: ui-monospace, 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
 }
 
@@ -33,7 +33,7 @@ html, body {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(120% 90% at 50% 0%, #16211a 0%, var(--bg-deep) 70%);
+    radial-gradient(120% 90% at 50% 0%, #87CEEB 0%, var(--bg) 70%);
 }
 
 /* The canvas keeps its 16:9 aspect and scales to fit — the renderer works in a
@@ -107,7 +107,7 @@ html, body {
   padding: 2rem;
   text-align: center;
   line-height: 1.7;
-  background: var(--bg-deep);
+  background: var(--bg);
 }
 
 :focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }

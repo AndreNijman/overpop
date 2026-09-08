@@ -46,7 +46,7 @@
 
   function sidebar () {
     const L = OP.HUD && OP.HUD.LAYOUT && OP.HUD.LAYOUT.sidebar
-    return L || { x: 960, y: 52, w: FIELD_W - 960, h: 660 }
+    return L || { x: 960, y: 68, w: FIELD_W - 960, h: 644 }
   }
 
   function simOf (app) { return app && app.state ? app.state.sim : null }
@@ -179,10 +179,15 @@
     marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
 
     /* ----- header ----- */
-    marks.push(U.tracked(x0, S.y + 26, U.clipText(displayName(tower), 14, innerW - 46).toUpperCase(),
-      { size: 14, colour: C.ink, track: 0.14, weight: '600' }))
-    widgets.push(stamp(U.button('panel.close', S.x + S.w - 34, S.y + 10, 24, 24, {
-      label: '×', align: 'center', action: 'panel-close'
+    marks.push(U.box(x0, S.y + 8, 58, 56, { fill: C.deep, stroke: isHero ? C.gold : C.moss }))
+    marks.push(U.portrait(x0 + 29, S.y + 36, 27, tower.key || tower.heroKey, {}))
+    const names = U.wrapText(displayName(tower).toUpperCase(), 15, innerW - 106, 2)
+    for (let i = 0; i < names.length; i++) {
+      marks.push(U.text(x0 + 68, S.y + 22 + i * 17, names[i],
+        { size: 15, colour: C.ink, weight: '800' }))
+    }
+    widgets.push(stamp(U.button('panel.close', S.x + S.w - 40, S.y + 8, 30, 30, {
+      label: '×', labelSize: 20, align: 'center', action: 'panel-close'
     }), tower))
 
     const famLabel = isHero
@@ -191,11 +196,13 @@
     const tierLabel = isHero
       ? 'LEVEL ' + tower.level + ' / ' + (OP.Heroes.MAX_LEVEL || 20)
       : OP.Upgrades.label(tower)
-    marks.push(U.text(x0, S.y + 41, famLabel + ' · ' + tierLabel +
-      (s.isParagon ? ' · PARAGON DEGREE ' + s.paragonDegree : ''), { size: 9, colour: C.moss }))
-    marks.push(U.rule(x0, S.y + 50, innerW, { colour: C.line }))
+    marks.push(U.text(x0 + 68, S.y + 52, U.clipText(famLabel + ' / ' + tierLabel, 10, innerW - 68),
+      { size: 10, colour: C.moss, weight: '700' }))
+    if (s.isParagon) marks.push(U.text(x0 + 68, S.y + 65, 'PARAGON DEGREE ' + s.paragonDegree,
+      { size: 9, colour: C.gold, weight: '700' }))
+    marks.push(U.rule(x0, S.y + 70, innerW, { colour: C.line }))
 
-    let y = S.y + 56
+    let y = S.y + 76
 
     /* ----- live stats, straight off tower.s ----- */
     const cells = [
@@ -209,18 +216,20 @@
     const colW = Math.floor(innerW / 3)
     for (let i = 0; i < cells.length; i++) {
       const cx = x0 + (i % 3) * colW
-      const cy = y + Math.floor(i / 3) * 34
-      marks.push(U.text(cx, cy + 10, cells[i][0], { size: 8, colour: C.faint }))
-      marks.push(U.text(cx, cy + 26, U.clipText(cells[i][1], 13, colW - 6), { size: 13, colour: C.ink, weight: '600' }))
+      const cy = y + Math.floor(i / 3) * 28
+      marks.push(U.box(cx, cy, colW - 5, 26, { fill: C.deep, alpha: 0.55 }))
+      marks.push(U.text(cx + 6, cy + 9, cells[i][0], { size: 8, colour: C.dim }))
+      marks.push(U.text(cx + 6, cy + 23, U.clipText(cells[i][1], 14, colW - 14), { size: 14, colour: C.ink, weight: '700' }))
     }
-    y += 72
+    y += 68
 
-    marks.push(U.text(x0, y, 'earned ' + M.money(tower.earned || 0) +
-      ' · invested ' + M.money(tower.invested || 0) +
-      (isHero || !OP.TowerXp || !OP.TowerXp.available
-        ? ''
-        : ' · ' + M.compact(Math.floor(OP.TowerXp.available(sim, tower.key))) + ' XP') +
-      (s.camoDetect ? ' · sees veiled' : ''), { size: 9, colour: C.dim }))
+    marks.push(U.text(x0, y, U.clipText('earned ' + M.money(tower.earned || 0) +
+      ' / invested ' + M.money(tower.invested || 0), 9, innerW), { size: 9, colour: C.dim }))
+    y += 13
+    marks.push(U.text(x0, y, (isHero || !OP.TowerXp || !OP.TowerXp.available
+      ? 'HERO EXPERIENCE'
+      : M.compact(Math.floor(OP.TowerXp.available(sim, tower.key))) + ' TOWER XP') +
+      (s.camoDetect ? ' / SEES CAMO' : ''), { size: 9, colour: C.gold, weight: '700' }))
     y += 14
 
     /* ----- buffs reaching this tower ----- */
@@ -236,9 +245,9 @@
       marks.push(U.text(x0, y, U.clipText(buffs.length + (buffs.length === 1 ? ' buff · ' : ' buffs · ') +
         names.join(', '), 9, innerW), { size: 9, colour: C.moss }))
     }
-    y += 10
+    y += 6
     marks.push(U.rule(x0, y, innerW, { colour: C.line, alpha: 0.6 }))
-    y += 18
+    y += 14
 
     /* ----- the middle: branches for a tower, levels for a hero ----- */
     if (isHero) y = heroSection(app, sim, tower, marks, widgets, over, x0, innerW, y)
@@ -276,9 +285,9 @@
     const U = ui(); const C = colours()
     const paths = Array.isArray(tower.def.paths) ? tower.def.paths : []
 
-    marks.push(U.tracked(x0, y, 'UPGRADES', { size: 9, colour: C.moss, track: 0.28 }))
-    marks.push(U.text(x0 + innerW, y, 'one branch past tier 2, two branches touched',
-      { size: 8, colour: C.faint, align: 'right' }))
+    marks.push(U.tracked(x0, y, 'UPGRADES', { size: 11, colour: C.moss, track: 0.12 }))
+    marks.push(U.text(x0 + innerW, y, 'MAX CROSSPATH 5-2-0',
+      { size: 9, colour: C.dim, align: 'right' }))
     y += 8
 
     if (!paths.length) {
@@ -286,50 +295,53 @@
       return y + 30
     }
 
-    const blockH = 84
+    const blockH = 76
     for (let p = 0; p < paths.length; p++) {
       const path = paths[p] || {}
       const st = branchState(sim, tower, p)
       const by = y + p * (blockH + 4)
 
-      const w = U.button('panel.up' + p, x0 - 4, by, innerW + 8, blockH, {
-        label: '', disabled: !st.ok, action: 'panel-upgrade', arg: p, reason: st.reason
+      const w = U.button('panel.up' + p, x0, by, innerW, blockH, {
+        label: '', tint: [C.moss, C.gold, C.mossDeep][p],
+        disabled: !st.ok, action: 'panel-upgrade', arg: p, reason: st.reason
       })
       w.tier = tower.tiers[p]
       w.locked = st.locked
       w.cost = st.cost
       widgets.push(stamp(w, tower))
 
-      over.push(U.text(x0 + 4, by + 14, U.clipText(String(path.name || 'Branch ' + (p + 1)).toUpperCase(), 9, innerW - 70),
-        { size: 9, colour: st.locked ? C.faint : C.moss }))
+      if (U.icon) over.push(U.icon(x0 + 16, by + 14, 9, st.locked ? 'shield' : 'star', { colour: st.locked ? C.warn : C.gold }))
+      over.push(U.text(x0 + 32, by + 17, U.clipText(String(path.name || 'Branch ' + (p + 1)).toUpperCase(), 10, innerW - 106),
+        { size: 10, colour: st.locked ? C.dim : C.moss, weight: '700' }))
 
       // Owned tiers, as pips. Five small squares read faster than "3 / 5".
       const maxTier = OP.Upgrades.MAX_TIER || 5
       for (let i = 0; i < maxTier; i++) {
-        const px = x0 + innerW - (maxTier - i) * 11
+        const px = x0 + innerW - 8 - (maxTier - i) * 11
         const owned = i < tower.tiers[p]
-        over.push(U.box(px, by + 7, 7, 7, owned ? { fill: C.moss } : { stroke: C.line }))
+        over.push(U.box(px, by + 9, 8, 9, owned ? { fill: C.gold } : { fill: C.deep, stroke: C.lineHi }))
       }
 
       if (st.up) {
-        over.push(U.text(x0 + 4, by + 32, U.clipText(st.up.name, 11, innerW - 70),
-          { size: 11, colour: st.ok ? C.ink : C.dim }))
-        over.push(U.text(x0 + innerW - 4, by + 32, M.money(st.cost),
-          { size: 10, colour: st.ok ? C.gold : C.faint, align: 'right' }))
-        const desc = U.wrapText(st.up.desc, 9, innerW - 8, st.reason ? 2 : 3)
+        over.push(U.text(x0 + 8, by + 34, U.clipText(st.up.name, 12, innerW - 100),
+          { size: 12, colour: st.ok ? C.ink : C.dim, weight: '700' }))
+        over.push(U.box(x0 + innerW - 88, by + 23, 80, 18, { fill: C.deep, stroke: st.ok ? C.gold : C.line }))
+        over.push(U.text(x0 + innerW - 48, by + 36, U.clipText(M.money(st.cost), 12, 72),
+          { size: 12, colour: st.ok ? C.gold : C.dim, align: 'center', weight: '700' }))
+        const desc = U.wrapText(st.up.desc, 9, innerW - 16, st.reason ? 1 : 2)
         for (let i = 0; i < desc.length; i++) {
-          over.push(U.text(x0 + 4, by + 47 + i * 11, desc[i], { size: 9, colour: C.faint }))
+          over.push(U.text(x0 + 8, by + 48 + i * 11, desc[i], { size: 9, colour: C.dim }))
         }
       } else {
-        over.push(U.text(x0 + 4, by + 32, 'Fully upgraded', { size: 11, colour: C.gold }))
+        over.push(U.text(x0 + 8, by + 34, 'Fully upgraded', { size: 13, colour: C.gold, weight: '700' }))
       }
 
       /* The whole point of this panel: a lock says why, in the engine's own
          words, on screen, without a hover. */
       if (st.reason) {
-        const lines = U.wrapText(st.reason, 9, innerW - 8, 2)
+        const lines = U.wrapText(st.reason, 9, innerW - 16, 2)
         for (let i = 0; i < lines.length; i++) {
-          over.push(U.text(x0 + 4, by + blockH - 14 + i * 10 - (lines.length - 1) * 10, lines[i],
+          over.push(U.text(x0 + 8, by + blockH - 5 + i * 10 - (lines.length - 1) * 10, lines[i],
             { size: 9, colour: st.locked ? C.warn : C.bad }))
         }
       }
@@ -393,7 +405,7 @@
       return y + 26
     }
 
-    const cols = 3
+    const cols = 4
     const gap = 5
     const bw = Math.floor((innerW - gap * (cols - 1)) / cols)
     const bh = 24
@@ -403,7 +415,7 @@
       const bx = x0 + (i % cols) * (bw + gap)
       const byy = y + Math.floor(i / cols) * (bh + 4)
       const w = U.button('panel.target.' + mode, bx, byy, bw, bh, {
-        label: '', selected: tower.targetMode === mode, action: 'panel-target', arg: mode
+        label: '', tint: C.moss, selected: tower.targetMode === mode, action: 'panel-target', arg: mode
       })
       widgets.push(stamp(w, tower))
       const labelText = OP.Targeting && OP.Targeting.modeLabel ? OP.Targeting.modeLabel(mode) : mode
@@ -432,7 +444,7 @@
     const full = ability.cooldown > 0 ? ability.cooldown : 1
 
     const widget = U.button('panel.ability' + slot, x, y, w, h, {
-      label: '', disabled: !check.ok, action: 'panel-ability', arg: slot, reason: check.reason
+      label: '', tint: C.gold, disabled: !check.ok, action: 'panel-ability', arg: slot, reason: check.reason
     })
     widgets.push(stamp(widget, tower))
 
@@ -459,7 +471,6 @@
     const U = ui(); const C = colours()
     const rules = sim.rules || {}
     const preview = paragonPreview(sim, tower)
-    const bottom = S.y + S.h - 26
 
     const confirmingParagon = preview.ok && state.confirmParagon === tower.id
 
@@ -479,9 +490,8 @@
       if (confirmingParagon) info.push({ text: 'This cannot be undone.', colour: C.bad })
     }
 
-    // Keep the footer pinned to the bottom when the panel above it is short, but
-    // never let it climb into the section above when it is tall.
-    let fy = Math.min(Math.max(y + info.length * 12 + 4, bottom - 40), S.y + S.h - 46)
+    // The fixed footer has its own reserved warning lines above the actions.
+    const fy = S.y + S.h - 58
     for (let i = 0; i < info.length; i++) {
       marks.push(U.text(x0, fy - 6 - (info.length - 1 - i) * 12,
         U.clipText(info[i].text, 9, innerW), { size: 9, colour: info[i].colour }))
@@ -495,35 +505,36 @@
     if (canSell) {
       const value = OP.Economy.sellValue(sim, tower)
       const pending = state.confirmSell === tower.id
-      widgets.push(stamp(U.button('panel.sell', x0, fy, preview.ok ? sellW : innerW, 34, {
+      widgets.push(stamp(U.button('panel.sell', x0, fy, preview.ok ? sellW : innerW, 40, {
         label: pending ? 'CONFIRM' : 'SELL',
         sub: pending ? 'press again' : 'returns ' + M.money(value),
-        tone: 'danger', action: 'panel-sell'
+        icon: 'coin', labelSize: 12, tone: 'danger', action: 'panel-sell'
       }), tower))
-    } else {
+    } else if (!preview.ok) {
       marks.push(U.text(x0, fy + 20, 'Selling is disabled in this mode.', { size: 9, colour: C.faint }))
     }
 
     if (preview.ok) {
       const px = canSell ? x0 + sellW + 8 : x0
-      widgets.push(stamp(U.button('panel.paragon', px, fy, canSell ? sellW : innerW, 34, {
+      widgets.push(stamp(U.button('panel.paragon', px, fy, canSell ? sellW : innerW, 40, {
         label: confirmingParagon ? 'CONFIRM' : 'PARAGON',
         sub: confirmingParagon
           ? 'consumes ' + preview.sacrifices.length
-          : 'degree ' + preview.degree + ' · ' + M.money(preview.cost),
-        tone: confirmingParagon ? 'danger' : 'primary',
+          : M.money(preview.cost),
+        icon: 'star', labelSize: 12, tone: confirmingParagon ? 'danger' : 'primary',
         action: 'panel-paragon'
       }), tower))
     } else if (preview.reason && OP.Paragon && OP.Paragon.exists && OP.Paragon.exists(tower.key)) {
       // A tower that HAS a paragon but cannot take it yet gets the reason; one that
       // has no paragon at all gets no line, because there is nothing to explain.
-      marks.push(U.text(x0, fy + 48, U.clipText('Paragon: ' + preview.reason, 8, innerW),
+      marks.push(U.text(x0, S.y + S.h - 7, U.clipText('Paragon: ' + preview.reason, 8, innerW),
         { size: 8, colour: C.faint }))
+      return fy + 40
     }
 
     marks.push(U.text(x0, S.y + S.h - 8, 'right-click cycles targeting · DEL sells',
       { size: 8, colour: C.faint }))
-    return fy + 34
+    return fy + 40
   }
 
   /* ============================================================================

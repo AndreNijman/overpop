@@ -1,8 +1,7 @@
 // The terrain painter — js/render/sprites-terrain.js.
 //
-// Everything here works from test maps defined in this file rather than from the
-// shipped roster, so this suite tests the PAINTER and stays green when a map is
-// retuned.
+// Shape/behaviour checks use fixtures, with a roster-wide presentation and
+// immutability check to catch authored palette overrides and unusual geometry.
 //
 // The painter draws into an offscreen canvas exactly once per
 // (map, viewport, cleared-set), and the result is blitted every frame. That makes
@@ -434,7 +433,7 @@ export function run (t, OP) {
   t.ok(bareColours.includes(Terrain.DEFAULT_PALETTE.grass), 'the default ground colour was actually used')
   t.ok(bareColours.includes(Terrain.DEFAULT_PALETTE.path), 'and the default road colour')
 
-  t.section('every palette key a map may author reaches the canvas')
+  t.section('every resolved palette key reaches the canvas')
   const wild = build({
     key: 'terrain-wild',
     water: [{ x: 100, y: 60, w: 200, h: 120 }],
@@ -443,10 +442,13 @@ export function run (t, OP) {
     removable: [{ x: 250, y: 470, r: 30, cost: 200, name: 'Mossy Boulder' }],
     palette: WILD
   })
+  const wildBefore = JSON.stringify(wild.palette)
   const wildCtx = paint(wild, null)
+  const wildPal = Terrain.palette(wild)
   for (const k of Object.keys(WILD)) {
-    t.ok(countColour(wildCtx, WILD[k]) > 0, 'palette.' + k + ' (' + WILD[k] + ') was used verbatim')
+    t.ok(countColour(wildCtx, wildPal[k]) > 0, 'resolved palette.' + k + ' (' + wildPal[k] + ') was used')
   }
+  t.eq(JSON.stringify(wild.palette), wildBefore, 'presentation transforms do not rewrite authored hints')
   t.notOk(colours(painted.plain).includes(WILD.grass), 'a map that did not author it does not get it')
 
   t.section('the road is visibly a different colour from buildable ground')
@@ -454,7 +456,7 @@ export function run (t, OP) {
   // like ground. Distinct hint colours must both survive to the canvas.
   const contrast = build({ key: 'terrain-contrast', palette: { grass: '#101010', grassAlt: '#181818', path: '#efefef', pathEdge: '#c0c0c0' } })
   const cCtx = paint(contrast, null)
-  t.ok(countColour(cCtx, '#101010') > 0, 'the ground colour is on the canvas')
+  t.ok(countColour(cCtx, Terrain.palette(contrast).grass) > 0, 'the resolved ground colour is on the canvas')
   t.ok(countColour(cCtx, '#efefef') > 0, 'so is the road colour')
   t.ok(countColour(cCtx, '#c0c0c0') > 0, 'and the road gets its own edge, so it reads as a track and not a stripe')
 
@@ -463,6 +465,47 @@ export function run (t, OP) {
     'a declared water region paints in the water colour')
   t.eq(countColour(paint(build({ key: 'terrain-dry2', palette: { water: '#0000ff' } }), null), '#0000ff'), 0,
     'a dry map paints no water at all')
+
+  t.section('dark biome hints become bright materials, not one replacement palette')
+  const rgb = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16) / 255)
+  const lightness = c => { const v = rgb(c); return (Math.max(...v) + Math.min(...v)) * 0.5 }
+  const biomeHints = ['#35502f', '#5a6134', '#334c36', '#41364f']
+  const biomeColours = biomeHints.map(grass => Terrain.palette({ palette: { grass } }).grass)
+  t.eq(new Set(biomeColours).size, biomeHints.length, 'meadow, golden field, cool forest and purple biome stay distinct')
+  for (let i = 0; i < biomeHints.length; i++) {
+    t.gt(lightness(biomeColours[i]), 0.49, 'dark biome ' + i + ' is lifted into daylight')
+    const order = c => rgb(c).map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).map(a => a[1]).join(',')
+    t.eq(order(biomeColours[i]), order(biomeHints[i]), 'biome ' + i + ' retains its hue channel ordering')
+  }
+  const cssPal = Terrain.palette({ palette: { grass: 'seagreen', water: 'rgb(20, 160, 220)', rock: '#abc', path: '#f1d5a5' } })
+  t.eq(cssPal.grass, 'seagreen', 'named CSS colours pass through safely')
+  t.eq(cssPal.water, 'rgb(20, 160, 220)', 'functional CSS colours pass through safely')
+  t.eq(cssPal.path, '#f1d5a5', 'an already bright road is not washed out')
+  t.notOk(/NaN/.test(cssPal.rock), 'short hex colours remain valid')
+  t.eq(wildPal.entry, WILD.entry, 'entry semantic colour is not transformed')
+  t.eq(wildPal.exit, WILD.exit, 'exit semantic colour is not transformed')
+  t.eq(wildPal.accent, WILD.accent, 'clearing affordance colour is not transformed')
+
+  t.section('every shipped map paints brightly without changing its geometry or state')
+  for (const def of Maps.all()) {
+    const map = Maps.build(def)
+    const before = JSON.stringify(map)
+    const pal = Terrain.palette(map)
+    const ctx = paint(map, new Proxy({}, { get () { throw new Error('terrain read sim') } }))
+    t.eq(JSON.stringify(map), before, def.key + ': all map data, paths and cleared state are unchanged')
+    t.eq(badNumbers(ctx).length, 0, def.key + ': no invalid drawing arguments')
+    t.gt(lightness(pal.grass), 0.49, def.key + ': authored dark grass is lifted')
+    t.gt(lightness(pal.path) - lightness(pal.grass), 0.15, def.key + ': road remains lighter than lawn')
+    t.gt(lightness(pal.water), 0.49, def.key + ': water is bright even with authored overrides')
+  }
+
+  t.section('water keeps exact placement boundaries and clips all surface detail')
+  const tinyWater = paint(build({ key: 'terrain-tiny-water', water: [{ x: 100, y: 100, w: 2, h: 1 }, { cx: 200, cy: 100, r: 2 }] }))
+  t.eq(badNumbers(tinyWater).length, 0, 'small valid water regions still paint safely')
+  t.ok(argsOf(tinyWater, 'rect').some(a => a.join(',') === '100,100,2,1'), 'rectangular water body uses the authored bounds')
+  t.ok(argsOf(tinyWater, 'arc').some(a => a[0] === 200 && a[1] === 100 && a[2] === 2), 'circular water body uses the authored radius')
+  t.eq(opCount(tinyWater, 'clip'), 2, 'each water surface has its own clipping boundary')
+  t.ok(argsOf(tinyWater, 'rect').every(a => a[2] > 0 && a[3] > 0), 'inset banks never invert tiny rectangles')
 
   /* ================= the path reads as a path ================= */
 
@@ -488,6 +531,23 @@ export function run (t, OP) {
   const widths = argsOf(wCtx, 'set:lineWidth').map(a => a[0])
   t.gt(Math.max(...widths), 40, 'a 60-unit margin paints a substantial road (widest stroke ' + Math.max(...widths) + ')')
   t.lt(Math.max(...widths), 60 * 2, 'but never as wide as the full 120-unit unbuildable corridor')
+
+  t.section('road bevels use the original samples and join multi-lane crossings')
+  const cross = build({
+    key: 'terrain-cross', trackWidth: 34,
+    paths: [
+      { points: [{ x: 0, y: 360 }, { x: 1280, y: 360 }] },
+      { points: [{ x: 640, y: 0 }, { x: 640, y: 720 }] }
+    ]
+  })
+  const crossCtx = paint(cross)
+  const surface = crossCtx.calls.findIndex(c => c.op === 'set:lineWidth' && c.args[0] === 37)
+  const endSurface = crossCtx.calls.findIndex((c, i) => i > surface && c.op === 'set:lineWidth')
+  const surfaceCalls = crossCtx.calls.slice(surface, endSurface)
+  t.eq(surfaceCalls.filter(c => c.op === 'stroke').length, 2, 'both lane surfaces finish before centre wear/detail')
+  const drawn = surfaceCalls.filter(c => c.op === 'moveTo' || c.op === 'lineTo').map(c => c.args)
+  const expected = cross.paths.flatMap(p => Array.from(p.sample(9), v => [v.x, v.y]))
+  t.eq(JSON.stringify(drawn), JSON.stringify(expected), 'the sand surface follows original track samples exactly')
 
   /* ================= entry and exit markers ================= */
 
@@ -639,6 +699,21 @@ export function run (t, OP) {
   t.lt(nearCount(afterClear, 640, 420, 60), nearCount(beforeClear, 640, 420, 60),
     'so nothing is painted there any more — not the boulder and not a leftover tall rock')
   t.eq(badNumbers(afterClear).length, 0, 'and the cleared paint is still free of NaN')
+
+  t.section('stone, timber and thickets have distinct material shapes, with identical clearing semantics')
+  const obstaclePaints = []
+  const clearedPaints = []
+  for (const name of ['Split Stone', 'Hollow Stump', 'Bramble Thicket']) {
+    const map = build({ key: 'terrain-materials', removable: [{ x: 300, y: 450, r: 40, cost: 200, name }] })
+    const ctx = paint(map)
+    obstaclePaints.push(key(ctx))
+    t.eq(badNumbers(ctx).length, 0, name + ': valid material geometry')
+    t.eq(opCount(ctx, 'save'), opCount(ctx, 'restore'), name + ': clips and styles are restored')
+    map.cleared = [0]
+    clearedPaints.push(key(paint(map)))
+  }
+  t.eq(new Set(obstaclePaints).size, 3, 'obstacle names select three visibly different materials')
+  t.eq(new Set(clearedPaints).size, 1, 'clearing removes every material without leaving foliage behind')
 
   /* ================= the renderer's own call site ================= */
 
