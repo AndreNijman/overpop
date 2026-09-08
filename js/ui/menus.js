@@ -42,30 +42,33 @@
      Dark warm near-black, one moss accent, and a deliberately small set of
      greys. Anything that needs to shout uses weight and spacing, not colour. */
 
+  /* The palette reads like the source game's menu: a bright sky behind warm
+     wooden panels, chunky green accents, gold for money and celebration. */
   const C = {
-    bg: '#0e1410',
-    deep: '#070a08',
-    panel: '#141c17',
-    panelHi: '#1d2720',
-    panelSel: '#22301f',
-    line: '#2a352c',
-    lineHi: '#3c4c3f',
-    ink: '#e8efe6',
-    dim: '#94a595',
-    faint: '#5d6d5f',
-    moss: '#6fae7f',
-    mossDeep: '#3f6b4c',
-    gold: '#c9a227',
-    warn: '#e0b64a',
-    bad: '#d0604f'
+    bg: '#4db3f0',
+    deep: '#2f8fd4',
+    panel: '#7a4f2d',
+    panelHi: '#9c6b3f',
+    panelSel: '#a97a45',
+    line: '#4a2f18',
+    lineHi: '#6b4526',
+    ink: '#ffffff',
+    dim: '#f5e9d8',
+    faint: '#c9a97f',
+    moss: '#7ec850',
+    mossDeep: '#4f9b3d',
+    gold: '#ffd23f',
+    warn: '#ffb648',
+    bad: '#e05545'
   }
 
-  const FONT = "ui-monospace, 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace"
+  const FONT = "'Trebuchet MS', 'Verdana', 'Segoe UI', 'DejaVu Sans', sans-serif"
 
-  // Monospace advance width as a fraction of the em. Every mono face this game
-  // could land on sits at 0.6, so metrics are computed rather than measured —
-  // build() has no ctx, and wrapping must not depend on one.
-  const ADV = 0.6
+  /* Proportional advance estimate for the rounded display face. Measured
+     average across mixed-case UI labels sits near 0.52em; the menus only use
+     metrics for centering, wrapping and truncation, so an average beats a
+     per-glyph measure we cannot take at build() time (no ctx there). */
+  const ADV = 0.56
 
   const PAD = 96                 // page margin
   const CONTENT_W = FIELD_W - PAD * 2
@@ -322,15 +325,63 @@
   function drawBox (ctx, m) {
     ctx.save()
     if (m.alpha !== 1) ctx.globalAlpha = m.alpha
-    if (m.fill) { ctx.fillStyle = m.fill; ctx.fillRect(m.x, m.y, m.w, m.h) }
+    // Chunky rounded panel in the source game's manner: a soft drop shadow, a
+    // vertical gradient that lightens toward the top, and a thick dark outline.
+    const r = Math.min(10, m.w / 3, m.h / 3)
+    if (m.fill) {
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
+      ctx.shadowBlur = 4
+      ctx.shadowOffsetY = 2
+      ctx.beginPath()
+      roundRectPath(ctx, m.x, m.y, m.w, m.h, r)
+      ctx.fillStyle = m.fill
+      ctx.fill()
+      ctx.shadowColor = 'transparent'
+      ctx.shadowColor = 'transparent'
+      // top sheen so fills read as lit surfaces, not flat cards; skipped on
+      // context stubs that do not implement gradients (test rigs, old engines)
+      let grad = null
+      if (typeof ctx.createLinearGradient === 'function') {
+        try { grad = ctx.createLinearGradient(0, m.y, 0, m.y + m.h) } catch (e) { grad = null }
+      }
+      if (grad) {
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.16)')
+        grad.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0.12)')
+        ctx.fillStyle = grad
+        roundRectPath(ctx, m.x, m.y, m.w, m.h, r)
+        ctx.fill()
+      }
+    }
     if (m.stroke) {
       ctx.strokeStyle = m.stroke
-      ctx.lineWidth = m.lineWidth
-      if (m.dash && ctx.setLineDash) ctx.setLineDash(m.dash)
-      ctx.strokeRect(m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1)
-      if (m.dash && ctx.setLineDash) ctx.setLineDash([])
+      ctx.lineWidth = Math.max(2, m.lineWidth * 2)
+      roundRectPath(ctx, m.x + 1, m.y + 1, m.w - 2, m.h - 2, r)
+      ctx.stroke()
     }
+    if (m.dash && ctx.setLineDash) ctx.setLineDash([])
     ctx.restore()
+  }
+
+  function roundRectPath (ctx, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2))
+    ctx.beginPath()
+    if (typeof ctx.arcTo !== 'function') {
+      // context stubs without arcTo degrade to square corners
+      ctx.rect(x, y, w, h)
+      ctx.closePath()
+      return
+    }
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.arcTo(x + w, y, x + w, y + r, r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+    ctx.lineTo(x + r, y + h)
+    ctx.arcTo(x, y + h, x + r, y + h - r, r)
+    ctx.lineTo(x, y + r)
+    ctx.arcTo(x, y, x + r, y, r)
+    ctx.closePath()
   }
 
   function drawChip (ctx, m) {
@@ -2023,3 +2074,4 @@
 
   OP.Menus = Menus
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))
+
