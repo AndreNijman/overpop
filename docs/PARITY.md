@@ -228,3 +228,20 @@ logins, achievements, upgrade paths. Status after this audit:
 7. **UI/graphics pass**: menu shells, HUD, tower/balloon sprites toward the
    source game's look (fonts, panels, colors, pop feedback).
 
+### 9a. Boss identity mapping (patch F1, 2026-09-08)
+
+Mechanics are original but equivalent; the `analogue` field on each def in
+`js/data/bosses.js` publishes the canonical counterpart. No mechanical change.
+
+| ours | BTD6 analogue | shared identity |
+|---|---|---|
+| Elder Worm | Bloonarius the Summoner | spawns swarms of lesser bloons as it advances |
+| Storm Drake | Vortex: Deadly Master of Air | disables towers, speeds the assault |
+| Void Maw | Phayze | reality-warping presence that weakens tower sight |
+| Cinder Toad | Bloonarius (ember aspect) | summoner; hatches armoured broods in flight |
+| Gloom Warden | Lych | drains the board to heal itself |
+| Ridge Colossus | Dreadbloon: Armored Behemoth | armoured shell, slow-resistant |
+
+BTD6 has five bosses; the roster is six, so Bloonarius maps twice (Elder Worm
+for the swarm cadence, Cinder Toad for the armoured-brood cadence).
+

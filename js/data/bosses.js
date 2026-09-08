@@ -48,6 +48,8 @@
   OP.BOSSES.elderWorm = {
     key: 'elder-worm',
     name: 'Elder Worm',
+    analogue: 'Bloonarius the Summoner',
+    analogueNote: 'same identity: spawns swarms of lesser bloons as it advances',
     blurb: 'A burrowing leviathan that surfaces every twenty rounds, spawning swarms of lesser worms as it advances.',
     colour: '#6b4a2e',
     shade: '#3d2a18',
@@ -80,6 +82,8 @@
   OP.BOSSES.stormDrake = {
     key: 'storm-drake',
     name: 'Storm Drake',
+    analogue: 'Vortex: Deadly Master of Air',
+    analogueNote: 'same identity: disables towers and speeds the assault up',
     blurb: 'A winged terror that cloaks itself in lightning, shocking towers in range and summoning gales to speed its spawn.',
     colour: '#4a6fa5',
     shade: '#2a4060',
@@ -112,6 +116,8 @@
   OP.BOSSES.voidMaw = {
     key: 'void-maw',
     name: 'Void Maw',
+    analogue: 'Phayze',
+    analogueNote: 'same identity: reality-warping presence that weakens tower sight',
     blurb: 'A rift in the track itself, consuming everything it touches. Its presence warps reality, making towers less effective.',
     colour: '#2a1a3e',
     shade: '#150d22',
@@ -164,6 +170,8 @@
   OP.BOSSES.cinderToad = {
     key: 'cinder-toad',
     name: 'Cinder Toad',
+    analogue: 'Bloonarius the Summoner (ember aspect)',
+    analogueNote: 'shares Bloonarius summon identity with Elder Worm; hatches armoured broods in flight',
     blurb: 'A bloated ember-beast that hatches broods of burning balloons as it crawls. Kill the spawn fast or drown in them.',
     colour: '#8a3b1e',
     shade: '#4a1f0e',
@@ -196,6 +204,8 @@
   OP.BOSSES.gloomWarden = {
     key: 'gloom-warden',
     name: 'Gloom Warden',
+    analogue: 'Lych',
+    analogueNote: 'same identity: drains the board to knit its own hull back on',
     blurb: 'It does not attack — it feeds. Every balloon it drains in passing knits hull back onto itself.',
     colour: '#1e3d2f',
     shade: '#0f2018',
@@ -228,6 +238,8 @@
   OP.BOSSES.ridgeColossus = {
     key: 'ridge-colossus',
     name: 'Ridge Colossus',
+    analogue: 'Dreadbloon: Armored Behemoth',
+    analogueNote: 'same identity: armoured shell, slow-resistant, punishes unprepared boards',
     blurb: 'A walking quarry. Its shell shrugs off slow effects, and when it moves it MOVES.',
     colour: '#3f3a2e',
     shade: '#221f18',
