@@ -193,6 +193,16 @@
     return { kind: 'rule', x: x, y: y, w: w, colour: opts.colour || C.line, alpha: opts.alpha === undefined ? 1 : opts.alpha }
   }
 
+  /** A filled or outlined disc — tier pips, counters, bullet points. */
+  UI.dot = function (x, y, r, opts) {
+    opts = opts || {}
+    return {
+      kind: 'dot', x: x, y: y, r: r,
+      fill: opts.fill || '', stroke: opts.stroke || '',
+      alpha: opts.alpha === undefined ? 1 : opts.alpha
+    }
+  }
+
   UI.box = function (x, y, w, h, opts) {
     opts = opts || {}
     return {
@@ -339,9 +349,11 @@
     // vertical gradient that lightens toward the top, and a thick dark outline.
     const r = Math.min(10, m.w / 3, m.h / 3)
     if (m.fill) {
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
-      ctx.shadowBlur = 4
-      ctx.shadowOffsetY = 2
+      if (typeof ctx.shadowColor === 'string') {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
+        ctx.shadowBlur = 4
+        ctx.shadowOffsetY = 2
+      }
       ctx.beginPath()
       roundRectPath(ctx, m.x, m.y, m.w, m.h, r)
       ctx.fillStyle = m.fill
@@ -388,7 +400,9 @@
     ctx.lineTo(x + w, y + h - r)
     ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
     ctx.lineTo(x + r, y + h)
-    ctx.arcTo(x, y + h, x + r, y + h - r, r)
+    // End point on the left edge, not inside the box — an end point of
+    // (x + r, y + h - r) tilts the tangent and bulges the arc outside.
+    ctx.arcTo(x, y + h, x, y + h - r, r)
     ctx.lineTo(x, y + r)
     ctx.arcTo(x, y, x + r, y, r)
     ctx.closePath()
@@ -667,6 +681,16 @@
     ctx.restore()
   }
 
+  function drawDotMark (ctx, m) {
+    ctx.save()
+    if (m.alpha !== 1) ctx.globalAlpha = m.alpha
+    ctx.beginPath()
+    ctx.arc(m.x, m.y, Math.max(0.5, m.r), 0, M.TAU)
+    if (m.fill) { ctx.fillStyle = m.fill; ctx.fill() }
+    if (m.stroke) { ctx.strokeStyle = m.stroke; ctx.lineWidth = 1; ctx.stroke() }
+    ctx.restore()
+  }
+
   function drawLogoMark (ctx, m) {
     ctx.save()
     ctx.textAlign = 'left'
@@ -834,6 +858,7 @@
       case 'balloon': drawBalloonMark(ctx, m); break
       case 'portrait': drawPortraitMark(ctx, m); break
       case 'icon': drawIconMark(ctx, m); break
+      case 'dot': drawDotMark(ctx, m); break
       case 'titleBg': drawTitleBackdrop(ctx, m); break
       case 'logo': drawLogoMark(ctx, m); break
       case 'preview': drawPreview(ctx, m); break
@@ -850,7 +875,10 @@
     if (primary) { stroke = C.moss; fill = w.selected ? C.panelSel : C.panelHi }
     if (danger) { stroke = C.bad; ink = C.bad }
     if (hover && !w.disabled) { fill = C.panelHi; stroke = primary ? C.moss : C.lineHi }
-    if (w.disabled) { ink = C.faint; stroke = C.line; fill = C.bg }
+    // Disabled is a muted dark wood, never the page background — the old
+    // C.bg fill turned every locked card bright sky blue overnight when the
+    // palette went blue, which read as "available" instead of "off".
+    if (w.disabled) { ink = C.faint; stroke = C.line; fill = '#4a3a28' }
     return { fill: fill, stroke: stroke, ink: ink }
   }
 
@@ -1581,6 +1609,11 @@
       return { screen: 'maps', backdrop: 'solid', marks: marks, widgets: chromeWidgets, defaultId: 'maps.back' }
     }
 
+    // The illustrated sky behind a smoked panel keeps the map list readable
+    // while the screen no longer looks like a flat colour fill.
+    marks.push({ kind: 'titleBg', x: 0, y: 0, w: FIELD_W, h: FIELD_H })
+    marks.push(UI.box(PAD - 12, 140, CONTENT_W + 24, FIELD_H - 160, { fill: 'rgba(90, 55, 25, 0.62)', stroke: '#4a2f18' }))
+
     const layout = mapLayout(maps)
     state.mapMaxScroll = Math.max(0, layout.contentH - MAP_VIEW.h)
     state.mapScroll = M.clamp(state.mapScroll, 0, state.mapMaxScroll)
@@ -1589,8 +1622,15 @@
       const group = layout.groups[g]
       const gy = MAP_VIEW.y + group.y - state.mapScroll
       if (gy + MAP_HEADER_H >= MAP_VIEW.y && gy <= MAP_VIEW.y + MAP_VIEW.h) {
-        listMarks.push(UI.tracked(PAD, gy + 12, group.tier.toUpperCase(), { size: 10, colour: C.moss, track: 0.32 }))
-        listMarks.push(UI.text(FIELD_W - PAD - 12, gy + 12, group.maps.length + (group.maps.length === 1 ? ' map' : ' maps'), { size: 10, colour: C.faint, align: 'right' }))
+        listMarks.push(UI.tracked(PAD, gy + 12, group.tier.toUpperCase(), { size: 10, colour: C.gold, track: 0.32 }))
+        // BTD6 difficulty stars: one per tier level, drawn right of the label.
+        const tierNames = mapTiers()
+        const stars = Math.max(1, tierNames.indexOf(group.tier) + 1)
+        const labelW = UI.trackedWidth(UI.tracked(0, 0, group.tier.toUpperCase(), { size: 10, track: 0.32 }))
+        for (let s = 0; s < stars; s++) {
+          listMarks.push(UI.icon(PAD + labelW + 16 + s * 15, gy + 8, 6, 'star', { colour: C.gold }))
+        }
+        listMarks.push(UI.text(FIELD_W - PAD - 12, gy + 12, group.maps.length + (group.maps.length === 1 ? ' map' : ' maps'), { size: 10, colour: C.dim, align: 'right' }))
         listMarks.push(UI.rule(PAD, gy + 20, CONTENT_W - 12, { alpha: 0.5 }))
       }
     }

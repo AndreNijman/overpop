@@ -178,9 +178,9 @@
     // Smoked, not opaque — see the note in js/ui/shop.js.
     marks.push(U.box(S.x, S.y, S.w, S.h, { fill: C.panel, stroke: C.line, alpha: 0.94 }))
 
-    /* ----- header ----- */
-    marks.push(U.box(x0, S.y + 8, 58, 56, { fill: C.deep, stroke: isHero ? C.gold : C.moss }))
-    marks.push(U.portrait(x0 + 29, S.y + 36, 27, tower.key || tower.heroKey, {}))
+    /* ----- header: portrait on a wooden plaque, name beside it ----- */
+    marks.push(U.box(x0 - 2, S.y + 6, 66, 60, { fill: C.deep, stroke: isHero ? C.gold : C.moss, lineWidth: 1.5 }))
+    marks.push(U.portrait(x0 + 31, S.y + 38, 29, tower.key || tower.heroKey, {}))
     const names = U.wrapText(displayName(tower).toUpperCase(), 15, innerW - 106, 2)
     for (let i = 0; i < names.length; i++) {
       marks.push(U.text(x0 + 68, S.y + 22 + i * 17, names[i],
@@ -314,20 +314,29 @@
       over.push(U.text(x0 + 32, by + 17, U.clipText(String(path.name || 'Branch ' + (p + 1)).toUpperCase(), 10, innerW - 106),
         { size: 10, colour: st.locked ? C.dim : C.moss, weight: '700' }))
 
-      // Owned tiers, as pips. Five small squares read faster than "3 / 5".
+      // Owned tiers, as round pips — BTD6-style. Five small dots read faster
+      // than "3 / 5", and a filled gold dot against an empty one scans at a
+      // glance from anywhere on the board.
       const maxTier = OP.Upgrades.MAX_TIER || 5
       for (let i = 0; i < maxTier; i++) {
-        const px = x0 + innerW - 8 - (maxTier - i) * 11
+        const px = x0 + innerW - 10 - (maxTier - i) * 13
         const owned = i < tower.tiers[p]
-        over.push(U.box(px, by + 9, 8, 9, owned ? { fill: C.gold } : { fill: C.deep, stroke: C.lineHi }))
+        over.push(U.dot(px + 5, by + 13, 5, owned
+          ? { fill: C.gold, stroke: C.gold }
+          : { fill: C.deep, stroke: C.lineHi }))
       }
 
       if (st.up) {
         over.push(U.text(x0 + 8, by + 34, U.clipText(st.up.name, 12, innerW - 100),
           { size: 12, colour: st.ok ? C.ink : C.dim, weight: '700' }))
-        over.push(U.box(x0 + innerW - 88, by + 23, 80, 18, { fill: C.deep, stroke: st.ok ? C.gold : C.line }))
+        // BTD6-style price tag: a solid green pill when the next step is
+        // affordable, a smoked one when it is not — affordability reads from
+        // across the room, without reading the number.
+        over.push(U.box(x0 + innerW - 88, by + 22, 80, 20, {
+          fill: st.ok ? C.moss : C.deep, stroke: st.ok ? C.mossDeep : C.line
+        }))
         over.push(U.text(x0 + innerW - 48, by + 36, U.clipText(M.money(st.cost), 12, 72),
-          { size: 12, colour: st.ok ? C.gold : C.dim, align: 'center', weight: '700' }))
+          { size: 12, colour: st.ok ? C.ink : C.dim, align: 'center', weight: '700' }))
         const desc = U.wrapText(st.up.desc, 9, innerW - 16, st.reason ? 1 : 2)
         for (let i = 0; i < desc.length; i++) {
           over.push(U.text(x0 + 8, by + 48 + i * 11, desc[i], { size: 9, colour: C.dim }))
