@@ -70,6 +70,7 @@
   const REGEN_C = '#74e58a'
   const REGEN_DARK = 'rgba(10,32,16,0.55)'
   const VEIL_C = 'rgba(233,242,255,0.92)'
+  const GROUND = 'rgba(8,10,8,0.18)'
 
   /* The rainbow bands. Six flat hues beat any gradient here: they read as
      "many colours" at 16px, and they cost six ellipse fills instead of an
@@ -413,7 +414,9 @@
 
     fillEllipse(ctx, x, y, rx, ry, pal.dark)
     fillEllipse(ctx, x, y - ry * 0.06, rx * 0.94, ry * 0.90, pal.body)
-    band(ctx, x, y, rx * 0.94, ry * 0.90, 0, rx * 0.30, pal.lite)
+    // Light from above: a horizontal sheen along the upper hull, not a vertical
+    // stripe — the old band read as a white "1" printed on the nose.
+    fillEllipse(ctx, x, y - ry * 0.42, rx * 0.60, ry * 0.20, pal.soft)
     fillEllipse(ctx, x, y + ry * 0.92, rx * 0.26, ry * 0.30, pal.deep)   // gondola
     fillEllipse(ctx, x - rx * 0.34, y - ry * 0.44, rx * 0.26, ry * 0.16, GLOSS)
     scorches(ctx, x, y, rx, ry, b, ratio)
@@ -620,6 +623,9 @@
       const yy = y + bob(b, clock(frame), reduced, 7) * amp
       const veiled = (b.props & P.VEILED) !== 0
       if (veiled) ctx.globalAlpha = VEIL_ALPHA
+      // A small flat ground shadow, drawn first so the knot overlaps it: the
+      // balloon reads as floating above the track rather than printed on it.
+      fillEllipse(ctx, x, y + ry * 1.42, rx * 0.72, ry * 0.24, GROUND)
       shell(ctx, x, yy, rx, ry, pal)
       if (mark) mark(ctx, x, yy, rx, ry, pal, b, r, tierArg || tier)
       gloss(ctx, x, yy, rx, ry)
@@ -642,6 +648,7 @@
       const ratio = hpRatio(b, t)
       const veiled = (b.props & P.VEILED) !== 0
       if (veiled) ctx.globalAlpha = VEIL_ALPHA
+      fillEllipse(ctx, xx, y + r * 0.82, r * 1.05, r * 0.26, GROUND)
       draw(ctx, b, xx, yy, t, pal, r, ratio)
       if (b.props) properties(ctx, xx, yy, r * 1.10, r * 0.92, r, b)
     }

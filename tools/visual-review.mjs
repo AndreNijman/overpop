@@ -104,13 +104,15 @@ class CDP {
 async function main () {
   const args = process.argv.slice(2)
   const flags = new Set(['--probe', '--headful', '--strict-fit'])
-  const values = new Set(['--browser', '--url', '--out', '--screens', '--viewports'])
+  const values = new Set(['--browser', '--url', '--out', '--screens', '--viewports', '--round', '--hold'])
   const options = {}
   for (let i = 0; i < args.length; i++) {
     if (flags.has(args[i])) options[args[i]] = true
     else if (values.has(args[i]) && args[i + 1] && !args[i + 1].startsWith('--')) options[args[i]] = args[++i]
     else throw new Error(`Unknown option or missing value: ${args[i]}`)
   }
+  const startRound = Math.max(1, parseInt(options['--round'] || '1', 10) || 1)
+  const holdTicks = Math.max(1, parseInt(options['--hold'] || '90', 10) || 90)
   const screens = options['--screens']?.split(',') || SCREENS
   const viewports = options['--viewports']?.split(',') || Object.keys(VIEWPORTS)
   if (screens.some(s => !SCREENS.includes(s))) throw new Error(`Screens: ${SCREENS.join(',')}`)
@@ -228,8 +230,8 @@ async function main () {
             }
             if (!tower || !Number.isInteger(tower.id)) throw new Error('Could not place fixture tower')
             sim.autostart = false
-            OP.Sim.startRound(sim, 1)
-            for (let i = 0; i < 90; i++) OP.Sim.step(sim)
+            OP.Sim.startRound(sim, ${startRound})
+            for (let i = 0; i < ${holdTicks}; i++) OP.Sim.step(sim)
             sim.paused = true
             if (screen === 'selected-tower') S.io.selectedId = tower.id
             if (screen === 'gameplay-shop' && !OP.Shop.showing(app)) throw new Error('Shop not showing')
