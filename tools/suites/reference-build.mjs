@@ -17,7 +17,10 @@ export async function run (t, OP) {
   function fixture (keys = [HALL, SNAIL]) {
     // Zero starting cash leaves the opening empty; all subsequent ownership is
     // real engine placement, shared with the bot through its public own array.
-    const sim = makeSim(OP, { cash: 0, rules: { allowedTowerKeys: keys } })
+    // lastRound 100: the wraith-era fixtures simulate round-85 scenarios, and a
+    // default medium board (lastRound 60) would silently clamp every era window
+    // to nothing — the bot's nonsharpLock reads sim.rules.lastRound.
+    const sim = makeSim(OP, { cash: 0, rules: { allowedTowerKeys: keys, lastRound: 100 } })
     const plan = playReference(sim, sim.map)
     assert.equal(plan.own.length, 0)
     return { sim, plan }

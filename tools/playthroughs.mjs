@@ -775,7 +775,7 @@ if (farms.length < FARM_TARGET) {
               if (bestCost <= sim.cash - 30) {
                 for (let p = 0; p <= 2; p++) {
                   if (OP.Upgrades.canBuy(marten, p).ok && OP.Upgrades.nextCost(sim, marten, p) === bestCost) {
-                    OP.Upgrades.buy(sim, marten, p)
+                    OP.Upgrades.buy(sim, marten, p); slog('marten deepen p' + p + ' cost ' + bestCost)
                     break
                   }
                 }
@@ -810,9 +810,11 @@ if (farms.length < FARM_TARGET) {
              halls together cover a wider stretch of track than either alone. */
           const halls = own.filter(t => t.key === SUPPORT_KEY && t.s.range)
           let counter = null
+          let anyKeen = false
           for (const aura of halls) {
             const buff = sim.buffs.find(b => b.sourceId === aura.id && b.mods.camoDetect)
             if (!buff) continue
+            anyKeen = true
             const wrathKey = attackers.find(k => {
               const d = OP.TOWERS[k]
               if (d.base.dmgType === 'sharp' || d.base.dmgType === 'explosive') return false
@@ -834,10 +836,11 @@ if (farms.length < FARM_TARGET) {
             }
             if (counter) break
           }
-          if (counter) { slog('wraith-counter ' + counter.key + ' covered'); continue }
-          /* No legal covered spot in any hall's zone: bank rather than buy a
-             blind counter — and do not let the deepen feed a blind carry. */
-          return
+          /* Bank only when a Keen zone exists but cannot host the counter; with
+             no Keen buff anywhere the pairing is not yet the build's job and
+             the deepen must proceed (measured: the pre-Keen owl fixture froze
+             when the branch returned unconditionally). */
+          if (anyKeen) return
         }
 
         // THEN deepen — CONCENTRATED, not round-robin. The mid-game towers cost too
@@ -933,14 +936,15 @@ if (farms.length < FARM_TARGET) {
         }
         if (goalCost !== Infinity && goalCost >= 10000 && (sim.roundIndex || 0) >= 40 && sim.cash - 30 < goalCost) { slog('bank milestone ' + Math.round(goalCost)); return }
 
+        slog('deepen-scan byInvested=' + byInvested.map(t => t.key).join(',') + ' cash=' + Math.round(sim.cash) + ' lastRound=' + sim.rules.lastRound + ' bought=' + bought)
         for (let n = 0; n < byInvested.length && !bought; n++) {
           const tower = byInvested[n]
           const order = [0, 1, 2].sort((a, b) => (tower.tiers[b] || 0) - (tower.tiers[a] || 0))
           for (let pi = 0; pi < order.length && !bought; pi++) {
             const path = order[pi]
-            if (!OP.Upgrades.canBuy(tower, path).ok) continue
-            if (OP.Upgrades.nextCost(sim, tower, path) > sim.cash - 30) continue
-            if (OP.Upgrades.buy(sim, tower, path).ok) bought = true
+            if (!OP.Upgrades.canBuy(tower, path).ok) { slog('deepen-skip canBuy ' + tower.key + ' p' + path + ' ' + JSON.stringify(OP.Upgrades.canBuy(tower, path))); continue }
+            if (OP.Upgrades.nextCost(sim, tower, path) > sim.cash - 30) { slog('deepen-skip cost ' + tower.key + ' p' + path + ' ' + OP.Upgrades.nextCost(sim, tower, path) + ' vs ' + Math.round(sim.cash - 30)); continue }
+            if (OP.Upgrades.buy(sim, tower, path).ok) { bought = true; slog('deepen ' + tower.key + ' p' + path + ' -> ' + JSON.stringify(tower.tiers)) }
           }
         }
         if (bought) continue
@@ -962,7 +966,9 @@ if (farms.length < FARM_TARGET) {
         // against the blimp, and the copy-fallback was measured turning r47-52
         // surplus into 20+ 0-0-0 foxes while the shatter carry sat frozen at
         // 3-2-0 (leak ~689). Stand down and bank instead: the next shatter tier
-        // is what actually clears the Wraith.
+        const sd = nonsharpLock(sim, (sim.roundIndex || 0) + 1, 6)
+        slog('standdown-check wraithRound=' + sd + ' from=' + ((sim.roundIndex || 0) + 1) + ' lastRound=' + sim.rules.lastRound)
+        if (sd) { slog('standdown nonsharp'); return }
         if (nonsharpLock(sim, (sim.roundIndex || 0) + 1, 6)) { slog('standdown nonsharp'); return }
 
         // Finally, another copy of a tower already earning its keep — cheapest
@@ -1275,3 +1281,5 @@ process.exit(failures.length ? 1 : 0)
 }
 
 export { playReference, playBad, runGame }
+
+
