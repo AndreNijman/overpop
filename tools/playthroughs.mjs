@@ -488,9 +488,18 @@ if (farms.length < FARM_TARGET) {
       let d = 0
       for (const t of fires) d += ((t.invested || 0) / total) * OP.M.dist(s.x, s.y, t.x, t.y)
       const track = (map.paths && map.paths[0]) || null
-      const mid = track ? track.posAt(0.5) : null
+      const mid = track ? track.posAt(track.length * 0.5) : null
       const midD = mid ? OP.M.dist(s.x, s.y, mid.x, mid.y) : 0
-      return { s, i, d: d + midD * 0.3 }
+      /* The aura must overlap the DEEP carry — the towers with the investment
+         that actually pops blimps — but it also needs to cover a meaningful
+         stretch of uncovered track. On a long winding map (fernway-hollow) the
+         fighters cluster near the entrance and a low midpoint weight parks the
+         hall there, leaving 74 % of the track in dead air. The midD weight
+         pulls the hall toward the track centre so the 155-radius ring covers
+         more of the path; on a straight map (bramble-gap) the midpoint is
+         already well-served, so the extra weight merely shifts the hall a few
+         units. */
+      return { s, i, d: d + midD * 0.6 }
     })
     ranked.sort((a, b) => a.d - b.d)
     for (const r of ranked) {
@@ -709,6 +718,60 @@ if (farms.length < FARM_TARGET) {
         const inWraithWindow = wraithRound > 0
         const missing = inWraithWindow ? null : nextMissing()
         if (missing && tryPlace(missing)) { slog('widen ' + missing); continue }
+
+        /* COVERAGE — on long winding maps the opening and widen steps pile every
+           tower into the first stretch of the path; balloons that survive the
+           entry gauntlet pass through a long dead zone on the return. This step
+           finds the largest gap between attacker positions along the track and
+           drops a cheap copy there, but only when the gap is severe (> 25 % of
+           track length) and the board has substantial surplus (≥ 1000 beyond the
+           maintenance reserve). Capped at 1 tower so the budget still feeds
+           upgrades on maps where coverage is not the binding constraint. */
+        if (!inWraithWindow && (sim.roundIndex || 0) >= 15 && (sim.roundIndex || 0) < 38) {
+          const COVERAGE_CAP = 1
+          const coverageCount = own.filter(t => t._coverage).length
+          if (coverageCount < COVERAGE_CAP) {
+            const track = (map.paths && map.paths[0]) || null
+            if (track) {
+              const attackerPositions = own
+                .filter(t => !OP.TOWERS[t.key].income && typeof OP.TOWERS[t.key].fire === 'function')
+                .map(t => {
+                  let best = 0, bestD = Infinity
+                  for (let s = 0; s <= 1; s += 0.01) {
+                    const p = track.posAt(s * track.length)
+                    const d = OP.M.dist(t.x, t.y, p.x, p.y)
+                    if (d < bestD) { bestD = d; best = s }
+                  }
+                  return best
+                })
+                .sort((a, b) => a - b)
+              if (attackerPositions.length >= 2) {
+                let bestGap = 0, bestMid = 0
+                for (let i = 1; i < attackerPositions.length; i++) {
+                  const gap = attackerPositions[i] - attackerPositions[i - 1]
+                  if (gap > bestGap) { bestGap = gap; bestMid = (attackerPositions[i] + attackerPositions[i - 1]) / 2 }
+                }
+                const endGap = 1 - attackerPositions[attackerPositions.length - 1]
+                if (endGap > bestGap) { bestGap = endGap; bestMid = (1 + attackerPositions[attackerPositions.length - 1]) / 2 }
+                if (bestGap > 0.25) {
+                  const midPos = track.posAt(bestMid * track.length)
+                  const covKey = attackers[0] || byCost[0]
+                  const price = OP.Economy.price(sim, OP.TOWERS[covKey].cost)
+                  if (price <= sim.cash - 300) {
+                    let placed_one = false
+                    for (const s of spots) {
+                      if (OP.M.dist(s.x, s.y, midPos.x, midPos.y) > 120) continue
+                      if (!OP.Towers.canPlace(sim, covKey, s.x, s.y).ok) continue
+                      const tower = OP.Towers.place(sim, covKey, s.x, s.y)
+                      if (tower) { tower._coverage = true; own.push(tower); placed++; placed_one = true; break }
+                    }
+                    if (placed_one) { slog('coverage at ' + Math.round(bestMid * 100) + '%'); continue }
+                  }
+                }
+              }
+            }
+          }
+        }
 
         /* SAVE for an answer to a tier that is actually coming and that the board
            genuinely cannot damage.
