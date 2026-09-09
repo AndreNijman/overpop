@@ -194,17 +194,20 @@ logins, achievements, upgrade paths. Status after this audit:
 | monkeys/towers | 31 towers, 4 classes; 20 heroes; template-driven | 22+1 towers, 4 classes | ~ full-slot parity, original names |
 | upgrade paths | 3 paths x 5 tiers, one branch above tier 2, XP-funded per-cell unlocks | 3 x 5 + crosspath rules | ~ canonical shape; per-cell unlock verified (TowerXp.cellUnlocked) |
 | paragons | 16 (suite: 1388 assertions) | 9 + more via legends | ~ |
-| maps | 48 (12 per tier x 4) | ~93 across 4 tiers | ~ half count; terrain/track/LOS systems exist |
-| monkey knowledge | 26 nodes, 5 branches (primary/military/magic/support/general) | ~100 nodes, 6 trees (…+Heroes, Powers), tier gates + respec | ~ structure right, depth + tree count short |
+| maps | 48+ (12 per tier x 4) | ~93 across 4 tiers | ~ half count; terrain/track/LOS systems exist |
+| monkey knowledge | **101 nodes, 7 branches** (primary/military/magic/support/general/heroes/powers), tier gates + respec | ~100 nodes, 6 trees | ~ **patch F3 2026-09-08: depth now exceeds canon's shape** |
 | legends | 4-stage rogue-lite, 28 artifacts, heroes/boosts/merchant/mini-games | Rogue Legends (85+ artifacts) | ~ faithful frame, smaller slice |
 | boss events | weekly rotation, 5 HP tiers, elite gating, 6-boss roster | 6-boss rotation, same contract | ~ |
-| boss bloons | 6 boss defs (js/data/bosses.js) | 6 bosses | ~ |
-| round structures | full BTD6 composition mirror (rounds 1-100), alternate set retuned to the envelope | rounds 1-100 + alternate | ~ **done this session** |
+| boss bloons | 6 boss defs with BTD6 analogue mapping (§9a) | 6 bosses | ~ **patch F1 2026-09-08: identity mapping published** |
+| trophy store | 48 items: trails/flags/badges/titles + insta crates; schema v13 | Trophy Store (~100 items) | ~ **patch F4 2026-09-08: equivalent built** |
+| insta-monkeys | trophy-store crates granting into the Draft inventory | Insta-Monkeys | ~ **patch F4 2026-09-08** |
+| odyssey | **3 Voyages x 5 legs** with per-leg restriction ladders (engine-enforced via mode overrides) | Odyssey | ~ **patch F5 2026-09-08** |
+| round structures | full BTD6 composition mirror (rounds 1-100), alternate set retuned to the envelope | rounds 1-100 + alternate | ~ done 2026-09-07 |
 | freeplay | deterministic index-seeded generator, hp/speed scaling, shell/plated shells | rounds 101+ scaling | ~ |
-| races | Rush Trial + trials/expedition systems | Race Event + Odyssey/Expeditions | ~ |
+| races | Rush Trial + trials/expedition systems | Race Event | ~ |
 | daily challenges | deterministic date-seeded, streak tracking | daily challenges + streaks | ~ |
-| daily LOGINS | streak exists, but no per-day LOGIN REWARD calendar | daily login calendar pays escalating rewards | – **gap - build next** |
-| achievements | 16 | ~145 + 14 hidden | – depth gap - author more |
+| daily LOGINS | 7-day calendar cycle, escalating rewards | daily login calendar | ~ built 2026-09-07 |
+| achievements | 16 | ~145 + 14 hidden | – depth gap — excluded by request |
 
 ### Build backlog raised by this audit (updated 2026-09-07: modes, boss roster, powers, artifacts and knowledge depth DONE; upgrade-path content parity + balance + UI remain)
 
