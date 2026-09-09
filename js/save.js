@@ -27,7 +27,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 12
+  Save.SCHEMA_VERSION = 13
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -253,7 +253,10 @@
       drafts: [],             // Draft Tokens: { key, level, count } slots
       loginStreak: 0,         // consecutive-day login calendar streak
       loginTotal: 0,          // lifetime login days claimed
-      lastLoginDay: ''        // dateKey of the most recent claim
+      lastLoginDay: '',       // dateKey of the most recent claim
+      trophyBank: 0,          // unspent trophies from events and wins
+      trophyOwned: [],        // purchased trophy-store item keys
+      trophyEquipped: {}      // kind -> equipped item key (trail/flag/badge)
     }
   }
 
@@ -313,7 +316,23 @@
     out.loginTotal = counter(raw.loginTotal)
     out.lastLoginDay = typeof raw.lastLoginDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.lastLoginDay)
       ? raw.lastLoginDay : ''
+    out.trophyBank = counter(raw.trophyBank)
+    out.trophyOwned = keyList(raw.trophyOwned)
+    out.trophyEquipped = normaliseTrophyEquipped(raw.trophyEquipped)
     out.schemaVersion = Save.SCHEMA_VERSION
+    return out
+  }
+
+  /** Equipped cosmetics: kind -> item key, only kinds the store knows. */
+  function normaliseTrophyEquipped (raw) {
+    const out = {}
+    if (!isPlainObject(raw)) return out
+    const kinds = OP.TrophyKinds || ['trail', 'flag', 'badge', 'title']
+    for (const kind in raw) {
+      if (!own(raw, kind) || kinds.indexOf(kind) < 0) continue
+      const key = raw[kind]
+      if (typeof key === 'string' && safeKey(key) && key) out[kind] = key
+    }
     return out
   }
 
@@ -679,6 +698,14 @@
       if (typeof p.loginTotal !== 'number' || p.loginTotal < 0) p.loginTotal = 0
       if (typeof p.lastLoginDay !== 'string') p.lastLoginDay = ''
       return p
+    },
+    // Version 12 → 13: add the trophy bank, owned store items and equipped
+    // cosmetics. Nothing to derive — the bank starts empty and accrues.
+    12: function (p) {
+      if (typeof p.trophyBank !== 'number' || p.trophyBank < 0) p.trophyBank = 0
+      if (!Array.isArray(p.trophyOwned)) p.trophyOwned = []
+      if (!isPlainObject(p.trophyEquipped)) p.trophyEquipped = {}
+      return p
     }
   }
 
@@ -871,6 +898,11 @@
     if (result.won === true && OP.knowledgeEarn) {
       const kp = OP.knowledgeEarn(result)
       if (kp > 0) p.knowledgePoints = (p.knowledgePoints || 0) + kp
+    }
+
+    // Trophy bank: earned on win alongside the KP, spent in the Trophy Store
+    if (result.won === true && OP.Trophies && OP.Trophies.earnForResult) {
+      OP.Trophies.earn(p, OP.Trophies.earnForResult(result))
     }
 
     // Check achievements
