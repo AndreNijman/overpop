@@ -108,18 +108,28 @@ mechanics; publish the mapping so equivalence is auditable.
 2. `docs/PARITY.md` §9: boss table with mechanic ↔ analogue columns.
 3. Verify: boss + bossevent suites (no mechanical change expected).
 
-## Patch F2 — reference-build to 94/94 (small, ~40 min, unblocks Phase 5)
+## Patch F2 — reference-build to 94/94 (BLOCKED, documented 2026-09-08)
 
-fernway medium standard leaks 153 RBE at the r41 GOLIATH spike (bot holds
-13 towers / 25.7k invested, pops 1779/2040).
+Status: 90/94 unchanged after a systematic bisect. Findings for the next
+attempt (do NOT re-try stat tuning — it is measurably chaotic):
 
-1. Tune TOWERS, not the roundset — the roundset is BTD6-mirrored and stays.
-   Levers: Acorn Fox tier-2/3 damage/cost curve; Sap Snail support value;
-   Cannon Boar price at tier 2.
-2. Loop: edit → `node tools/harness.mjs --suite reference-build` → repeat.
-3. If the bot still cannot hold, add ONE roundset guard assertion relaxation
-   is NOT acceptable; instead deepen the bot (aura placement already exists).
-4. Target: 94/94 green, then Phase 5's BALANCE.md regen is unblocked.
+1. **Stat buffs regress the OTHER map.** Fox tier-2 +1 damage (3→4 at 2-3-0),
+   boar Hard Core +1, Blur cooldown, or the milestone relaxation each change
+   pop timing → the bot's deterministic build sequence (TowerXp unlock order,
+   byInvested ranking, milestone holds) re-orders and bramble-gap — previously
+   green — leaks at r41/r48 and dies. fernway improved (41→51) only with the
+   fox buff AND the milestone relaxation together; bramble broke in every
+   combination that helped fernway. Full revert restores 90/94.
+2. **fernway's real failure mode** (baseline, medium standard): dies mid-round
+   41 at the GOLIATH+ceramic spike, 13 towers / 25.7k invested, pops
+   1779/2040. With the milestone "out-of-reach" relaxation + fox buff it got
+   to r51, where the wall became r48's 30 fast VEILED|REGEN purples —
+   a TRACK-COVERAGE gap: the bot's Keen-Eyes foxes cluster near the hall and
+   30 purples at speed 3.0 pass uncovered sections.
+3. **Next attempt** should be bot PLACEMENT work, not stats: widen camo
+   coverage along the track before dense veiled waves (r47-48), and teach the
+   auraCommit ladder to place a counter further down-track. Each bot change
+   must be verified against BOTH maps in the same run (chaos coupling).
 
 ## Patch F3 — knowledge to ~100 nodes (medium, ~60 min)
 
