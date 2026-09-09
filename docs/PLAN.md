@@ -73,12 +73,11 @@ user directive).
 - Subagent spawns fail (usage limit) → all work in main context; small edits,
   verify per phase.
 - Screenshot-tested sprites → keep portrait path and board sprite in sync.
-- `reference-build` is the only red suite (90/94); do not regress it further
-  while retuning economy.
+- `reference-build` is now 94/94. All Patch Series F items resolved.
 
 ## Definition of done
 
-- 55 suites green (reference-build ≥92/94).
+- 56 suites green (reference-build 94/94). ✓
 - Every BTD6 feature class (except maps/achievements) has an equivalent,
   recorded in `docs/PARITY.md` §9.
 - Title, gameplay, tower panel, map select all render clean in
@@ -108,28 +107,25 @@ mechanics; publish the mapping so equivalence is auditable.
 2. `docs/PARITY.md` §9: boss table with mechanic ↔ analogue columns.
 3. Verify: boss + bossevent suites (no mechanical change expected).
 
-## Patch F2 — reference-build to 94/94 (BLOCKED, documented 2026-09-08)
+## Patch F2 — reference-build to 94/94 (RESOLVED 2026-09-09)
 
-Status: 90/94 unchanged after a systematic bisect. Findings for the next
-attempt (do NOT re-try stat tuning — it is measurably chaotic):
+Status: **94/94 green.** Three targeted fixes to the reference bot's placement:
 
-1. **Stat buffs regress the OTHER map.** Fox tier-2 +1 damage (3→4 at 2-3-0),
-   boar Hard Core +1, Blur cooldown, or the milestone relaxation each change
-   pop timing → the bot's deterministic build sequence (TowerXp unlock order,
-   byInvested ranking, milestone holds) re-orders and bramble-gap — previously
-   green — leaks at r41/r48 and dies. fernway improved (41→51) only with the
-   fox buff AND the milestone relaxation together; bramble broke in every
-   combination that helped fernway. Full revert restores 90/94.
-2. **fernway's real failure mode** (baseline, medium standard): dies mid-round
-   41 at the GOLIATH+ceramic spike, 13 towers / 25.7k invested, pops
-   1779/2040. With the milestone "out-of-reach" relaxation + fox buff it got
-   to r51, where the wall became r48's 30 fast VEILED|REGEN purples —
-   a TRACK-COVERAGE gap: the bot's Keen-Eyes foxes cluster near the hall and
-   30 purples at speed 3.0 pass uncovered sections.
-3. **Next attempt** should be bot PLACEMENT work, not stats: widen camo
-   coverage along the track before dense veiled waves (r47-48), and teach the
-   auraCommit ladder to place a counter further down-track. Each bot change
-   must be verified against BOTH maps in the same run (chaos coupling).
+1. **Midpoint bug**: `track.posAt(0.5)` treated 0.5 as an absolute pixel
+   position (returning the track entry), not a fraction. Fixed to
+   `track.posAt(track.length * 0.5)` so hall ranking uses the true centre.
+2. **Hall placement weight**: midpoint attraction raised from 0.3 → 0.6 so
+   the Keen Watch hall lands closer to the track centre on long winding maps,
+   extending camo aura coverage beyond the entrance cluster.
+3. **Coverage step**: after all damage types are represented, the bot finds
+   the largest gap between attacker positions along the track and drops one
+   cheap attacker there when the gap exceeds 25% of track length and the
+   board has ≥ 300 cash surplus. Capped at 1 tower so upgrades still receive
+   priority on maps where coverage is not the binding constraint.
+
+Result: fernway-hollow medium standard now survives (22 RBE leaked, was 153),
+bramble-gap still holds (35 RBE leaked). Full harness: 56 suites green,
+12 060 assertions. All Patch Series F items now resolved.
 
 ## Patch F3 — knowledge to ~100 nodes (medium, ~60 min)
 
