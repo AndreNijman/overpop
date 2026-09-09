@@ -92,6 +92,27 @@
       if (e.kind === 'roundbonus') floater(fx, OP.FIELD_W / 2, 90, OP.M.money(e.amount), '#9fe8c6')
       else if (e.kind === 'herolevel') floater(fx, OP.FIELD_W / 2, 130, 'Level ' + e.level, '#ffd97a')
       else if (e.kind === 'paragon') floater(fx, OP.FIELD_W / 2, 130, 'Degree ' + e.degree, '#f2e6c8')
+      else if (e.kind === 'roundstart') {
+        /* Milestone rounds announce themselves the way the source game calls
+           a boss round: a slow, large banner. Ordinary rounds stay quiet —
+           the HUD already carries the round number, and a banner every round
+           is noise nobody reads by round 15. */
+        const banner = roundBannerText(sim, e.round)
+        if (banner) {
+          floater(fx, OP.FIELD_W / 2, 150, 'ROUND ' + e.round + ' — ' + banner, '#ffb648',
+            { life: 2.2, size: 26, weight: '700' })
+        }
+      } else if (e.kind === 'sell') {
+        // The sell poof: the value drifts up from the tower's spot.
+        const t = sim.towerById && sim.towerById.get ? sim.towerById.get(e.towerId) : null
+        floater(fx, t ? t.x : OP.FIELD_W / 2, t ? t.y - 20 : 200, '+' + OP.M.money(e.value), '#ffd23f')
+      } else if (e.kind === 'upgrade') {
+        const t2 = sim.towerById && sim.towerById.get ? sim.towerById.get(e.towerId) : null
+        if (t2) floater(fx, t2.x, t2.y - 20, '-' + OP.M.money(e.cost), '#f2e6c8')
+      } else if (e.kind === 'bossreach') {
+        floater(fx, OP.FIELD_W / 2, 110, 'BOSS TIER ' + e.tier + ' — ' + String(e.boss || '').replace(/-/g, ' ').toUpperCase(),
+          '#e06a5a', { life: 2.2, size: 24, weight: '700' })
+      }
     })
   }
 
@@ -150,14 +171,36 @@
     }
   }
 
-  function floater (fx, x, y, text, colour) {
+  function floater (fx, x, y, text, colour, opts) {
     if (fx.floaters.length >= MAX_FLOATERS) fx.floaters.shift()
-    fx.floaters.push({ x: x, y: y, text: String(text), colour: colour || '#fff', life: 1.1, maxLife: 1.1 })
+    opts = opts || {}
+    fx.floaters.push({
+      x: x, y: y, text: String(text), colour: colour || '#fff',
+      life: opts.life || 1.1, maxLife: opts.life || 1.1,
+      size: opts.size || 18, weight: opts.weight || '600'
+    })
   }
   FX.floater = floater
 
   /** Public: something worth a number on screen happened. */
   FX.say = function (x, y, text, colour) { floater(FX.state, x, y, text, colour) }
+
+  /** Which milestone blimp (if any) a round's groups announce. Reads the
+      round table directly — never OP.Rounds.definition, whose fall-through
+      path appends an error event to the sim. */
+  function roundBannerText (sim, roundIndex) {
+    let def = sim.roundSet ? sim.roundSet[roundIndex] : null
+    if (!def && OP.Freeplay && OP.Freeplay.generate) {
+      try { def = OP.Freeplay.generate(sim, roundIndex) } catch (e) { def = null }
+    }
+    if (!def || !Array.isArray(def.groups)) return null
+    const tiers = OP.BALLOON_INDEX || {}
+    for (const g of def.groups) {
+      const tier = g.tier && tiers[g.tier] !== undefined ? OP.tierByKey(g.tier) : null
+      if (tier && tier.blimp) return String(tier.name || g.tier).toUpperCase() + ' INBOUND'
+    }
+    return null
+  }
 
   /* ---------- stepping ---------- */
 
@@ -226,12 +269,12 @@
     ctx.globalAlpha = 1
 
     if (fx.floaters.length) {
-      ctx.font = '600 18px ui-monospace, monospace'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       for (let i = 0; i < fx.floaters.length; i++) {
         const f = fx.floaters[i]
         ctx.globalAlpha = M.clamp01(f.life / f.maxLife)
+        ctx.font = (f.weight || '600') + ' ' + (f.size || 18) + 'px ui-monospace, monospace'
         ctx.fillStyle = 'rgba(0,0,0,0.55)'
         ctx.fillText(f.text, f.x + 1.5, f.y + 1.5)
         ctx.fillStyle = f.colour
@@ -245,6 +288,36 @@
       ctx.globalAlpha = fx.flash * 0.32
       ctx.fillRect(0, 0, OP.FIELD_W, OP.FIELD_H)
       ctx.globalAlpha = 1
+    }
+
+    /* The low-lives vignette: a dark frame that deepens as the run bleeds out,
+       so "you are dying" is felt at the screen edge before it is read on the
+       HUD. Driven from the sim read-only; lives ≤ 20% of the start (or ≤ 5)
+       begins the pulse — the same thresholds the HUD labels CRITICAL. */
+    const lives = sim.lives
+    const start = sim.rules && sim.rules.startLives > 0 ? sim.rules.startLives : 150
+    const danger = lives <= Math.max(1, Math.ceil(start * 0.2)) || lives <= 5
+    if (danger && lives > 0) {
+      const pulse = fx.reducedMotion ? 0.5 : 0.35 + 0.25 * Math.sin(fx.time * 3.2)
+      const depth = M.clamp01(0.45 + pulse * 0.35)
+      let vg = null
+      if (typeof ctx.createRadialGradient === 'function') {
+        try {
+          vg = ctx.createRadialGradient(OP.FIELD_W / 2, OP.FIELD_H / 2, OP.FIELD_H * 0.45,
+            OP.FIELD_W / 2, OP.FIELD_H / 2, OP.FIELD_H * 0.92)
+        } catch (err) { vg = null }
+      }
+      if (vg) {
+        vg.addColorStop(0, 'rgba(120, 20, 20, 0)')
+        vg.addColorStop(1, 'rgba(120, 20, 20, ' + depth.toFixed(3) + ')')
+        ctx.fillStyle = vg
+        ctx.fillRect(0, 0, OP.FIELD_W, OP.FIELD_H)
+      } else {
+        // Gradientless stub: a flat red frame keeps the warning readable.
+        ctx.fillStyle = 'rgba(120, 20, 20, ' + (depth * 0.4).toFixed(3) + ')'
+        ctx.fillRect(0, 0, OP.FIELD_W, 8)
+        ctx.fillRect(0, OP.FIELD_H - 8, OP.FIELD_W, 8)
+      }
     }
   }
 

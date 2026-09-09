@@ -203,6 +203,19 @@
     }
   }
 
+  /** A circular progress ring — the round counter's BTD6-style dial.
+      `frac` in [0,1] sweeps clockwise from 12 o'clock. */
+  UI.ring = function (x, y, r, frac, opts) {
+    opts = opts || {}
+    return {
+      kind: 'ring', x: x, y: y, r: r,
+      frac: Math.max(0, Math.min(1, Number(frac) || 0)),
+      colour: opts.colour || C.moss,
+      track: opts.track || C.deep,
+      lineWidth: opts.lineWidth || 3
+    }
+  }
+
   UI.box = function (x, y, w, h, opts) {
     opts = opts || {}
     return {
@@ -691,6 +704,26 @@
     ctx.restore()
   }
 
+  function drawRingMark (ctx, m) {
+    ctx.save()
+    if (!ctx.arc) { ctx.restore(); return }
+    const a0 = -Math.PI / 2
+    const sweep = M.TAU * m.frac
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = m.track
+    ctx.lineWidth = m.lineWidth
+    ctx.beginPath()
+    ctx.arc(m.x, m.y, m.r, 0, M.TAU)
+    ctx.stroke()
+    if (m.frac > 0.004) {
+      ctx.strokeStyle = m.colour
+      ctx.beginPath()
+      ctx.arc(m.x, m.y, m.r, a0, a0 + sweep)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
   function drawLogoMark (ctx, m) {
     ctx.save()
     ctx.textAlign = 'left'
@@ -859,6 +892,7 @@
       case 'portrait': drawPortraitMark(ctx, m); break
       case 'icon': drawIconMark(ctx, m); break
       case 'dot': drawDotMark(ctx, m); break
+      case 'ring': drawRingMark(ctx, m); break
       case 'titleBg': drawTitleBackdrop(ctx, m); break
       case 'logo': drawLogoMark(ctx, m); break
       case 'preview': drawPreview(ctx, m); break
@@ -1077,7 +1111,7 @@
 
   Menus.screenNames = function () { return Object.keys(SCREENS).sort() }
 
-  const BACK_TO = { maps: 'title', setup: 'maps', settings: 'title', bestiary: 'title', daily: 'title', title: 'title' }
+  const BACK_TO = { maps: 'title', setup: 'maps', settings: 'title', bestiary: 'title', daily: 'title', 'trophy-store': 'title', title: 'title' }
 
   Menus.go = function (app, screen) {
     state.screen = SCREENS[screen] ? screen : 'title'
@@ -1288,6 +1322,11 @@
     }
     widgets.push(UI.button('title.settings', bx, byL, bw, bh, {
       label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'volume, trails, round autostart'
+    }))
+    byL += bh + gap
+    widgets.push(UI.button('title.store', bx, byL, bw, bh, {
+      label: 'TROPHY STORE', action: 'goto', arg: 'trophy-store',
+      sub: 'spend trophies on looks and critter crates'
     }))
 
     /* Right column: content screens on a panel */
@@ -2087,7 +2126,10 @@
     if (!exp || !exp.list) {
       marks.push(UI.text(PAD, 300, 'Expedition system is not available.', { size: 13, colour: C.dim }))
     } else {
-      var y = 290
+      /* Eight campaigns (five expeditions + three Voyages) cannot use the old
+         58px rows from y=290 — that ran past the 720px field. Compact rows keep
+         the whole roster on one screen. */
+      var y = 280
       for (var i = 0; i < exp.list.length; i++) {
         var e = exp.list[i]
         var isActive = e.active
@@ -2103,11 +2145,11 @@
 
         var sub = diffName + ' ' + modeName + ' — ' + e.maps + ' maps — ' + e.desc
         var btnId = 'expedition.' + e.key
-        widgets.push(UI.button(btnId, PAD, y, P.w, 58, {
+        widgets.push(UI.button(btnId, PAD, y, P.w, 46, {
           label: label, action: 'start-expedition', arg: e.key, sub: sub,
           disabled: isActive
         }))
-        y += 72
+        y += 54
       }
     }
 
@@ -2138,9 +2180,12 @@
       // If active on same key, resume it
       if (OP.Expedition && OP.Expedition.isActive(profile) && profile.expedition.expeditionKey === key) {
         var mapKey = OP.Expedition.currentMapKey(profile)
+        // The leg's own mode, not the campaign's — a Voyage leg carries its
+        // restriction override, and resuming mid-campaign must keep it.
+        var legMode = OP.Expedition.currentMode(profile) || def.mode
         if (mapKey && app.startGame) {
           click(true)
-          app.startGame(mapKey, def.difficulty, def.mode, {
+          app.startGame(mapKey, def.difficulty, legMode, {
             expeditionCash: profile.expedition.cash,
             expeditionLives: profile.expedition.lives
           })

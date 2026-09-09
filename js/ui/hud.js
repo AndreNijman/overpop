@@ -316,6 +316,13 @@
       marks.push(U.icon(268, 30, 17, 'heart', { colour: C.bad }))
       marks.push(U.icon(432, 30, 17, 'flag', { colour: C.moss }))
     }
+    // The round dial: run progress sweeps clockwise around the flag —
+    // how far through the campaign is readable at a glance.
+    if (U.ring) {
+      const lastRound = rules.lastRound || 0
+      const frac = lastRound > 0 ? M.clamp01(sim.roundIndex / lastRound) : 0
+      marks.push(U.ring(432, 30, 21, frac, { colour: C.gold, track: 'rgba(0,0,0,0.35)', lineWidth: 3 }))
+    }
 
     const cashLabel = sim.coop ? 'PLAYER ' + (sim.coop.active + 1) + ' CASH' : 'CASH'
     label(marks, 60, 19, lowCash ? cashLabel + ' / TOO LOW' : cashLabel, lowCash ? C.warn : C.dim)
