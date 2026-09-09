@@ -414,7 +414,9 @@
     OP.Expedition.start(S.profile, expeditionKey, startCash, startLives)
     if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     var mapKey = def.maps[0].key
-    return App.startGame(mapKey, def.difficulty, def.mode, {
+    // Leg 1 may already carry a mode override (a Voyage's opening leg).
+    var legMode = OP.Expedition.currentMode(S.profile) || def.mode
+    return App.startGame(mapKey, def.difficulty, legMode, {
       expeditionCash: startCash,
       expeditionLives: startLives
     })
@@ -430,7 +432,10 @@
     var def = OP.Expedition.activeDef(S.profile)
     if (!def || exp.stageIndex >= def.maps.length) return null
     var mapKey = def.maps[exp.stageIndex].key
-    var result = App.startGame(mapKey, def.difficulty, def.mode, {
+    // The leg's mode override, not the campaign's — Voyages escalate
+    // restrictions leg by leg, and the advance must carry the new leg's rules.
+    var legMode = OP.Expedition.currentMode(S.profile) || def.mode
+    var result = App.startGame(mapKey, def.difficulty, legMode, {
       expeditionCash: exp.cash,
       expeditionLives: exp.lives
     })

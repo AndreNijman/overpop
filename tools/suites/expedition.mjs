@@ -172,4 +172,28 @@ export function run (t, OP) {
   var fresh = OP.Save.defaults()
   t.eq(fresh.expedition, null, 'fresh expedition is null')
   t.deep(fresh.completedExpeditions, {}, 'fresh completedExpeditions is empty object')
+
+  t.section('Voyages — per-leg mode overrides')
+  var voyages = (OP.Expeditions.all ? OP.Expeditions.all() : []).filter(function (d) { return d.key.indexOf('voyage-') === 0 })
+  t.eq(voyages.length, 3, 'three Voyages ship')
+  for (var v = 0; v < voyages.length; v++) {
+    var voy = voyages[v]
+    t.eq(voy.maps.length, 5, voy.key + ': five legs')
+    var overrides = voy.maps.filter(function (m) { return m.mode && m.mode !== voy.mode }).length
+    t.gte(overrides, 3, voy.key + ': at least three legs tighten the rules')
+  }
+  var voyageProfile = OP.Save.defaults()
+  E.start(voyageProfile, 'voyage-driftwood', 650, 20)
+  t.eq(E.currentMode(voyageProfile), 'standard', 'leg one uses the campaign mode when it declares none')
+  t.eq(E.currentMapKey(voyageProfile), 'fernway-hollow', 'the voyage opens on its first leg')
+  E.recordGameOver(voyageProfile, true)
+  t.eq(E.stageIndex(voyageProfile), 1, 'the run advances to leg two')
+  t.eq(E.currentMode(voyageProfile), 'primary-only', 'leg two resolves its own mode override')
+  t.eq(E.currentMapKey(voyageProfile), 'clover-commons', 'leg two names its map')
+  E.recordGameOver(voyageProfile, true)
+  E.recordGameOver(voyageProfile, true)
+  E.recordGameOver(voyageProfile, true)
+  E.recordGameOver(voyageProfile, true)
+  t.notOk(E.isActive(voyageProfile), 'five legs complete the voyage')
+  t.ok(E.isCompleted(voyageProfile, 'voyage-driftwood'), 'and the completion is recorded')
 }

@@ -71,6 +71,54 @@
         { key: 'split-oak-pass', bonusCash: 700, bonusLives: 5 },
         { key: 'stump-circle', bonusCash: 800, bonusLives: 10 }
       ]
+    },
+
+    /* ---------- VOYAGES — the odyssey-shaped campaigns ----------
+       Five legs, escalating restrictions. The restriction ladder lives in the
+       per-leg `mode` override (Expedition.currentMode prefers it), so the
+       engine, not the data, enforces every leg's rules. Cash and lives carry
+       between legs exactly like an expedition. */
+    {
+      key: 'voyage-driftwood',
+      name: 'Voyage: Driftwood',
+      desc: 'Five beginner legs that tighten as they go. Carry your purse and your lives the whole way.',
+      difficulty: 'easy',
+      mode: 'standard',
+      maps: [
+        { key: 'fernway-hollow', bonusCash: 300, bonusLives: 4 },
+        { key: 'clover-commons', bonusCash: 350, bonusLives: 4, mode: 'primary-only' },
+        { key: 'harebell-dash', bonusCash: 400, bonusLives: 4, mode: 'alternate-waves' },
+        { key: 'mossy-creek', bonusCash: 450, bonusLives: 4, mode: 'reverse' },
+        { key: 'birch-straight', bonusCash: 600, bonusLives: 6, mode: 'half-cash' }
+      ]
+    },
+    {
+      key: 'voyage-triangle',
+      name: 'Voyage: Broken Triangle',
+      desc: 'Five intermediate legs. The middle of the run gets hostile: only magic, then nothing but luck.',
+      difficulty: 'medium',
+      mode: 'standard',
+      maps: [
+        { key: 'twinbrook-fork', bonusCash: 400, bonusLives: 3 },
+        { key: 'knotwood-crossing', bonusCash: 450, bonusLives: 3, mode: 'magic-only' },
+        { key: 'kettle-hollow', bonusCash: 500, bonusLives: 3, mode: 'half-cash' },
+        { key: 'millrace-bend', bonusCash: 500, bonusLives: 3, mode: 'alternate-waves' },
+        { key: 'split-oak-pass', bonusCash: 700, bonusLives: 5, mode: 'purist' }
+      ]
+    },
+    {
+      key: 'voyage-northreach',
+      name: 'Voyage: Northreach',
+      desc: 'Five hard legs for a veteran board. Every restriction the roster has, in one campaign.',
+      difficulty: 'hard',
+      mode: 'standard',
+      maps: [
+        { key: 'whisper-glade', bonusCash: 400, bonusLives: 2 },
+        { key: 'dewdrop-lane', bonusCash: 450, bonusLives: 2, mode: 'military-only' },
+        { key: 'sunlit-glade', bonusCash: 500, bonusLives: 2, mode: 'alternate-waves' },
+        { key: 'bogwood-crossing', bonusCash: 500, bonusLives: 2, mode: 'double-hp-blimps' },
+        { key: 'stump-circle', bonusCash: 800, bonusLives: 4, mode: 'purist' }
+      ]
     }
   ]
 

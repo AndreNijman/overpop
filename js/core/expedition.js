@@ -69,11 +69,15 @@
   }
 
   /**
-   * Get the current mode for the expedition.
+   * Get the current mode for the expedition. A leg may override the campaign
+   * mode — that is how Voyages escalate restrictions leg by leg.
    */
   Expedition.currentMode = function (profile) {
     var def = Expedition.activeDef(profile)
-    return def ? def.mode : null
+    if (!def) return null
+    var idx = Expedition.stageIndex(profile)
+    var leg = idx >= 0 && idx < def.maps.length ? def.maps[idx] : null
+    return (leg && leg.mode) || def.mode || null
   }
 
   /**
