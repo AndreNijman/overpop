@@ -503,6 +503,19 @@
     /* ----- the hero panel ----- */
     heroPanel(app, sim, marks, widgets, over)
 
+    /* ----- save indicator ----- */
+    if (app.state._lastSavedAt) {
+      const age = Date.now() - app.state._lastSavedAt
+      if (age < 2000) {
+        const alpha = age < 1500 ? 1 : 1 - (age - 1500) / 500
+        marks.push(U.text(FIELD_W - 20, FIELD_H - 12, 'Saved', { size: 10, colour: C.moss, align: 'right', alpha: Math.max(0, alpha) }))
+      }
+    }
+    if (app.state._saveFailed) {
+      marks.push(U.text(FIELD_W - 20, FIELD_H - 12, 'Save failed!', { size: 10, colour: C.bad, align: 'right', alpha: 0.9 }))
+      app.state._saveFailed = false
+    }
+
     return model(marks, widgets, over, app)
   }
 

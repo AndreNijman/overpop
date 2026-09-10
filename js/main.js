@@ -35,6 +35,7 @@
     fps: 0,
     frameAcc: 0,
     frameCount: 0,
+    _lastAutosavedRound: -1,
     pauseOpen: false       // pause menu overlay
   }
 
@@ -99,8 +100,13 @@
     // Pause when the tab is hidden: a backgrounded tab throttles rAF, and the
     // accumulator would otherwise bank time and lurch on return.
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) stopLoop()
-      else startLoop()
+      if (document.hidden) {
+        // Save the run as a safeguard before the browser throttles or discards the tab.
+        App.saveRun()
+        stopLoop()
+      } else {
+        startLoop()
+      }
     })
 
     if (OP.Menus && OP.Menus.install) OP.Menus.install(App)
@@ -204,6 +210,13 @@
       OP.Sim.advance(S.sim, dt)
       OP.FX.consume(OP.FX.state, S.sim)
       if (OP.Audio) OP.Audio.consume(S.sim)
+      // Autosave at completed-round checkpoints
+      if (!S.sim.over && S.screen === 'game' && S.sim.round && S.sim.round.done) {
+        if (S._lastAutosavedRound !== S.sim.roundIndex) {
+          S._lastAutosavedRound = S.sim.roundIndex
+          App.saveRun()
+        }
+      }
       if (S.sim.over && S.screen === 'game') onGameOver()
     }
     OP.FX.step(OP.FX.state, dt)
@@ -295,6 +308,7 @@
       powers: S.profile && S.profile.powers ? Object.assign({}, S.profile.powers) : {},
       rules: runRules
     })
+    S._lastAutosavedRound = -1
     // Rush Trial forces autostart regardless of player settings
     if (OP.Race && OP.Race.applyForcedAutostart) OP.Race.applyForcedAutostart(S.sim)
     // Apply expedition carry-over state
@@ -364,7 +378,9 @@
   App.saveRun = function () {
     const S = App.state
     if (!S.sim || S.sim.over || !(OP.Save && OP.Save.saveRun)) return false
-    return OP.Save.saveRun(S.sim, S.mapKey)
+    const ok = OP.Save.saveRun(S.sim, S.mapKey)
+    if (ok) S._lastSavedAt = Date.now()
+    return ok
   }
 
   App.canContinueFreeplay = function () {
@@ -407,6 +423,10 @@
   App.saveAndQuit = function () {
     const S = App.state
     const saved = App.saveRun()
+    if (!saved) {
+      // Save failed — the player is warned via the HUD save indicator.
+      S._saveFailed = true
+    }
     S.sim = null
     S.screen = 'menu'
     S.pauseOpen = false
@@ -799,10 +819,11 @@
     if (!S.sim) return false
     if (OP.Shop && OP.Shop.key && OP.Shop.key(App, key)) return true
 
-    // Escape: close pause menu if open, open it if not, otherwise let
-    // placement cancel fall through (input.js handles that).
+    // Escape priority chain: cancel placement → deselect tower → toggle pause.
     if (key === 'Escape') {
       if (S.pauseOpen) { S.pauseOpen = false; return true }
+      if (S.io && S.io.mode !== 'idle') { OP.Input.cancel(S.io); return true }
+      if (S.io && S.io.selectedId >= 0) { S.io.selectedId = -1; return true }
       if (S.screen === 'game' && !S.sim.over) { App.togglePauseMenu(); return true }
       return false
     }
