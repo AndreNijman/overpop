@@ -34,7 +34,8 @@
     booted: false,
     fps: 0,
     frameAcc: 0,
-    frameCount: 0
+    frameCount: 0,
+    pauseOpen: false       // pause menu overlay
   }
 
   /* ---------- boot ---------- */
@@ -398,7 +399,32 @@
     App.saveRun()
     S.sim = null
     S.screen = 'menu'
+    S.pauseOpen = false
     if (OP.Audio) OP.Audio.stopMusic()
+  }
+
+  /** Save and quit to menu — called from the pause menu Save & Quit button. */
+  App.saveAndQuit = function () {
+    const S = App.state
+    const saved = App.saveRun()
+    S.sim = null
+    S.screen = 'menu'
+    S.pauseOpen = false
+    if (OP.Audio) OP.Audio.stopMusic()
+    return saved
+  }
+
+  /** Toggle the pause menu overlay. Closes any open shop/tree panel. */
+  App.togglePauseMenu = function () {
+    const S = App.state
+    if (!S.sim || S.sim.over || S.screen !== 'game') return
+    S.pauseOpen = !S.pauseOpen
+    if (S.pauseOpen) {
+      S.sim.paused = true
+      // Close open panels so the pause menu has a clean backdrop
+      if (OP.Shop && OP.Shop.closeTree) OP.Shop.closeTree()
+      if (OP.TowerPanel && OP.TowerPanel.close) OP.TowerPanel.close()
+    }
   }
 
   /**
@@ -772,17 +798,31 @@
     const S = App.state
     if (!S.sim) return false
     if (OP.Shop && OP.Shop.key && OP.Shop.key(App, key)) return true
+
+    // Escape: close pause menu if open, open it if not, otherwise let
+    // placement cancel fall through (input.js handles that).
+    if (key === 'Escape') {
+      if (S.pauseOpen) { S.pauseOpen = false; return true }
+      if (S.screen === 'game' && !S.sim.over) { App.togglePauseMenu(); return true }
+      return false
+    }
+
     if (key === ' ') {
       if (S.sim.round && !S.sim.round.done) OP.Sim.togglePause(S.sim)
       else OP.Sim.startRound(S.sim)
+      return true
     } else if (key === '1' || key === '2' || key === '3') {
       OP.Sim.setSpeed(S.sim, parseInt(key, 10))
+      return true
     } else if (key === 'p' || key === 'P') {
       OP.Sim.togglePause(S.sim)
+      return true
     } else if (key === 'Backspace' || key === 'Delete') {
       const tower = selectedTower()
       if (tower && OP.Towers.sell(S.sim, tower) > 0) S.io.selectedId = -1
+      return true
     }
+    return false
   }
 
   /* ---------- test hook ----------

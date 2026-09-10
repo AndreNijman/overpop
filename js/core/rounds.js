@@ -171,7 +171,12 @@
   /** Is the round over — everything released and nothing left alive? */
   Rounds.isComplete = function (sim) {
     if (!Rounds.allReleased(sim)) return false
-    return sim.balloons.length === 0
+    if (sim.balloons.length > 0) return false
+    // Boss events: a round with an active boss is not complete — the boss must
+    // be defeated before the round can end. The boss is a separate entity from
+    // the balloon pool, so the balloons-empty check above is not sufficient.
+    if (OP.Boss && OP.Boss.isActive && OP.Boss.isActive(sim)) return false
+    return true
   }
 
   /**
@@ -209,6 +214,7 @@
     if (!r) return null
     return {
       index: r.index, tick: r.tick, released: r.released, rbe: r.rbe, done: r.done,
+      bossSpawned: !!r.bossSpawned,
       groups: r.groups.map(function (g) {
         return {
           tier: g.tier, remaining: g.remaining, spacing: g.spacing, delay: g.delay,
@@ -225,6 +231,7 @@
     sim.round = {
       index: snap.index, tick: snap.tick, released: snap.released,
       rbe: snap.rbe, done: snap.done,
+      bossSpawned: !!snap.bossSpawned,
       groups: snap.groups.map(function (g) { return Object.assign({}, g) })
     }
   }

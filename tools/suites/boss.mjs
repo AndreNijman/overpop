@@ -155,12 +155,22 @@ export function run (t, OP) {
   t.notOk(cadence.over, 'a non-final boss round keeps the run active')
   t.ok(cadence.boss && cadence.boss.alive, 'and still spawns its scheduled boss')
 
+  // The final round spawns the tier-5 boss but does NOT end the game — the
+  // player must defeat the boss before the run can be won.
   const final = sim()
   final.roundSet = { [final.rules.lastRound]: { groups: [] } }
   OP.Rounds.begin(final, final.rules.lastRound)
   OP.Sim.step(final)
-  t.ok(final.over && final.outcome === 'won', 'the final round ends in victory')
-  t.eq(final.boss, null, 'no extra boss is created behind the victory screen')
+  t.notOk(final.over, 'the final round does not end while the boss is alive')
+  t.ok(final.boss && final.boss.alive, 'the final-tier boss spawns on the last round')
+  t.eq(final.boss.tier, 5, 'it is tier 5')
+  // Kill the boss via the proper damage path (cleans up sim.boss), then step
+  // to let the now-empty round complete and end the game in victory.
+  OP.Boss.damage(final, { damage: final.boss.hp, dmgType: 'normal', sourceId: -1, effects: [] })
+  t.notOk(final.boss, 'boss entity is removed after death')
+  final.balloons.length = 0
+  OP.Sim.step(final)
+  t.ok(final.over && final.outcome === 'won', 'defeating the final boss ends the run in victory')
 
   t.section('boss tier HP scales through the documented curve')
   t.eq(OP.bossHP(OP.bossByKey('elder-worm'), 2, false), 50000 * 4, 'tier 2 multiplies base HP once')

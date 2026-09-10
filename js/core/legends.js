@@ -191,7 +191,11 @@
       miniGoal: miniType ? OP.LegendsData.miniGoal(miniType, l.stage) : null,
       startCash: Math.max(0, l.cash) + (boosts.cash || 0),
       startLives: Math.max(1, l.lives) + (boosts.lives || 0),
-      heroKey: l.heroKey || null
+      heroKey: l.heroKey || null,
+      // The custom round table may be shorter or longer than the mode's default
+      // lastRound. Pass the actual round count so the sim ends the battle at the
+      // right time rather than at the mode's standard endpoint.
+      rules: { lastRound: Legends.battleRoundCount(l, frontier, node, isBoss, isElite, isMini) }
     }
   }
 
@@ -314,6 +318,21 @@
     if (!l || !l.boost) return
     l.boost.battlesLeft--
     if (l.boost.battlesLeft <= 0) l.boost = null
+  }
+
+  /* The number of rounds a battle will run, matching the logic in buildRounds.
+     Used to set sim.rules.lastRound so the sim ends at the right time. */
+  Legends.battleRoundCount = function (l, frontier, node, isBoss, isElite, isMini) {
+    var bos = OP.LegendsData
+    var isMiniType = function (t) {
+      return isMini && node && node.miniType === t
+    }
+    if (isBoss) return Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE)
+    if (isElite) return Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE)
+    if (isMiniType(bos.ENDURANCE)) return Math.max(6, Math.floor(Legends.BASE_ROUNDS * 0.8))
+    if (isMiniType(bos.RACE)) return Math.max(5, Math.floor(Legends.BASE_ROUNDS * 0.6))
+    if (isMiniType(bos.LEAST_CASH)) return 10
+    return Legends.BASE_ROUNDS + Math.floor(frontier * Legends.ROUNDS_PER_STAGE)
   }
 
   /* Generate the escalating round table for a battle. Pure + deterministic.

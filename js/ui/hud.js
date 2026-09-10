@@ -615,6 +615,150 @@
   HUD.canActivate = canActivate
 
   /* ============================================================================
+     PAUSE MENU
+
+     A modal overlay drawn on top of the frozen game board. The sim is paused
+     while this is open; the backdrop is a dark scrim that lets the board show
+     through. Escape closes it; the buttons route through app-level actions.
+     ============================================================================ */
+
+  const PAUSE_PANEL = { x: 390, y: 140, w: 500, h: 440 }
+
+  function buildPauseMenu (app) {
+    const U = ui()
+    const marks = []
+    const widgets = []
+    const sim = simOf(app)
+    if (!U || !sim) return { screen: 'pause', marks: marks, widgets: widgets }
+    const C = colours()
+    const P = PAUSE_PANEL
+
+    // Dark scrim
+    marks.push(U.box(0, 0, FIELD_W, FIELD_H, { fill: '#000000', alpha: 0.55 }))
+    // Panel
+    marks.push(U.box(P.x, P.y, P.w, P.h, { fill: C.panel, stroke: C.gold }))
+    marks.push(U.box(P.x, P.y, P.w, 3, { fill: C.gold }))
+
+    marks.push(U.text(FIELD_W / 2, P.y + 44, 'PAUSED', {
+      size: 28, colour: C.gold, align: 'center', weight: '700'
+    }))
+
+    const rules = sim.rules || {}
+    const mode = OP.MODES && OP.MODES[sim.mode]
+    const diff = OP.DIFFICULTIES && OP.DIFFICULTIES[sim.difficulty]
+    marks.push(U.text(FIELD_W / 2, P.y + 74,
+      (((diff && diff.name) || sim.difficulty || '?') + ' · ' +
+       ((mode && mode.name) || sim.mode || '?')).toUpperCase(),
+      { size: 10, colour: C.moss, align: 'center' }))
+    marks.push(U.text(FIELD_W / 2, P.y + 92,
+      'Round ' + Math.max(0, sim.roundIndex) +
+      (rules.lastRound && !sim.freeplay ? ' / ' + rules.lastRound : ''),
+      { size: 10, colour: C.dim, align: 'center' }))
+
+    marks.push(U.rule(P.x + 40, P.y + 112, P.w - 80, { alpha: 0.5 }))
+
+    // Buttons
+    const bx = P.x + 40
+    const bw = P.w - 80
+    const bh = 48
+    let by = P.y + 128
+
+    widgets.push(U.button('pause.resume', bx, by, bw, bh, {
+      label: 'RESUME', icon: 'play', labelSize: 16, tone: 'primary',
+      align: 'center', action: 'pause-resume'
+    }))
+
+    by += bh + 12
+    widgets.push(U.button('pause.savequit', bx, by, bw, bh, {
+      label: 'SAVE & QUIT', icon: 'save', labelSize: 16,
+      align: 'center', action: 'pause-save-quit'
+    }))
+
+    by += bh + 12
+    widgets.push(U.button('pause.restart', bx, by, bw, bh, {
+      label: 'RESTART', labelSize: 16,
+      align: 'center', action: 'pause-restart'
+    }))
+
+    by += bh + 12
+    // Rules / encounter objectives readout
+    const objectiveLines = []
+    if (sim.isLegends && sim.legendsMini && OP.LegendsData) {
+      const mini = sim.legendsMini
+      const name = (OP.LegendsData.miniName && OP.LegendsData.miniName(mini.type)) || 'Mini-game'
+      objectiveLines.push(name + ': ' + (mini.type === 'least-cash' ? 'Spend ≤ $' + mini.goal
+        : mini.type === 'race' ? 'Clear within ' + mini.goal + 's'
+        : 'Pop ≥ ' + mini.goal + ' balloons'))
+    }
+    if (rules.bossKey) {
+      var bossDef = OP.bossByKey && OP.bossByKey(rules.bossKey)
+      if (bossDef) objectiveLines.push('Boss: ' + bossDef.name)
+    }
+    if (rules.allowPowers === false) objectiveLines.push('Powers disabled')
+    if (rules.noKnowledge) objectiveLines.push('Knowledge tree disabled')
+
+    if (objectiveLines.length) {
+      marks.push(U.rule(P.x + 40, by, P.w - 80, { alpha: 0.3 }))
+      by += 10
+      marks.push(U.text(P.x + 40, by, 'RULES', { size: 9, colour: C.gold }))
+      by += 16
+      for (var i = 0; i < objectiveLines.length; i++) {
+        marks.push(U.text(P.x + 40, by, objectiveLines[i], { size: 10, colour: C.dim }))
+        by += 16
+      }
+    }
+
+    marks.push(U.text(FIELD_W / 2, P.y + P.h - 12, 'ESC to resume', {
+      size: 9, colour: C.faint, align: 'center'
+    }))
+
+    return {
+      screen: 'pause',
+      marks: marks,
+      widgets: widgets,
+      defaultId: 'pause.resume',
+      hoverId: hoverId(app, widgets)
+    }
+  }
+
+  function activatePause (app, w) {
+    if (!w) return false
+    const sim = simOf(app)
+    if (!sim) return false
+
+    if (w.action === 'pause-resume') {
+      click(true)
+      app.state.pauseOpen = false
+      if (sim) sim.paused = false
+      return true
+    }
+    if (w.action === 'pause-save-quit') {
+      click(true)
+      app.saveAndQuit()
+      if (OP.Menus && OP.Menus.go) OP.Menus.go(app, 'title')
+      return true
+    }
+    if (w.action === 'pause-restart') {
+      click(true)
+      app.state.pauseOpen = false
+      if (app.startGame) {
+        var st = app.state
+        var opts = {}
+        var live = st.sim
+        if (live && typeof live.seed === 'string' && live.seed.indexOf('daily-') === 0 && OP.Daily) {
+          var challenge = OP.Daily.generate(live.seed.slice('daily-'.length))
+          if (challenge) { opts.seed = challenge.seed; opts.rules = challenge.rules || {} }
+        } else if (live && typeof live.rules === 'object' && live.rules !== null) {
+          opts.rules = Object.assign({}, live.rules)
+        }
+        app.startGame(st.mapKey, st.difficulty, st.mode, opts)
+      }
+      return true
+    }
+    return false
+  }
+
+  /* ============================================================================
      PAINT
      ============================================================================ */
 
@@ -632,6 +776,7 @@
   HUD.draw = function (ctx, app) {
     const sim = simOf(app)
     if (!sim || sim.over) return 0
+    if (app.state.pauseOpen) return paint(ctx, buildPauseMenu(app))
     return paint(ctx, build(app))
   }
 
@@ -640,6 +785,8 @@
   HUD.chromeAtOwn = function (app, x, y) {
     const sim = simOf(app)
     if (!sim || sim.over) return false
+    // Pause menu covers everything
+    if (app.state.pauseOpen) return inRect(PAUSE_PANEL, x, y)
     if (inRect(L.top, x, y) || inRect(L.bottom, x, y)) return true
     if (OP.POWER_ORDER && OP.POWERS && sim.powers && inRect(L.powers, x, y)) return true
     return !!heroOf(sim) && inRect(L.hero, x, y)
@@ -648,6 +795,7 @@
   HUD.hitAt = function (app, x, y) {
     const U = ui()
     if (!U) return null
+    if (app.state.pauseOpen) return U.hit(buildPauseMenu(app).widgets, x, y)
     return U.hit(build(app).widgets, x, y)
   }
 
@@ -661,6 +809,11 @@
   HUD.activate = function (app, w) {
     const sim = simOf(app)
     if (!w || !sim) return false
+
+    // Pause menu actions
+    if (w.action && w.action.indexOf('pause-') === 0) {
+      return activatePause(app, w)
+    }
 
     if (w.action === 'hud-start') {
       if (sim.over) { click(false); return true }

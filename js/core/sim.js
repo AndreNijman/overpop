@@ -171,6 +171,32 @@
     // 2. round runner
     if (sim.round && !sim.round.done) OP.Rounds.tick(sim)
 
+    // 2b. boss event: spawn boss at the START of appropriate rounds. This runs
+    // once per tick but the round-object spawn flag prevents re-spawning.
+    if (!sim.over && OP.Boss && sim.mode && sim.mode.indexOf('boss-event') === 0) {
+      const bossKey = sim.rules.bossKey
+      if (bossKey && sim.round && !sim.round.bossSpawned) {
+        const bossDef = OP.bossByKey(bossKey)
+        if (bossDef) {
+          const roundNum = sim.roundIndex
+          const firstBoss = bossDef.spawnsOnRound
+          const interval = bossDef.tierInterval
+          const elite = !!sim.rules.bossElite
+
+          if (roundNum >= firstBoss && (roundNum - firstBoss) % interval === 0) {
+            const tier = Math.min(
+              Math.floor((roundNum - firstBoss) / interval) + 1,
+              bossDef.maxTiers
+            )
+            if (!sim.boss || !sim.boss.alive) {
+              OP.Boss.spawn(sim, bossKey, tier, elite)
+            }
+          }
+          sim.round.bossSpawned = true
+        }
+      }
+    }
+
     // 3. status effects — before movement, so a new slow bites this tick
     OP.Effects.tick(sim)
 
@@ -214,31 +240,6 @@
       // Coop: swap active player at round end
       if (OP.Coop && OP.Coop.swap && sim.coop && !sim.over) {
         OP.Coop.swap(sim)
-      }
-
-      // Boss event: spawn boss at appropriate rounds
-      if (!sim.over && OP.Boss && sim.mode && sim.mode.indexOf('boss-event') === 0) {
-        const bossKey = sim.rules.bossKey
-        if (bossKey) {
-          const bossDef = OP.bossByKey(bossKey)
-          if (bossDef) {
-            const roundNum = sim.roundIndex
-            const firstBoss = bossDef.spawnsOnRound
-            const interval = bossDef.tierInterval
-            const elite = !!sim.rules.bossElite
-
-            if (roundNum >= firstBoss && (roundNum - firstBoss) % interval === 0) {
-              const tier = Math.min(
-                Math.floor((roundNum - firstBoss) / interval) + 1,
-                bossDef.maxTiers
-              )
-              // Only spawn if no boss is alive
-              if (!sim.boss || !sim.boss.alive) {
-                OP.Boss.spawn(sim, bossKey, tier, elite)
-              }
-            }
-          }
-        }
       }
 
       if (sim.autostart && !sim.over) OP.Rounds.next(sim)
