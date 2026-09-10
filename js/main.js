@@ -66,7 +66,7 @@
     if (S.profile && OP.Logins && OP.Logins.claim) {
       const key = OP.Daily && OP.Daily.dateKey ? OP.Daily.dateKey(new Date())
         : new Date().toISOString().slice(0, 10)
-      try { OP.Logins.claim(S.profile, key); OP.Save.write(S.profile) } catch (e) { /* a login claim must never block boot */ }
+      try { OP.Logins.claim(S.profile, key); OP.Save.save(S.profile) } catch (e) { /* a login claim must never block boot */ }
     }
 
     resize()
@@ -297,11 +297,19 @@
     S.trialResult = null
     S.legendsResult = null
     S.bossEventResult = null
+    // Generate a stable run ID and determine the run type from the mode.
+    const runId = S.mode + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
+    const runType = (S.mode === 'boss-event') ? 'boss-event'
+      : (S.mode === 'daily') ? 'daily'
+      : (S.mode === 'race') ? 'race'
+      : 'standard'
     S.sim = OP.Sim.create({
       map: map,
       seed: opts.seed === undefined ? String(Date.now()) : opts.seed,
       difficulty: S.difficulty,
       mode: S.mode,
+      runId: runId,
+      runType: runType,
       roundSetKey: (modeDef && modeDef.roundSetKey) || 'standard',
       autostart: !!(S.profile && S.profile.settings && S.profile.settings.autostart),
       knowledge: S.profile && S.profile.knowledge ? S.profile.knowledge.slice() : [],
@@ -568,6 +576,7 @@
     if (cfg.roundSet) sim.roundSet = cfg.roundSet
     // Non-serialised marker so onGameOver can tell a Legends battle apart.
     sim.isLegends = true
+    sim.runType = 'legends'
     // Mini-game goal contract: surface the type + target on the live sim so the
     // HUD shows the constraint and recordWin can judge it. Not serialised.
     if (cfg.miniType) sim.legendsMini = { type: cfg.miniType, goal: cfg.miniGoal }

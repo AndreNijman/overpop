@@ -44,6 +44,8 @@
       seed: config.seed === undefined ? 'overpop' : config.seed,
       difficulty: config.difficulty || 'medium',
       mode: config.mode || 'standard',
+      runId: config.runId || null,
+      runType: config.runType || null,
       map: config.map,
 
       // clocks
@@ -404,6 +406,8 @@
       seed: sim.seed,
       difficulty: sim.difficulty,
       mode: sim.mode,
+      runId: sim.runId,
+      runType: sim.runType,
       mapKey: sim.map.key,
       roundSetKey: sim.roundSetKey,
       tick: sim.tick,
@@ -457,6 +461,8 @@
       seed: snap.seed,
       difficulty: snap.difficulty,
       mode: snap.mode,
+      runId: snap.runId || null,
+      runType: snap.runType || null,
       rules: snap.rules,
       autostart: snap.autostart,
       roundSetKey: snap.roundSetKey,
