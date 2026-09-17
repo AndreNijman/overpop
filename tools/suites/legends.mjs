@@ -779,6 +779,41 @@ export function run (t, OP) {
     t.eq(back.stats.bossTiersKilled, 1, 'the encounter requires exactly one boss defeat')
   }
 
+  t.section('pause restart preserves the Legends encounter')
+  const restartBundle = loadGame().OP
+  const restartApp = restartBundle.App
+  restartApp.state.profile = restartBundle.Save.defaults()
+  restartApp.state.io = restartBundle.Input.create()
+  restartApp.state.view = restartBundle.Camera.create()
+  restartBundle.Legends.start(restartApp.state.profile, 'restart-encounter', { picks: ['sharpen'] })
+  restartBundle.Legends.grantBoost(restartApp.state.profile, 'fury')
+  restartApp.state.profile.legends.nodeIndex = restartBundle.Legends.board(restartApp.state.profile).length - 1
+  const original = restartApp.launchLegendsBattle()
+  const originalCash = original.cash
+  const originalLives = original.lives
+  const campaignBeforeRestart = JSON.parse(JSON.stringify(restartApp.state.profile.legends))
+  original.cash = 0
+  original.lives = 1
+  restartApp.togglePauseMenu()
+  restartBundle.HUD.activate(restartApp, { action: 'pause-restart' })
+  const restarted = restartApp.state.sim
+  t.neq(restarted, original, 'restart creates a fresh simulation')
+  t.ok(restarted.isLegends, 'restart remains a Legends encounter')
+  t.deep(restarted.legendsEncounter, original.legendsEncounter, 'restart retains the node and boss contract')
+  t.deep(restarted.roundSet, original.roundSet, 'restart retains custom rounds')
+  t.eq(restarted.cash, originalCash, 'restart restores encounter starting cash')
+  t.eq(restarted.lives, originalLives, 'restart restores encounter starting lives')
+  t.eq(restarted.tick, 0, 'restart resets the simulation clock')
+  t.ok(restarted.heroId >= 0, 'restart deploys the campaign hero')
+  t.ok(restarted.buffs.some(b => b.id === 'boost-fury'), 'restart reapplies the active boost')
+  t.deep(restartApp.state.profile.legends, campaignBeforeRestart, 'restart does not advance the campaign or consume a boost')
+  t.notOk(restartApp.state.pauseOpen, 'successful restart closes the pause menu')
+  restarted.legendsEncounter.seed = 'stale-campaign'
+  restartApp.togglePauseMenu()
+  restartBundle.HUD.activate(restartApp, { action: 'pause-restart' })
+  t.eq(restartApp.state.sim, restarted, 'a stale encounter cannot restart another campaign')
+  t.ok(restartApp.state.pauseOpen, 'a refused restart keeps the game paused')
+
   t.section('a stale encounter cannot fire a foreign campaign node')
   const stray = loadGame().OP
   const strayApp = stray.App

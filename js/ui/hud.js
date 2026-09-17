@@ -765,6 +765,13 @@
       return true
     }
     if (w.action === 'pause-restart') {
+      if (sim.isLegends) {
+        if (!OP.Legends || !OP.Legends.matchesEncounter(app.state.profile, sim.legendsEncounter) ||
+            !app.launchLegendsBattle) return false
+        const restarted = app.launchLegendsBattle()
+        click(!!restarted)
+        return !!restarted
+      }
       click(true)
       app.state.pauseOpen = false
       if (app.startGame) {
