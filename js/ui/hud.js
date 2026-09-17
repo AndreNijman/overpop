@@ -155,6 +155,9 @@
 
   /** The topmost registered panel whose chrome covers this point, or null. */
   function panelAt (app, x, y) {
+    if (app.state && app.state.pauseOpen) {
+      return { spec: { hitAt: HUD.hitAt, activate: HUD.activate } }
+    }
     for (let i = 0; i < PANELS.length; i++) {
       const p = PANELS[i]
       if (typeof p.spec.chromeAt !== 'function') continue
@@ -504,7 +507,7 @@
     heroPanel(app, sim, marks, widgets, over)
 
     /* ----- save indicator ----- */
-    if (app.state._lastSavedAt) {
+    if (app.state._lastSavedAt && !app.state._saveFailed) {
       const age = Date.now() - app.state._lastSavedAt
       if (age < 2000) {
         const alpha = age < 1500 ? 1 : 1 - (age - 1500) / 500
@@ -512,8 +515,7 @@
       }
     }
     if (app.state._saveFailed) {
-      marks.push(U.text(FIELD_W - 20, FIELD_H - 12, 'Save failed!', { size: 10, colour: C.bad, align: 'right', alpha: 0.9 }))
-      app.state._saveFailed = false
+      marks.push(U.text(FIELD_W - 20, FIELD_H - 12, 'Save failed — open pause to retry', { size: 10, colour: C.bad, align: 'right' }))
     }
 
     return model(marks, widgets, over, app)
@@ -635,7 +637,7 @@
      through. Escape closes it; the buttons route through app-level actions.
      ============================================================================ */
 
-  const PAUSE_PANEL = { x: 390, y: 140, w: 500, h: 440 }
+  const PAUSE_PANEL = { x: 390, y: 100, w: 500, h: 530 }
 
   function buildPauseMenu (app) {
     const U = ui()
@@ -664,7 +666,7 @@
        ((mode && mode.name) || sim.mode || '?')).toUpperCase(),
       { size: 10, colour: C.moss, align: 'center' }))
     marks.push(U.text(FIELD_W / 2, P.y + 92,
-      'Round ' + Math.max(0, sim.roundIndex) +
+      ((sim.map && sim.map.name) || app.state.mapKey || '') + ' · Round ' + Math.max(0, sim.roundIndex) +
       (rules.lastRound && !sim.freeplay ? ' / ' + rules.lastRound : ''),
       { size: 10, colour: C.dim, align: 'center' }))
 
@@ -721,6 +723,14 @@
       }
     }
 
+    if (app.state._saveFailed) {
+      marks.push(U.text(FIELD_W / 2, P.y + P.h - 56, 'Save failed. Your game is still open.', {
+        size: 12, colour: C.bad, align: 'center'
+      }))
+      marks.push(U.text(FIELD_W / 2, P.y + P.h - 36, 'Free browser storage, then retry Save & Quit.', {
+        size: 10, colour: C.ink, align: 'center'
+      }))
+    }
     marks.push(U.text(FIELD_W / 2, P.y + P.h - 12, 'ESC to resume', {
       size: 9, colour: C.faint, align: 'center'
     }))
@@ -747,8 +757,7 @@
     }
     if (w.action === 'pause-save-quit') {
       click(true)
-      app.saveAndQuit()
-      if (OP.Menus && OP.Menus.go) OP.Menus.go(app, 'title')
+      if (app.saveAndQuit() && OP.Menus && OP.Menus.go) OP.Menus.go(app, 'title')
       return true
     }
     if (w.action === 'pause-restart') {
@@ -784,6 +793,7 @@
   }
 
   HUD.build = build
+  HUD.buildPauseMenu = buildPauseMenu
 
   /** Draw the HUD. Mutates nothing; safe to call as often as you like. */
   HUD.draw = function (ctx, app) {
@@ -799,7 +809,7 @@
     const sim = simOf(app)
     if (!sim || sim.over) return false
     // Pause menu covers everything
-    if (app.state.pauseOpen) return inRect(PAUSE_PANEL, x, y)
+    if (app.state.pauseOpen) return true
     if (inRect(L.top, x, y) || inRect(L.bottom, x, y)) return true
     if (OP.POWER_ORDER && OP.POWERS && sim.powers && inRect(L.powers, x, y)) return true
     return !!heroOf(sim) && inRect(L.hero, x, y)
@@ -842,7 +852,8 @@
     }
 
     if (w.action === 'hud-pause') {
-      OP.Sim.togglePause(sim)
+      if (app.togglePauseMenu) app.togglePauseMenu()
+      else OP.Sim.togglePause(sim)
       click(true)
       return true
     }

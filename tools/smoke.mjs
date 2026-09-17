@@ -283,7 +283,7 @@ async function main () {
       check(registries.maps > 0, `the map roster loaded (${registries.maps} maps)`)
       check(registries.rounds === 100, `the round table has 100 rounds (${registries.rounds})`)
       check(registries.difficulties === 4, `four difficulties (${registries.difficulties})`)
-      check(registries.modes === 18, `eighteen modes (${registries.modes})`)
+      check(registries.modes === 21, `twenty-one modes (${registries.modes})`)
       check(registries.hasRenderer, 'the renderer is present')
       check(registries.hasSave, 'the save system is present')
     } else {

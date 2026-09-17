@@ -11,6 +11,7 @@ export const name = 'save'
 export const needs = ['js/save.js']
 
 import { makeSim, straightTrack } from './_fixture.mjs'
+import { loadGame } from '../loadgame.mjs'
 
 /* ---------- local helpers ---------- */
 

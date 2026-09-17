@@ -35,7 +35,10 @@
     fps: 0,
     frameAcc: 0,
     frameCount: 0,
-    _lastAutosavedRound: -1,
+    _lastAutosavedRound: 0,
+    _nextAutosaveAt: 0,
+    _lastSavedAt: 0,
+    _saveFailed: false,
     pauseOpen: false       // pause menu overlay
   }
 
@@ -108,6 +111,8 @@
         startLoop()
       }
     })
+
+    window.addEventListener('pagehide', () => { App.saveRun() })
 
     if (OP.Menus && OP.Menus.install) OP.Menus.install(App)
     if (OP.HUD && OP.HUD.install) OP.HUD.install(App)
@@ -206,25 +211,29 @@
       S.frameCount = 0
     }
 
-    if (S.sim) {
-      OP.Sim.advance(S.sim, dt)
-      OP.FX.consume(OP.FX.state, S.sim)
-      if (OP.Audio) OP.Audio.consume(S.sim)
-      // Autosave at completed-round checkpoints
-      if (!S.sim.over && S.screen === 'game' && S.sim.round && S.sim.round.done) {
-        if (S._lastAutosavedRound !== S.sim.roundIndex) {
-          S._lastAutosavedRound = S.sim.roundIndex
-          App.saveRun()
-        }
-      }
-      if (S.sim.over && S.screen === 'game') onGameOver()
-    }
+    App.updateGame(dt)
     OP.FX.step(OP.FX.state, dt)
     OP.Camera.stepShake(S.view, dt, S.reducedMotion)
     OP.Input.updateHover(S.io)
 
     draw()
     clearBootOverlay()
+  }
+
+  App.updateGame = function (dt) {
+    const S = App.state
+    if (S.sim) {
+      if (!S.pauseOpen) OP.Sim.advance(S.sim, dt)
+      OP.FX.consume(OP.FX.state, S.sim)
+      if (OP.Audio) OP.Audio.consume(S.sim)
+
+      if (!S.sim.over && S.screen === 'game' &&
+          S.sim.stats.roundsCleared > S._lastAutosavedRound && Date.now() >= S._nextAutosaveAt) {
+        S._nextAutosaveAt = Date.now() + 5000
+        App.saveRun()
+      }
+      if (S.sim.over && S.screen === 'game') onGameOver()
+    }
   }
 
   function draw () {
@@ -316,7 +325,8 @@
       powers: S.profile && S.profile.powers ? Object.assign({}, S.profile.powers) : {},
       rules: runRules
     })
-    S._lastAutosavedRound = -1
+    resetSaveStatus(S.sim)
+    S.pauseOpen = false
     // Rush Trial forces autostart regardless of player settings
     if (OP.Race && OP.Race.applyForcedAutostart) OP.Race.applyForcedAutostart(S.sim)
     // Apply expedition carry-over state
@@ -355,6 +365,11 @@
       S.difficulty = S.sim.difficulty
       S.mode = S.sim.mode
       S.screen = 'game'
+      resetSaveStatus(S.sim)
+      S.sim.paused = true
+      S.pauseOpen = true
+      OP.Input.cancel(S.io)
+      S.io.selectedId = -1
       OP.FX.reset()
       OP.Render.invalidateTerrain(S.view)
 
@@ -386,9 +401,22 @@
   App.saveRun = function () {
     const S = App.state
     if (!S.sim || S.sim.over || !(OP.Save && OP.Save.saveRun)) return false
-    const ok = OP.Save.saveRun(S.sim, S.mapKey)
-    if (ok) S._lastSavedAt = Date.now()
+    let ok = false
+    try { ok = OP.Save.saveRun(S.sim, S.mapKey) } catch (e) { ok = false }
+    S._saveFailed = !ok
+    if (ok) {
+      S._lastSavedAt = Date.now()
+      S._lastAutosavedRound = S.sim.stats.roundsCleared
+    }
     return ok
+  }
+
+  function resetSaveStatus (sim) {
+    const S = App.state
+    S._lastAutosavedRound = sim.stats.roundsCleared
+    S._nextAutosaveAt = 0
+    S._lastSavedAt = 0
+    S._saveFailed = false
   }
 
   App.canContinueFreeplay = function () {
@@ -420,11 +448,12 @@
 
   App.quitToMenu = function () {
     const S = App.state
-    App.saveRun()
+    if (S.sim && !S.sim.over) return App.saveAndQuit()
     S.sim = null
     S.screen = 'menu'
     S.pauseOpen = false
     if (OP.Audio) OP.Audio.stopMusic()
+    return true
   }
 
   /** Save and quit to menu — called from the pause menu Save & Quit button. */
@@ -432,8 +461,10 @@
     const S = App.state
     const saved = App.saveRun()
     if (!saved) {
-      // Save failed — the player is warned via the HUD save indicator.
       S._saveFailed = true
+      S.pauseOpen = true
+      if (S.sim) S.sim.paused = true
+      return false
     }
     S.sim = null
     S.screen = 'menu'
@@ -449,10 +480,11 @@
     S.pauseOpen = !S.pauseOpen
     if (S.pauseOpen) {
       S.sim.paused = true
+      if (S.io) { OP.Input.cancel(S.io); S.io.selectedId = -1 }
       // Close open panels so the pause menu has a clean backdrop
       if (OP.Shop && OP.Shop.closeTree) OP.Shop.closeTree()
       if (OP.TowerPanel && OP.TowerPanel.close) OP.TowerPanel.close()
-    }
+    } else S.sim.paused = false
   }
 
   /**
@@ -769,7 +801,7 @@
 
   function onPlace (key, x, y, isHero, draft) {
     const S = App.state
-    if (!S.sim) return
+    if (!S.sim || S.pauseOpen) return
     const draftSlot = draft && !isHero ? draft : null
     let placed = null
     if (draftSlot && OP.Drafts && OP.Drafts.place) {
@@ -796,7 +828,7 @@
 
   function onAim (towerId, x, y) {
     const S = App.state
-    if (!S.sim) return
+    if (!S.sim || S.pauseOpen) return
     const tower = S.sim.towerById.get(towerId)
     if (!tower) return
     tower.data.aimX = x
@@ -806,7 +838,7 @@
 
   function onContext (towerId, x, y) {
     const S = App.state
-    if (!S.sim || towerId < 0) return
+    if (!S.sim || S.pauseOpen || towerId < 0) return
     const tower = S.sim.towerById.get(towerId)
     if (tower) OP.Towers.cycleTargetMode(S.sim, tower, 1)
   }
@@ -830,12 +862,14 @@
 
     // Escape priority chain: cancel placement → deselect tower → toggle pause.
     if (key === 'Escape') {
-      if (S.pauseOpen) { S.pauseOpen = false; return true }
+      if (S.pauseOpen) { App.togglePauseMenu(); return true }
       if (S.io && S.io.mode !== 'idle') { OP.Input.cancel(S.io); return true }
       if (S.io && S.io.selectedId >= 0) { S.io.selectedId = -1; return true }
       if (S.screen === 'game' && !S.sim.over) { App.togglePauseMenu(); return true }
       return false
     }
+
+    if (S.pauseOpen) return true
 
     if (key === ' ') {
       if (S.sim.round && !S.sim.round.done) OP.Sim.togglePause(S.sim)
