@@ -724,6 +724,49 @@ export function run (t, OP) {
   resumedApp.updateGame(0)
   t.eq(resumedApp.state.profile.legends.nodeIndex, nodeBefore + 1, 'subsequent frames do not settle again')
 
+  t.section('stage bosses spawn, survive reload, and gate victory')
+  const bossBundle = loadGame().OP
+  const bossApp = bossBundle.App
+  bossApp.state.profile = bossBundle.Save.defaults()
+  bossApp.state.io = bossBundle.Input.create()
+  bossApp.state.view = bossBundle.Camera.create()
+  bossBundle.Legends.start(bossApp.state.profile, 'stage-boss')
+  const campaign = bossApp.state.profile.legends
+  for (let stage = 0; stage < bossBundle.LegendsData.stages().length; stage++) {
+    campaign.stage = stage
+    campaign.nodeIndex = bossBundle.Legends.board(bossApp.state.profile).length - 1
+    const bossConfig = bossBundle.Legends.battleConfig(bossApp.state.profile)
+    t.ok(bossConfig.boss && bossBundle.bossByKey(bossConfig.boss.key), 'stage ' + stage + ' defines a real boss')
+    const bossSim = bossApp.launchLegendsBattle()
+    bossSim.lives = 1000000
+    bossBundle.Sim.startRound(bossSim, bossSim.rules.lastRound - 1)
+    bossBundle.Sim.step(bossSim)
+    t.notOk(bossBundle.Boss.isActive(bossSim), 'boss waits for the final round')
+    bossBundle.Sim.startRound(bossSim, bossSim.rules.lastRound)
+    bossSim.round.groups = []
+    bossSim.balloons = []
+    bossBundle.Sim.step(bossSim)
+    t.ok(bossBundle.Boss.isActive(bossSim), 'final round spawns a boss even with no regular balloons')
+    t.notOk(bossSim.over, 'an empty final wave cannot bypass the living boss')
+    if (!bossSim.boss) continue
+    const bossId = bossSim.boss.id
+    bossBundle.Sim.step(bossSim)
+    t.eq(bossSim.boss.id, bossId, 'the boss spawns only once')
+    t.ok(bossApp.saveRun(), 'active boss encounter saves')
+    const bossSave = bossBundle.Save.loadRun()
+    const reloaded = loadGame().OP
+    const back = reloaded.Sim.deserialize(bossSave.snapshot, reloaded.Maps.build(bossSave.mapKey))
+    t.deep(reloaded.Boss.serialize(back), bossBundle.Boss.serialize(bossSim), 'boss state survives a cold reload')
+    bossBundle.Sim.run(bossSim, 30)
+    reloaded.Sim.run(back, 30)
+    t.eq(reloaded.Sim.checksum(back), bossBundle.Sim.checksum(bossSim), 'boss gameplay stays deterministic after reload')
+    reloaded.Boss.damage(back, { damage: back.boss.hp * 100, dmgType: reloaded.DMG.NORMAL, sourceId: -1 })
+    back.balloons = []
+    reloaded.Sim.step(back)
+    t.eq(back.outcome, 'won', 'defeating the boss and clearing its minions completes the encounter')
+    t.eq(back.stats.bossTiersKilled, 1, 'the encounter requires exactly one boss defeat')
+  }
+
   t.section('a stale encounter cannot fire a foreign campaign node')
   const stray = loadGame().OP
   const strayApp = stray.App

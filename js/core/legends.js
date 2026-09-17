@@ -190,6 +190,7 @@
       mapKey: map.key,
       difficulty: def.difficulty || 'medium',
       mode: 'standard',
+      boss: isBoss ? { key: def.boss, tier: 1, elite: false } : null,
       roundSet: Legends.buildRounds(l, frontier, node, isBoss, isElite, isMini),
       // Mini-game goal contract: the type + target handed to the battle, and a
       // hint the UI uses to enforce the special end conditions / read-outs.

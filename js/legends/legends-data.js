@@ -25,10 +25,10 @@
     key: 'legends',
     name: 'Legends',
     stages: [
-      { boardLength: 6, tier: 'beginner', difficulty: 'easy',   boss: 'elite'   },
-      { boardLength: 7, tier: 'beginner', difficulty: 'medium', boss: 'elite'   },
-      { boardLength: 8, tier: 'intermediate', difficulty: 'hard',   boss: 'elite' },
-      { boardLength: 9, tier: 'intermediate', difficulty: 'hard',   boss: 'elite' }
+      { boardLength: 6, tier: 'beginner', difficulty: 'easy',   boss: 'elder-worm'   },
+      { boardLength: 7, tier: 'beginner', difficulty: 'medium', boss: 'storm-drake'   },
+      { boardLength: 8, tier: 'intermediate', difficulty: 'hard',   boss: 'void-maw' },
+      { boardLength: 9, tier: 'intermediate', difficulty: 'hard',   boss: 'ridge-colossus' }
     ]
   }
 

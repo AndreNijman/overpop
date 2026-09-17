@@ -607,7 +607,8 @@
     sim.legendsEncounter = {
       seed: S.profile.legends.seed,
       stage: S.profile.legends.stage,
-      nodeIndex: S.profile.legends.nodeIndex
+      nodeIndex: S.profile.legends.nodeIndex,
+      boss: cfg.boss
     }
     // Resource/artifact carry-over.
     sim.cash = cfg.startCash != null ? cfg.startCash : sim.cash

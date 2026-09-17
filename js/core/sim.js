@@ -199,6 +199,14 @@
       }
     }
 
+    if (sim.isLegends && sim.legendsEncounter && sim.legendsEncounter.boss &&
+        sim.round && !sim.round.bossSpawned && sim.roundIndex === sim.rules.lastRound) {
+      const encounterBoss = sim.legendsEncounter.boss
+      if (OP.Boss.spawn(sim, encounterBoss.key, encounterBoss.tier, encounterBoss.elite)) {
+        sim.round.bossSpawned = true
+      }
+    }
+
     // 3. status effects — before movement, so a new slow bites this tick
     OP.Effects.tick(sim)
 
