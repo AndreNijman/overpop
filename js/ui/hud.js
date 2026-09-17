@@ -709,6 +709,10 @@
       var bossDef = OP.bossByKey && OP.bossByKey(rules.bossKey)
       if (bossDef) objectiveLines.push('Boss: ' + bossDef.name)
     }
+    if (sim.isLegends && sim.legendsEncounter && sim.legendsEncounter.boss) {
+      var encBoss = OP.bossByKey && OP.bossByKey(sim.legendsEncounter.boss.key)
+      if (encBoss) objectiveLines.push('Boss: ' + encBoss.name + ' — defeat it to clear the stage')
+    }
     if (rules.allowPowers === false) objectiveLines.push('Powers disabled')
     if (rules.noKnowledge) objectiveLines.push('Knowledge tree disabled')
 

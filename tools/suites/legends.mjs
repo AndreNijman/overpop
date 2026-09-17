@@ -737,7 +737,16 @@ export function run (t, OP) {
     campaign.nodeIndex = bossBundle.Legends.board(bossApp.state.profile).length - 1
     const bossConfig = bossBundle.Legends.battleConfig(bossApp.state.profile)
     t.ok(bossConfig.boss && bossBundle.bossByKey(bossConfig.boss.key), 'stage ' + stage + ' defines a real boss')
+    const bossName = bossBundle.bossByKey(bossConfig.boss.key).name
+    const preview = bossBundle.LegendsScreen.build(bossApp)
+    const fightButton = preview.widgets.find(w => w.id === 'legends.fight')
+    t.eq(fightButton.sub, bossName + ' · Round ' + bossConfig.rules.lastRound,
+      'boss preview identifies the opponent and arrival round')
+    t.ok(JSON.stringify(preview.marks).includes('Defeat ' + bossName + ' and clear all balloons.'),
+      'boss preview explains both victory requirements')
     const bossSim = bossApp.launchLegendsBattle()
+    t.ok(JSON.stringify(bossBundle.HUD.buildPauseMenu(bossApp).marks).includes('Boss: ' + bossName),
+      'pause menu shows the encounter boss before it spawns')
     bossSim.lives = 1000000
     bossBundle.Sim.startRound(bossSim, bossSim.rules.lastRound - 1)
     bossBundle.Sim.step(bossSim)
@@ -757,6 +766,9 @@ export function run (t, OP) {
     const reloaded = loadGame().OP
     const back = reloaded.Sim.deserialize(bossSave.snapshot, reloaded.Maps.build(bossSave.mapKey))
     t.deep(reloaded.Boss.serialize(back), bossBundle.Boss.serialize(bossSim), 'boss state survives a cold reload')
+    reloaded.App.state.sim = back
+    t.ok(JSON.stringify(reloaded.HUD.buildPauseMenu(reloaded.App).marks).includes('Boss: ' + bossName),
+      'pause menu retains the saved boss objective after reload')
     bossBundle.Sim.run(bossSim, 30)
     reloaded.Sim.run(back, 30)
     t.eq(reloaded.Sim.checksum(back), bossBundle.Sim.checksum(bossSim), 'boss gameplay stays deterministic after reload')

@@ -204,6 +204,17 @@
         : isMini
         ? miniActionSub(currentNode, OP.LegendsData)
         : 'win a battle to advance'
+      if (isBoss) {
+        var encounter = OP.Legends.battleConfig(profile)
+        var boss = encounter && encounter.boss && OP.bossByKey(encounter.boss.key)
+        if (boss) {
+          fightSub = boss.name + ' · Round ' + encounter.rules.lastRound
+          marks.push(U.text(PAD + 340, 452, 'Defeat ' + boss.name + ' and clear all balloons.',
+            { size: 12, colour: C.ink }))
+          marks.push(U.text(PAD + 340, 476, 'The boss arrives on round ' + encounter.rules.lastRound + '.',
+            { size: 11, colour: C.dim }))
+        }
+      }
       widgets.push(U.button('legends.fight', PAD, 430, 300, 58, {
         label: fightLabel, tone: 'primary', action: 'legends-fight', arg: 'next',
         sub: fightSub
