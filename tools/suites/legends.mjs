@@ -18,6 +18,7 @@ export const needs = [
 ]
 
 import { makeSim } from './_fixture.mjs'
+import { loadGame } from '../loadgame.mjs'
 
 export function run (t, OP) {
   const L = OP.Legends
@@ -667,4 +668,75 @@ export function run (t, OP) {
   t.ok(rwResult.boost, 'BOOST win result includes boost key')
   t.ok(pw.legends.boost, 'boost granted after winning BOOST node')
   t.eq(pw.legends.boost.key, rwResult.boost, 'granted boost matches result')
+
+  t.section('the shell launches and restores the actual Legends encounter')
+  const bundleA = loadGame().OP
+  const app = bundleA.App
+  app.state.profile = bundleA.Save.defaults()
+  app.state.io = bundleA.Input.create()
+  app.state.view = bundleA.Camera.create()
+  bundleA.Legends.start(app.state.profile, 'encounter-resume', { picks: ['sharpen'] })
+  bundleA.Legends.grantBoost(app.state.profile, 'fury')
+  app.state.profile.legends.boost.battlesLeft = 1
+  const config = bundleA.Legends.battleConfig(app.state.profile)
+  const live = app.launchLegendsBattle()
+  t.ok(live, 'the shell launches a campaign battle')
+  t.eq(live.rules.firstRound, 1, 'custom encounters begin at round one')
+  t.eq(live.rules.lastRound, config.rules.lastRound, 'the shell uses the encounter endpoint')
+  t.ok(live.buffs.some(b => b.id === 'boost-fury'), 'the final boost charge applies to this battle')
+  live.lives = 1000000
+  bundleA.Sim.startRound(live)
+  bundleA.Sim.run(live, 120)
+  const expectedRules = JSON.parse(JSON.stringify(live.rules))
+  const expectedBuffs = JSON.parse(JSON.stringify(live.buffs.filter(b => b.id.startsWith('legends-') || b.id.startsWith('boost-'))))
+  t.ok(app.saveRun(), 'the in-progress encounter can be saved')
+  t.ok(bundleA.Save.save(app.state.profile), 'the campaign profile can be saved')
+  const savedRun = bundleA.Save.loadRun()
+  const savedProfile = bundleA.Save.load()
+  const cold = loadGame().OP
+  const resumedApp = cold.App
+  resumedApp.state.profile = savedProfile
+  resumedApp.state.io = cold.Input.create()
+  resumedApp.state.view = cold.Camera.create()
+  cold.Save.loadRun = () => JSON.parse(JSON.stringify(savedRun))
+  const resumed = resumedApp.resumeGame()
+  t.ok(resumed, 'a fresh bundle resumes without a runtime round registry')
+  t.ok(resumed.isLegends, 'the restored encounter keeps its campaign marker')
+  t.deep(resumed.roundSet, live.roundSet, 'custom rounds survive a cold reload')
+  t.deep(resumed.rules, expectedRules, 'rule bonuses are restored without being applied twice')
+  t.deep(resumed.buffs.filter(b => b.id.startsWith('legends-') || b.id.startsWith('boost-')), expectedBuffs,
+    'artifact and boost modifiers survive a cold reload')
+  t.eq(resumed.runId, live.runId, 'the encounter retains its run identity')
+  t.ok(resumed.paused && resumedApp.state.pauseOpen, 'resume waits in the pause menu')
+  resumedApp.togglePauseMenu()
+  bundleA.Sim.run(live, 300)
+  cold.Sim.run(resumed, 300)
+  t.eq(cold.Sim.checksum(resumed), bundleA.Sim.checksum(live), 'resumed gameplay matches uninterrupted gameplay')
+  const encounterLastRound = config.rules.lastRound
+  cold.Sim.startRound(resumed, encounterLastRound)
+  for (let i = 0; i < 15000 && !resumed.over; i++) cold.Sim.step(resumed)
+  t.ok(resumed.over && resumed.outcome === 'won', 'the custom final round ends in victory')
+  t.eq(resumed.roundIndex, encounterLastRound, 'victory occurs at the encounter endpoint')
+  const nodeBefore = resumedApp.state.profile.legends.nodeIndex
+  resumedApp.updateGame(0)
+  t.eq(resumedApp.state.profile.legends.nodeIndex, nodeBefore + 1, 'a resumed win advances the campaign once')
+  t.eq(resumedApp.state.profile.legends.boost, null, 'completing the encounter consumes the final boost charge')
+  resumedApp.updateGame(0)
+  t.eq(resumedApp.state.profile.legends.nodeIndex, nodeBefore + 1, 'subsequent frames do not settle again')
+
+  t.section('a stale encounter cannot fire a foreign campaign node')
+  const stray = loadGame().OP
+  const strayApp = stray.App
+  strayApp.state.profile = bundleA.Save.load()
+  strayApp.state.io = stray.Input.create()
+  strayApp.state.view = stray.Camera.create()
+  stray.Save.loadRun = () => JSON.parse(JSON.stringify(savedRun))
+  const straySim = strayApp.resumeGame()
+  straySim.legendsEncounter.seed = 'other'
+  straySim.outcome = 'won'
+  straySim.over = true
+  const strayProfileBefore = JSON.parse(JSON.stringify(strayApp.state.profile.legends))
+  strayApp.updateGame(0)
+  t.deep(strayApp.state.profile.legends, strayProfileBefore,
+    'a mismatched encounter cannot advance the campaign or consume its boost')
 }

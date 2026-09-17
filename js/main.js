@@ -595,23 +595,20 @@
   App.launchLegendsBattle = function () {
     const S = App.state
     if (!S.profile || !OP.Legends || !OP.Legends.isActive(S.profile)) return null
-    // Tick the active boost before launching (decrement at battle START).
-    if (OP.Legends.tickBoost) OP.Legends.tickBoost(S.profile)
     var cfg = OP.Legends.battleConfig(S.profile)
     if (!cfg) return null
-    var sim = App.startGame(cfg.mapKey, cfg.difficulty, cfg.mode, {})
+    var sim = App.startGame(cfg.mapKey, cfg.difficulty, cfg.mode, { rules: cfg.rules })
     if (!sim) return null
-    // Escalating rounds: an explicit table beats any round-set key (rounds.js),
-    // so a fought-through battle gets a denser, faster-ramping set than standard.
-    // roundSetKey is left as-startGame set it, so a resumed Legends battle loads
-    // cleanly (it just falls back to the standard set if the player re-enters it).
-    if (cfg.roundSet) sim.roundSet = cfg.roundSet
-    // Non-serialised marker so onGameOver can tell a Legends battle apart.
+    sim.roundSet = cfg.roundSet
+    sim.roundSetKey = 'legends'
     sim.isLegends = true
     sim.runType = 'legends'
-    // Mini-game goal contract: surface the type + target on the live sim so the
-    // HUD shows the constraint and recordWin can judge it. Not serialised.
     if (cfg.miniType) sim.legendsMini = { type: cfg.miniType, goal: cfg.miniGoal }
+    sim.legendsEncounter = {
+      seed: S.profile.legends.seed,
+      stage: S.profile.legends.stage,
+      nodeIndex: S.profile.legends.nodeIndex
+    }
     // Resource/artifact carry-over.
     sim.cash = cfg.startCash != null ? cfg.startCash : sim.cash
     if (cfg.startLives != null) sim.lives = cfg.startLives
@@ -760,7 +757,9 @@
     // non-serialised marker set on the live sim so a stray expedition/trial
     // never cross-fires into it, and the advanced profile state is persisted by
     // the normal game-over save below. Losing ends the run.
-    if (OP.Legends && OP.Legends.isActive(S.profile) && S.sim && S.sim.isLegends) {
+    if (OP.Legends && OP.Legends.isActive(S.profile) && S.sim && S.sim.isLegends &&
+        OP.Legends.matchesEncounter(S.profile, S.sim.legendsEncounter)) {
+      if (OP.Legends.tickBoost) OP.Legends.tickBoost(S.profile)
       if (S.sim.outcome === 'won') {
         var legendsWin = OP.Legends.recordWin(S.profile, S.sim) || {}
         S.legendsResult = Object.assign({ won: true }, legendsWin)

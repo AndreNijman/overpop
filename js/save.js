@@ -478,6 +478,11 @@
         if (typeof a === 'string' && safeKey(a)) artifacts.push(a)
       }
     }
+    let boost = null
+    if (isPlainObject(raw.boost) && typeof raw.boost.key === 'string' && safeKey(raw.boost.key) &&
+        Number.isInteger(raw.boost.battlesLeft) && raw.boost.battlesLeft > 0) {
+      boost = { key: raw.boost.key, battlesLeft: raw.boost.battlesLeft }
+    }
     return {
       seed: raw.seed,
       stage: counter(raw.stage),
@@ -485,6 +490,8 @@
       cash: finite(raw.cash) ? raw.cash : 0,
       lives: finite(raw.lives) ? raw.lives : 40,
       artifacts: artifacts,
+      heroKey: typeof raw.heroKey === 'string' && safeKey(raw.heroKey) ? raw.heroKey : null,
+      boost: boost,
       wonStages: counter(raw.wonStages)
     }
   }

@@ -408,6 +408,14 @@
       mode: sim.mode,
       runId: sim.runId,
       runType: sim.runType,
+      legends: sim.isLegends ? JSON.parse(JSON.stringify({
+        encounter: sim.legendsEncounter,
+        mini: sim.legendsMini || null,
+        roundSet: sim.roundSet,
+        buffs: sim.buffs.filter(function (buff) {
+          return buff.id.indexOf('legends-') === 0 || buff.id.indexOf('boost-') === 0
+        })
+      })) : null,
       mapKey: sim.map.key,
       roundSetKey: sim.roundSetKey,
       tick: sim.tick,
@@ -495,6 +503,12 @@
       : null
     sim.over = snap.over
     sim.outcome = snap.outcome
+    if (snap.legends) {
+      sim.isLegends = true
+      sim.legendsEncounter = snap.legends.encounter || null
+      sim.legendsMini = snap.legends.mini || null
+      if (snap.legends.roundSet) sim.roundSet = snap.legends.roundSet
+    }
     sim.heroId = snap.heroId === undefined ? -1 : snap.heroId
     sim.stats = Object.assign(sim.stats, snap.stats)
 
@@ -509,6 +523,10 @@
     // Towers first: buff rebuilding and stat resolution depend on them, and
     // balloons must be able to look up a tower id for pop attribution.
     OP.Towers.deserialize(sim, snap.towers || [])
+    if (snap.legends && Array.isArray(snap.legends.buffs)) {
+      for (const buff of snap.legends.buffs) OP.Buffs.register(sim, buff)
+      OP.Towers.restatAll(sim)
+    }
     OP.Balloons.deserialize(sim, snap.balloons || [])
     OP.Projectiles.deserialize(sim, snap.projectiles || [])
     if (OP.Boss) OP.Boss.deserialize(sim, snap.boss || null)

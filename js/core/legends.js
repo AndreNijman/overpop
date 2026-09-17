@@ -129,6 +129,12 @@
     return board[l.nodeIndex] || null
   }
 
+  Legends.matchesEncounter = function (profile, encounter) {
+    var l = Legends.get(profile)
+    return !!(l && encounter && l.seed === encounter.seed &&
+      l.stage === encounter.stage && l.nodeIndex === encounter.nodeIndex)
+  }
+
   /* The total frontier (0..1) across the whole campaign used for scaling. */
   Legends.frontier = function (profile) {
     var l = Legends.get(profile)
@@ -195,7 +201,7 @@
       // The custom round table may be shorter or longer than the mode's default
       // lastRound. Pass the actual round count so the sim ends the battle at the
       // right time rather than at the mode's standard endpoint.
-      rules: { lastRound: Legends.battleRoundCount(l, frontier, node, isBoss, isElite, isMini) }
+      rules: { firstRound: 1, lastRound: Legends.battleRoundCount(l, frontier, node, isBoss, isElite, isMini) }
     }
   }
 
