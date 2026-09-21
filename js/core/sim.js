@@ -20,6 +20,7 @@
    *   seed       {*}
    *   difficulty {string} key into OP.DIFFICULTIES
    *   mode       {string} key into OP.MODES
+   *   runContext {object|null} plain activity identifiers, independent of mode
    *   roundSetKey{string} key into OP.ROUND_SETS; recorded in saves
    *   roundSet   {object} explicit round table, overrides roundSetKey
    *   rules      {object} explicit overrides, applied last
@@ -46,6 +47,7 @@
       mode: config.mode || 'standard',
       runId: config.runId || null,
       runType: config.runType || null,
+      runContext: config.runContext ? Object.assign({}, config.runContext) : null,
       map: config.map,
 
       // clocks
@@ -416,6 +418,7 @@
       mode: sim.mode,
       runId: sim.runId,
       runType: sim.runType,
+      runContext: sim.runContext ? Object.assign({}, sim.runContext) : null,
       legends: sim.isLegends ? JSON.parse(JSON.stringify({
         encounter: sim.legendsEncounter,
         mini: sim.legendsMini || null,
@@ -479,6 +482,7 @@
       mode: snap.mode,
       runId: snap.runId || null,
       runType: snap.runType || null,
+      runContext: snap.runContext || null,
       rules: snap.rules,
       autostart: snap.autostart,
       roundSetKey: snap.roundSetKey,

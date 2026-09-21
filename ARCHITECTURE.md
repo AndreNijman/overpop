@@ -5,6 +5,9 @@ If you must change something here, change it deliberately, bump the *Revision*
 below, and re-run `node tools/harness.mjs --all` — a silent divergence between
 this file and the code is the single most expensive failure mode in this project.
 
+**Revision:** 6 · 2026-09-19 — persist activity ownership separately from gameplay
+mode, and retain a same-run recovery checkpoint (see §7).
+
 **Revision:** 5 · 2026-08-06 — **two coordinate spaces.** The board is fitted into
 the play area beside the sidebar, so FIELD space (chrome) and BOARD space (the
 simulation) are no longer the same numbers. See §2b.
@@ -512,6 +515,34 @@ OP.Sim.checksum(sim)    -> uint32   // order-insensitive fold over entity state
 
 `sim.speed` ∈ {1, 2, 3} multiplies how many steps `advance` runs. It never
 changes `DT`.
+
+### Run ownership and recovery
+
+`Sim.create`, `serialize`, and `deserialize` carry `runId`, `runType`, and an
+optional flat `runContext` of activity identifiers. A Daily stores its `dateKey`;
+an expedition/Voyage leg stores `expeditionKey` and `stageIndex`; a Trial stores
+`trialKey`. Modes are gameplay rules, not activity ownership. Expedition and
+Trial profile entries also bind to the current `runId`. Settlement and restarts
+must match that binding; merely finding an active activity in the profile is
+insufficient. Legacy entries have no binding until explicitly relaunched.
+
+`Save.saveRun` keeps the preceding validated envelope at `overpop.run.backup`
+only when the nonempty run ID and map match. Backup writes precede primary
+writes; storage errors are returned to the shell without discarding the live
+simulation. An invalid primary envelope falls back to the backup and reports
+`recovered: true`. A missing primary does not fall back, so orphan backups cannot
+revive intentionally cleared games. Clearing/resetting removes both entries.
+This recovery covers stored JSON/envelope corruption, not arbitrary engine or
+content incompatibility during deserialization, and does not roll back profiles.
+
+Settings exports a versioned `overpop-backup` JSON file containing a migrated
+profile and the latest usable run envelope (or null). Import checks the format,
+profile schema, and run deserialization before any storage replacement. The
+`overpop.import-journal` entry holds the old profile/run/checkpoint bytes until
+the replacement completes. While it exists, readers use those old bytes; later
+writes first restore them and remove the journal. Removing the journal after all
+replacement writes is the import commit point. The live shell reloads its profile
+only after success, and an imported run is resumed through the normal paused path.
 
 ---
 

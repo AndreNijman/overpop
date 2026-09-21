@@ -1,6 +1,8 @@
 export const name = 'logins'
 export const needs = ['js/core/logins.js', 'js/save.js', 'js/core/drafts.js']
 
+import { loadGame } from '../loadgame.mjs'
+
 export function run (t, OP) {
   const L = OP.Logins
   const today = '2026-09-07'
@@ -96,6 +98,7 @@ export function run (t, OP) {
   t.ok(back && back.claimed === false, 'claiming an earlier day after a later one is refused')
   t.eq(roller.loginStreak, streakBefore, 'the streak is untouched')
   t.eq(roller.lastLoginDay, '2026-09-10', 'the record stays on the later day')
+  t.notOk(L.status(roller, '2026-09-07').available, 'calendar status also refuses clock-rollback claims')
 
   t.section('status reports what the calendar owes')
   const s0 = L.status(OP.Save.defaults(), today)
@@ -137,4 +140,61 @@ export function run (t, OP) {
   t.eq(old.schemaVersion, OP.Save.SCHEMA_VERSION, 'migrated to the current schema')
   t.eq(old.loginStreak, 0, 'with login fields defaulted')
   t.eq(old.lastLoginDay, '', 'and no recorded claim')
+
+  t.section('the visible calendar uses the real reward schedule')
+  const env = loadGame()
+  const game = env.OP
+  const app = game.App
+  app.state.profile = game.Save.defaults()
+  app.state.loginReward = null
+  game.Daily.dateKey = () => today
+  game.Menus.go(app, 'title')
+  const entry = game.Menus.build(app).widgets.find(w => w.arg === 'logins')
+  t.ok(entry, 'daily rewards are reachable from the main menu')
+  game.Menus.activate(app, entry)
+  const calendar = game.Menus.build(app)
+  t.eq(calendar.screen, 'logins', 'the entry opens the calendar')
+  t.eq(calendar.defaultId, 'logins.claim', 'an available reward is the default action')
+  for (let day = 1; day <= 7; day++) {
+    t.ok(JSON.stringify(calendar.marks).includes('DAY ' + day), 'calendar shows day ' + day)
+  }
+  const schedule = game.Logins.rewards()
+  schedule[0].kp = 999
+  t.eq(game.Logins.rewards()[0].kp, 2, 'UI cannot mutate the reward schedule')
+
+  t.section('a failed reward save can be retried without double payment')
+  const before = JSON.parse(JSON.stringify(app.state.profile))
+  const realSet = env.ctx.localStorage.setItem
+  env.ctx.localStorage.setItem = () => { throw new Error('QuotaExceededError') }
+  try {
+    game.Menus.activate(app, { action: 'claim-login' })
+    t.deep(app.state.profile, before, 'failed claim leaves the live profile unchanged')
+    t.ok(game.Menus.state.notice.includes('Could not save'), 'calendar explains storage failure')
+    t.eq(game.Menus.build(app).defaultId, 'logins.claim', 'retry remains available')
+  } finally { env.ctx.localStorage.setItem = realSet }
+  game.Menus.activate(app, { action: 'claim-login' })
+  t.eq(app.state.profile.knowledgePoints, 2, 'retry pays the reward once')
+  t.eq(game.Save.load().lastLoginDay, today, 'the successful claim is persisted')
+  t.ok(JSON.stringify(game.Menus.build(app).marks).includes('Collected: +2 knowledge points'), 'calendar reveals the reward')
+  game.Menus.activate(app, { action: 'claim-login' })
+  t.eq(app.state.profile.knowledgePoints, 2, 'repeat activation cannot pay again')
+  app.state.profile = game.Save.load()
+  app.state.loginReward = null
+  t.ok(game.Menus.build(app).widgets.find(w => w.id === 'logins.claim').disabled,
+    'a reloaded profile still displays the collected state')
+
+  t.section('the jackpot and next cycle display correctly')
+  app.state.profile = game.Save.defaults()
+  app.state.profile.lastLoginDay = game.Logins.yesterdayOf(today)
+  app.state.profile.loginStreak = 6
+  app.state.profile.loginTotal = 6
+  const available = game.Menus.build(app).widgets.find(w => w.id === 'logins.claim')
+  t.ok(available.sub.includes('12 knowledge points + Draft Token'), 'day seven advertises both rewards')
+  game.Menus.activate(app, available)
+  t.eq(game.Drafts.count(app.state.profile), 1, 'the jackpot grants one token')
+  t.ok(JSON.stringify(game.Menus.build(app).marks).includes('Draft Token'), 'the token reward is visible')
+  game.Daily.dateKey = () => '2026-09-08'
+  const nextDay = game.Menus.build(app).widgets.find(w => w.id === 'logins.claim')
+  t.notOk(nextDay.disabled, 'the calendar becomes claimable after midnight without reloading')
+  t.eq(nextDay.sub, '2 knowledge points', 'the next cycle starts at the first reward')
 }

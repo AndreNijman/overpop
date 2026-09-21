@@ -814,6 +814,129 @@ export function run (t, OP) {
   t.eq(restartApp.state.sim, restarted, 'a stale encounter cannot restart another campaign')
   t.ok(restartApp.state.pauseOpen, 'a refused restart keeps the game paused')
 
+  t.section('Legends results do not settle unrelated game modes')
+  for (const outcome of ['won', 'lost']) {
+    const isolated = loadGame().OP
+    const shell = isolated.App
+    const profile = isolated.Save.defaults()
+    shell.state.profile = profile
+    shell.state.io = isolated.Input.create()
+    shell.state.view = isolated.Camera.create()
+    isolated.Expedition.start(profile, isolated.Expeditions.all()[0].key, 800, 25)
+    isolated.Trial.start(profile, isolated.Trials.all()[0].key)
+    const challenge = isolated.Daily.generate('2026-09-17')
+    isolated.DailyCore.start(challenge)
+    isolated.Legends.start(profile, 'settlement-' + outcome)
+    const powerKey = isolated.POWER_ORDER.find(k => isolated.POWERS[k].effect === 'cash')
+    profile.powers[powerKey] = 2
+    const encounter = shell.launchLegendsBattle()
+    t.ok(isolated.Powers.activate(encounter, powerKey).ok, 'fixture consumes a power before ' + outcome)
+    const before = JSON.parse(JSON.stringify(profile))
+    encounter.over = true
+    encounter.outcome = outcome
+    shell.updateGame(0)
+    for (const field of ['completions', 'stats', 'playerXp', 'knowledgePoints', 'trophyBank',
+      'expedition', 'completedExpeditions', 'activeTrial', 'completedTrials', 'daily', 'bossEvent']) {
+      t.deep(profile[field], before[field], outcome + ' leaves unrelated ' + field + ' unchanged')
+    }
+    t.eq(isolated.DailyCore.active(), challenge, 'unrelated daily remains active after ' + outcome)
+    t.eq(profile.powers[powerKey], 1, 'spent power is retained without a victory reward after ' + outcome)
+    t.deep(profile.powers, isolated.Powers.copyInventory(encounter.powers), 'only remaining powers are persisted')
+    t.eq(shell.state.legendsResult.won, outcome === 'won', 'the Legends outcome still settles')
+    t.eq(isolated.Save.load().powers[powerKey], 1, 'spent power survives profile reload')
+    if (outcome === 'won') t.eq(profile.legends.nodeIndex, before.legends.nodeIndex + 1, 'own campaign advances')
+    else t.eq(profile.legends, null, 'own campaign ends on defeat')
+  }
+
+  t.section('stage victories route through the board and final victory returns to title')
+  for (let stage = 0; stage < OP.LegendsData.stages().length; stage++) {
+    const game = loadGame().OP
+    const shell = game.App
+    shell.state.profile = game.Save.defaults()
+    shell.state.io = game.Input.create()
+    shell.state.view = game.Camera.create()
+    game.Legends.start(shell.state.profile, 'results-stage-' + stage)
+    shell.state.profile.legends.stage = stage
+    shell.state.profile.legends.nodeIndex = game.Legends.board(shell.state.profile).length - 1
+    const battle = shell.launchLegendsBattle()
+    battle.over = true
+    battle.outcome = 'won'
+    shell.updateGame(0)
+    const results = game.Results.build(shell)
+    const primary = results.widgets.find(w => w.id === results.defaultId)
+    const final = stage === game.LegendsData.stages().length - 1
+    t.ok(primary, 'stage ' + stage + ' has a real default action')
+    t.eq(primary && primary.label, final ? 'CAMPAIGN COMPLETE' : 'ENTER STAGE ' + (stage + 2),
+      'the result labels the next step correctly')
+    t.notOk(results.widgets.some(w => w.id === 'results.freeplay'), 'Legends victory offers no freeplay')
+    t.eq(new Set(results.widgets.map(w => w.id)).size, results.widgets.length, 'result actions have unique IDs')
+    if (stage % 2 === 0) game.Results.key(shell, 'Enter')
+    else if (primary) game.Results.tap(shell, primary.x + primary.w / 2, primary.y + primary.h / 2)
+    t.eq(shell.state.screen, 'menu', 'the result action exits the finished battle')
+    t.eq(game.Menus.state.screen, final ? 'title' : 'legends', 'the action reaches the intended menu')
+    if (final) {
+      t.eq(shell.state.profile.legends, null, 'the completed campaign is closed')
+      t.eq(shell.state.profile.legendsCompletions, 1, 'campaign completion is counted once')
+      t.eq(game.Save.load().legendsCompletions, 1, 'the completion survives reload')
+    } else {
+      t.eq(shell.state.profile.legends.stage, stage + 1, 'only one stage is advanced')
+      t.eq(shell.state.profile.legends.nodeIndex, 0, 'the next board starts at its entrance')
+    }
+  }
+
+  t.section('the campaign menu resumes the saved encounter instead of restarting it')
+  for (const bossNode of [false, true]) {
+    const source = loadGame()
+    const game = source.OP
+    const shell = game.App
+    shell.state.profile = game.Save.defaults()
+    shell.state.io = game.Input.create()
+    shell.state.view = game.Camera.create()
+    game.Legends.start(shell.state.profile, 'menu-resume-' + bossNode)
+    if (bossNode) shell.state.profile.legends.nodeIndex = game.Legends.board(shell.state.profile).length - 1
+    const live = shell.launchLegendsBattle()
+    live.cash = 123
+    game.Sim.startRound(live, bossNode ? live.rules.lastRound : 1)
+    game.Sim.run(live, 60)
+    const expected = JSON.parse(JSON.stringify(game.Sim.serialize(live)))
+    game.Save.save(shell.state.profile)
+    t.ok(shell.saveAndQuit(), 'the encounter can be saved and closed')
+    const cold = loadGame()
+    for (const [key, value] of Object.entries(source.ctx.localStorage._dump())) cold.ctx.localStorage.setItem(key, value)
+    const back = cold.OP.App
+    back.state.profile = cold.OP.Save.load()
+    back.state.io = cold.OP.Input.create()
+    back.state.view = cold.OP.Camera.create()
+    cold.OP.Menus.go(back, 'legends')
+    const screen = cold.OP.LegendsScreen.build(back)
+    const button = screen.widgets.find(w => w.action === 'legends-fight')
+    t.ok(button, 'campaign board exposes the encounter action')
+    cold.OP.LegendsScreen.activate(back, button)
+    t.eq(back.state.sim.runId, expected.runId, 'campaign action retains the saved run identity')
+    t.eq(back.state.sim.tick, expected.tick, 'campaign action retains elapsed simulation time')
+    t.eq(back.state.sim.cash, expected.cash, 'campaign action retains spent cash')
+    t.deep(cold.OP.Boss.serialize(back.state.sim), expected.boss, 'campaign action retains the active boss state')
+    t.ok(back.state.pauseOpen && back.state.sim.paused, 'saved encounter reopens paused')
+    back.state.profile.legends.stage++
+    back.state.profile.legends.nodeIndex = 0
+    const next = back.startLegends()
+    t.neq(next.runId, expected.runId, 'a different campaign node does not load the old encounter')
+  }
+
+  t.section('new campaigns cannot inherit an abandoned campaign save')
+  const newCampaignGame = loadGame().OP
+  const newCampaignApp = newCampaignGame.App
+  newCampaignApp.state.profile = newCampaignGame.Save.defaults()
+  newCampaignApp.state.io = newCampaignGame.Input.create()
+  newCampaignApp.state.view = newCampaignGame.Camera.create()
+  const abandoned = newCampaignApp.startLegends()
+  newCampaignApp.saveAndQuit()
+  newCampaignGame.Legends.abandon(newCampaignApp.state.profile)
+  const replacement = newCampaignApp.startLegends()
+  t.neq(replacement.legendsEncounter.seed, abandoned.legendsEncounter.seed, 'fresh campaigns have distinct identities')
+  t.neq(replacement.runId, abandoned.runId, 'a fresh campaign does not resume the abandoned save')
+  t.eq(replacement.tick, 0, 'a fresh campaign starts at its entrance')
+
   t.section('a stale encounter cannot fire a foreign campaign node')
   const stray = loadGame().OP
   const strayApp = stray.App

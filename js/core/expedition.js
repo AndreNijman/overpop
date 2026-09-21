@@ -18,6 +18,7 @@
     if (!def) return false
     profile.expedition = {
       expeditionKey: expeditionKey,
+      runId: null,
       stageIndex: 0,
       cash: startCash || 650,
       lives: startLives || 20,
@@ -124,6 +125,7 @@
       exp.lives += bonus.bonusLives || 0
     }
     exp.stageIndex++
+    exp.runId = null
     result.stageComplete = true
 
     /* Check if expedition is complete. */
@@ -239,6 +241,7 @@
     if (!Expedition.isActive(profile)) return null
     return {
       expeditionKey: profile.expedition.expeditionKey,
+      runId: profile.expedition.runId || null,
       stageIndex: profile.expedition.stageIndex,
       cash: profile.expedition.cash,
       lives: profile.expedition.lives,
@@ -254,6 +257,7 @@
     if (!data || !data.expeditionKey) return
     profile.expedition = {
       expeditionKey: data.expeditionKey,
+      runId: typeof data.runId === 'string' ? data.runId : null,
       stageIndex: data.stageIndex || 0,
       cash: data.cash || 0,
       lives: data.lives || 0,

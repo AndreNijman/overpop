@@ -1123,6 +1123,7 @@
   }
 
   Menus.back = function (app) {
+    if (state.screen === 'settings' && app && app.closePauseSettings && app.closePauseSettings()) return 'pause'
     const spec = SCREENS[state.screen]
     if (spec && typeof spec.back === 'function') {
       const to = spec.back(app)
@@ -1161,6 +1162,10 @@
     if (app && app.state) app.state.profile = p
     if (OP.Save && OP.Save.save) OP.Save.save(p)
     const s = (p && p.settings) || {}
+    if (key === 'autostart' && app && app.state && app.state.sim && !app.state.sim.over) {
+      app.state.sim.autostart = !!s.autostart
+      if (OP.Race && OP.Race.applyForcedAutostart) OP.Race.applyForcedAutostart(app.state.sim)
+    }
     if (OP.Audio) {
       if (key === 'musicVolume' && OP.Audio.setMusicVolume) OP.Audio.setMusicVolume(s.musicVolume)
       if (key === 'sfxVolume' && OP.Audio.setSfxVolume) OP.Audio.setSfxVolume(s.sfxVolume)
@@ -1425,6 +1430,15 @@
       marks.push(UI.text(rx + 360, y, String(rows[i][1]), { size: 12, colour: C.ink, align: 'right' }))
     }
 
+    if (OP.Logins) {
+      const login = OP.Logins.status(p, OP.Daily.dateKey(new Date()))
+      widgets.push(UI.button('title.logins', rx, 365, 370, 50, {
+        label: 'DAILY REWARDS', action: 'goto', arg: 'logins',
+        sub: login.available ? 'claim ' + login.kp + ' KP' + (login.hasToken ? ' + a Draft Token' : '')
+          : 'reward collected · view your seven-day calendar'
+      }))
+    }
+
     marks.push(UI.text(PAD, FIELD_H - 12, 'v' + (OP.VERSION || '?') + ' · no downloads, works offline', { size: 10, colour: C.dim }))
     noticeMark(marks)
 
@@ -1460,6 +1474,69 @@
   /* ============================================================================
      SETTINGS
      ============================================================================ */
+
+  function buildLogins (app) {
+    const marks = [], widgets = []
+    const profile = profileOf(app)
+    const today = OP.Daily.dateKey(new Date())
+    const status = OP.Logins.status(profile, today)
+    const rewards = OP.Logins.rewards()
+    const day = status.available ? status.day : OP.Logins.dayOf(profile.loginStreak)
+    chrome(marks, 'DAILY REWARDS', 'a seven-day cycle · day seven includes a Draft Token')
+    widgets.push(UI.button('logins.back', FIELD_W - PAD - 96, 74, 96, 32, {
+      label: 'BACK', action: 'back', align: 'center'
+    }))
+    marks.push(UI.text(PAD, 190, today + ' · ' + (status.available
+      ? 'Claim for a ' + status.streak + '-day streak'
+      : 'Current streak: ' + status.streak + ' days'), { size: 15, colour: C.ink }))
+    marks.push(UI.text(PAD, 220, 'Total days collected: ' + (profile.loginTotal || 0), { size: 12, colour: C.dim }))
+    const gap = 12
+    const width = (FIELD_W - PAD * 2 - gap * (rewards.length - 1)) / rewards.length
+    for (let i = 0; i < rewards.length; i++) {
+      const x = PAD + i * (width + gap)
+      const row = rewards[i]
+      const selected = i + 1 === day
+      const claimed = i + 1 < day || (selected && !status.available)
+      marks.push(UI.box(x, 270, width, 175, { fill: C.panel, stroke: selected ? C.gold : C.dim }))
+      marks.push(UI.text(x + width / 2, 300, 'DAY ' + (i + 1), { size: 13, colour: C.ink, align: 'center' }))
+      marks.push(UI.text(x + width / 2, 342, row.kp + ' KP', { size: 22, colour: C.gold, align: 'center' }))
+      if (row.token) marks.push(UI.text(x + width / 2, 370, '+ Draft Token', { size: 11, colour: C.ink, align: 'center' }))
+      marks.push(UI.text(x + width / 2, 418, claimed ? 'COLLECTED' : selected ? 'AVAILABLE' : 'UPCOMING', {
+        size: 10, colour: selected ? C.gold : C.dim, align: 'center'
+      }))
+    }
+    widgets.push(UI.button('logins.claim', PAD, 485, 350, 52, {
+      label: status.available ? 'CLAIM REWARD' : 'REWARD COLLECTED',
+      action: 'claim-login', tone: 'primary', disabled: !status.available,
+      sub: status.available ? status.kp + ' knowledge points' + (status.hasToken ? ' + Draft Token' : '')
+        : 'come back on the next day'
+    }))
+    const receipt = app.state.loginReward
+    if (!status.available && receipt && receipt.dateKey === today && profile.lastLoginDay === today) {
+      let text = 'Collected: +' + receipt.kp + ' knowledge points'
+      if (receipt.token) {
+        const tower = OP.TOWERS[receipt.token.key]
+        text += ' + ' + (tower ? tower.name : receipt.token.key) + ' Draft Token'
+      }
+      marks.push(UI.text(PAD, 576, text, { size: 13, colour: C.gold }))
+    }
+    marks.push(UI.text(PAD, 615, 'Missing a day restarts the streak. Your collected rewards stay yours.', { size: 11, colour: C.dim }))
+    footer(marks, 'ESC back')
+    noticeMark(marks)
+    return { screen: 'logins', backdrop: 'solid', marks: marks, widgets: widgets,
+      defaultId: status.available ? 'logins.claim' : 'logins.back' }
+  }
+
+  function activateLogins (app, w) {
+    if (w.action !== 'claim-login') return false
+    if (w.disabled) return true
+    const reward = app.claimLogin && app.claimLogin()
+    state.notice = reward && reward.saveFailed
+      ? 'Could not save your reward. Free browser storage, then retry.'
+      : reward && reward.claimed ? 'Reward collected and saved.' : 'No reward is available today.'
+    click(!!(reward && reward.claimed))
+    return true
+  }
 
   function buildSettings (app) {
     const marks = []
@@ -1505,9 +1582,21 @@
     marks.push(UI.text(rx, 226, 'statistics all live in this browser.', { size: 10, colour: C.faint }))
     widgets.push(UI.button('settings.reset', rx, 246, 300, 44, {
       label: state.confirmReset ? 'PRESS AGAIN TO ERASE' : 'RESET PROGRESS',
-      tone: 'danger', align: 'center', action: 'reset'
+      tone: 'danger', align: 'center', action: 'reset',
+      disabled: !!(app && app.state && app.state.sim && !app.state.sim.over)
     }))
     if (state.confirmReset) marks.push(UI.text(rx, 306, 'This cannot be undone.', { size: 10, colour: C.bad }))
+
+    marks.push(UI.tracked(rx, 350, 'BACKUPS', { size: 11, colour: C.moss, track: 0.3 }))
+    widgets.push(UI.button('settings.export', rx, 374, 300, 44, {
+      label: 'EXPORT BACKUP', action: 'export-backup', align: 'center'
+    }))
+    widgets.push(UI.button('settings.import', rx, 432, 300, 44, {
+      label: 'IMPORT BACKUP', action: 'import-backup', align: 'center',
+      disabled: !!(app && app.state && app.state.sim && !app.state.sim.over)
+    }))
+    marks.push(UI.text(rx, 498, 'Includes your profile and latest saved run.', { size: 10, colour: C.dim }))
+    marks.push(UI.text(rx, 516, 'Import replaces local progress and the saved run.', { size: 10, colour: C.dim }))
 
     footer(marks, 'ESC back')
     noticeMark(marks)
@@ -1519,6 +1608,57 @@
   }
 
   function activateSettings (app, w, model, point) {
+    if (w.action === 'export-backup') {
+      try {
+        if (app.state.sim && !app.state.sim.over && !app.saveRun()) throw new Error('save failed')
+        const text = OP.Save.exportBackup(profileOf(app))
+        if (!text) throw new Error('export failed')
+        const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'overpop-backup-' + new Date().toISOString().slice(0, 10) + '.json'
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        setTimeout(function () { URL.revokeObjectURL(url) }, 1000)
+        state.notice = 'Backup download started.'
+        click(true)
+      } catch (e) { state.notice = 'Could not export the backup.'; click(false) }
+      return true
+    }
+    if (w.action === 'import-backup') {
+      if (w.disabled || (app.state.sim && !app.state.sim.over)) return false
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.json,application/json'
+      input.onchange = async function () {
+        if (!input.files || !input.files[0]) return
+        try {
+          const text = await input.files[0].text()
+          if (app.state.sim && !app.state.sim.over) {
+            state.notice = 'Save & Quit before importing a backup.'
+            return
+          }
+          const result = OP.Save.importBackup(text)
+          if (!result.ok) { state.notice = result.error; click(false); return }
+          app.state.profile = OP.Save.load()
+          app.state.loginReward = null
+          app.state.sim = null
+          app.state.pauseOpen = false
+          app.state.screen = 'menu'
+          state.confirmReset = false
+          if (OP.DailyCore) OP.DailyCore.clear()
+          const settings = app.state.profile.settings
+          if (OP.Audio && OP.Audio.setMusicVolume) OP.Audio.setMusicVolume(settings.musicVolume)
+          if (OP.Audio && OP.Audio.setSfxVolume) OP.Audio.setSfxVolume(settings.sfxVolume)
+          refreshRun(true)
+          state.notice = 'Backup imported. Use Continue to resume its saved run.'
+          click(true)
+        } catch (e) { state.notice = 'Could not read that backup file.'; click(false) }
+      }
+      input.click()
+      return true
+    }
     if (w.action === 'setting') {
       if (w.kind === 'slider') {
         const v = UI.sliderValue(w, point && typeof point.x === 'number' ? point.x : w.x)
@@ -1535,11 +1675,12 @@
       return true
     }
     if (w.action === 'reset') {
+      if (w.disabled || (app && app.state && app.state.sim && !app.state.sim.over)) return false
       if (!state.confirmReset) { state.confirmReset = true; click(false); return true }
       state.confirmReset = false
       if (OP.Save && OP.Save.reset) {
         const fresh = OP.Save.reset()
-        if (app && app.state) app.state.profile = fresh
+        if (app && app.state) { app.state.profile = fresh; app.state.loginReward = null }
       }
       refreshRun(true)
       state.notice = 'Progress erased.'
@@ -2055,16 +2196,7 @@
       var challenge = OP.DailyCore.active() || (OP.Daily.today ? OP.Daily.today() : null)
       if (!challenge) { state.notice = 'Could not generate today\'s challenge.'; click(false); return true }
 
-      OP.DailyCore.start(challenge)
-      click(true)
-
-      var extraRules = challenge.rules || {}
-      if (app && app.startGame) {
-        app.startGame(challenge.mapKey, challenge.difficulty, challenge.mode, {
-          seed: challenge.seed,
-          rules: extraRules
-        })
-      }
+      click(!!(app && app.startDaily && app.startDaily(challenge.dateKey)))
       return true
     }
     return false
@@ -2147,7 +2279,7 @@
         var btnId = 'expedition.' + e.key
         widgets.push(UI.button(btnId, PAD, y, P.w, 46, {
           label: label, action: 'start-expedition', arg: e.key, sub: sub,
-          disabled: isActive
+          disabled: active && !isActive
         }))
         y += 54
       }
@@ -2179,20 +2311,9 @@
 
       // If active on same key, resume it
       if (OP.Expedition && OP.Expedition.isActive(profile) && profile.expedition.expeditionKey === key) {
-        var mapKey = OP.Expedition.currentMapKey(profile)
-        // The leg's own mode, not the campaign's — a Voyage leg carries its
-        // restriction override, and resuming mid-campaign must keep it.
-        var legMode = OP.Expedition.currentMode(profile) || def.mode
-        if (mapKey && app.startGame) {
-          click(true)
-          app.startGame(mapKey, def.difficulty, legMode, {
-            expeditionCash: profile.expedition.cash,
-            expeditionLives: profile.expedition.lives
-          })
-        } else {
-          expState.notice = 'Could not resume expedition.'
-          click(false)
-        }
+        var resumed = app.resumeExpedition && app.resumeExpedition()
+        expState.notice = resumed ? null : 'Could not resume expedition.'
+        click(!!resumed)
         return true
       }
 
@@ -2280,7 +2401,7 @@
         var btnId = 'trial.' + t.key
         widgets.push(UI.button(btnId, PAD, y, P.w, 58, {
           label: label, action: 'start-trial', arg: t.key, sub: sub,
-          disabled: isActive
+          disabled: active && !isActive
         }))
         y += 72
       }
@@ -2311,8 +2432,7 @@
 
       if (OP.Trial && OP.Trial.isActive(profile) && profile.activeTrial.trialKey === key) {
         // Resume
-        click(true)
-        app.startGame(def.mapKey, def.difficulty, def.mode, { rules: def.rules || {} })
+        click(!!(app.resumeTrial && app.resumeTrial()))
         return true
       }
 
@@ -2330,6 +2450,7 @@
 
   Menus.registerScreen('title', { build: buildTitle, activate: activateTitle })
   Menus.registerScreen('settings', { build: buildSettings, activate: activateSettings })
+  Menus.registerScreen('logins', { build: buildLogins, activate: activateLogins })
   Menus.registerScreen('maps', { build: buildMaps, paint: paintMaps, activate: activateMaps, key: keyMaps })
   Menus.registerScreen('setup', { build: buildSetup, activate: activateSetup })
   Menus.registerScreen('daily', { build: buildDaily, activate: activateDaily })

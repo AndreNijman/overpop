@@ -98,45 +98,78 @@ and Diamondback; the project's old statement that BTD6 has five bosses is obsole
 Primary files: `js/main.js`, `js/save.js`, `js/core/sim.js`, `js/ui/hud.js`,
 `js/ui/menus.js`.
 
+### Verified implementation progress — 2026-09-19
+
+- Legends encounter limits, custom-round resume, artifact/boost restoration,
+  real stage bosses, boss previews, and encounter-aware restart are implemented.
+- Legends stage results now route both clicks and Enter to the next board. The
+  final win displays Campaign Complete after the campaign state is cleared, with
+  a working title action and a persisted completion count.
+- Reopening Legends from its campaign board resumes a matching saved encounter,
+  paused, including an active boss. New campaigns have distinct seeds so an
+  abandoned campaign's save is not mistaken for the new campaign.
+- Result settlement isolates Legends from Standard completion rewards and other
+  active activities while preserving spent powers.
+- Daily, Voyage, and Trial ownership now survives saves. Voyage legs and Trial
+  attempts bind to a run ID; stale saves cannot settle replacement attempts.
+  Ordinary results cannot advance or abandon pending activities. Daily results
+  use the saved date, and a failed Daily can be won on retry.
+- Activity menus can reopen their matching saved board, paused. Restart/retry
+  remains in the activity; a defeated Voyage restarts at the first leg.
+- A previous same-run checkpoint recovers invalid JSON/save envelopes and shows
+  a recovery notice. Quota failures preserve a usable checkpoint; clear/reset
+  removes both copies. This does not recover incompatible engine snapshots or
+  provide a profile backup.
+- Settings offers downloadable profile/run backups and validated import. An
+  import journal keeps the old profile/run pair readable if storage fails or the
+  browser closes during replacement; later writes roll back the interrupted import.
+- The main menu now exposes a seven-day login calendar, current streak, reward
+  receipt, and upcoming rewards. Claims are applied only after a successful save;
+  a failed save stays retryable. Calendar availability agrees with clock-rollback
+  protection, and next-day claims work without reloading.
+
+Regression evidence lives in `tools/suites/legends.mjs`, `run-ownership.mjs`, and
+`save-recovery.mjs`, and `backup.mjs`. The phase-wide checklists below remain incomplete where
+their requirements extend beyond these verified paths.
+
 ### A. Proper pause menu
 
-- [ ] Resume.
-- [ ] Save & Quit.
-- [ ] Restart.
-- [ ] Settings.
-- [ ] Rules / encounter objectives.
+- [x] Resume.
+- [x] Save & Quit.
+- [x] Restart.
+- [x] Settings, with Back/Escape returning to the still-paused live battle.
+- [x] Rules / encounter objectives.
 - [ ] Abandon run.
-- [ ] Escape cancels active placement first; otherwise it opens the pause menu.
-- [ ] Save & Quit checks whether saving succeeded before discarding the live sim.
+- [x] Escape cancels active placement first; otherwise it opens the pause menu.
+- [x] Save & Quit checks whether saving succeeded before discarding the live sim.
 
-Currently `quitToMenu()` calls the save function and then discards the simulation
-regardless of the result.
+`quitToMenu()` now keeps a live run open if Save & Quit fails.
 
 ### B. Durable run identity
 
 Serialize the following context for every run:
 
-- [ ] Unique run ID and format version.
-- [ ] Run type: Standard, Daily, Boss Event, Voyage, Trial, or Legends.
-- [ ] Map, mode, difficulty, seed, and content revision.
-- [ ] Campaign/stage/node or event identifiers.
-- [ ] Encounter objective and round-set identity.
-- [ ] Reward settlement state.
+- [x] Unique run ID and format version.
+- [x] Run type: Standard, Daily, Boss Event, Voyage, Trial, or Legends.
+- [x] Map, mode, difficulty, seed, and content revision.
+- [x] Campaign/stage/node or event identifiers.
+- [x] Encounter objective and round-set identity.
+- [x] Reward settlement state.
 
 Result handling must use this context. An ordinary game must never advance an
 unrelated active expedition or trial.
 
 ### C. Dependable persistence
 
-- [ ] Autosave at completed-round checkpoints.
-- [ ] Save campaign choices immediately.
-- [ ] Explicit mid-round saving with complete encounter state.
-- [ ] Page-hide/background saving as a supplementary safeguard.
-- [ ] Last-known-good checkpoint.
+- [x] Autosave at completed-round checkpoints.
+- [x] Save campaign choices immediately.
+- [x] Explicit mid-round saving with complete encounter state.
+- [x] Page-hide/background saving as a supplementary safeguard.
+- [x] Last-known-good checkpoint for run-save JSON/envelope corruption.
 - [ ] Visible Saved state and actionable storage-error messages.
-- [ ] Export/import backup.
-- [ ] Campaign/event saves protected from accidental overwriting by other runs.
-- [ ] Resume paused, with saved map, round, and objective visible.
+- [x] Export/import backup from Settings (profile and latest saved run).
+- [x] Campaign/event saves protected from accidental overwriting by other runs.
+- [x] Resume paused, with saved map, round, and objective visible.
 
 Persist and restore modifiers, cooldowns, projectiles, removables, consumed items,
 campaign context, and custom rounds consistently.
@@ -188,8 +221,8 @@ and continue without losing progress or receiving duplicate victory rewards.
 
 ### C. Persistent progression
 
-- [ ] Fix the daily-login persistence call.
-- [ ] Add a visible calendar and reward reveal.
+- [x] Fix the daily-login persistence call.
+- [x] Add a visible calendar and reward reveal.
 - [ ] Establish an account-currency economy for hero unlocks, powers, skins, and
   permitted continues.
 - [ ] Clearly differentiate knowledge points, tower XP, trophies, and spendable
@@ -554,7 +587,7 @@ and coherent interaction states.
 Validate Chrome, Edge, Firefox, Safari, and representative mobile browsers.
 Verify the deployed site's cold load, asset loading, updates, and save compatibility.
 
-Preserve the reported **56-suite / 12,060-assertion baseline**, adding targeted
+Preserve the reported **60-suite / 12,475-assertion baseline**, adding targeted
 integration coverage for newly repaired journeys.
 
 ## 5. Recommended execution order

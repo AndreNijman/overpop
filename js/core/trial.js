@@ -16,6 +16,7 @@
     if (!def) return false
     profile.activeTrial = {
       trialKey: trialKey,
+      runId: null,
       startTime: Date.now()
     }
     return true

@@ -69,6 +69,11 @@
   OP.Logins = {
     CYCLE: CYCLE,
 
+    /** A detached copy for the calendar UI; reward amounts have one source. */
+    rewards: function () {
+      return CALENDAR.map(function (row) { return { kp: row.kp, token: !!row.token } })
+    },
+
     /** Whether a string is a well-formed date key. */
     isKey: function (key) {
       return isFinite(parseKey(key))
@@ -146,7 +151,7 @@
         return { available: false, day: 0, streak: 0, kp: 0, hasToken: false }
       }
       const last = typeof profile.lastLoginDay === 'string' ? profile.lastLoginDay : ''
-      const available = last !== todayKey
+      const available = last !== todayKey && !(last && parseKey(last) > parseKey(todayKey))
       const nextStreak = available
         ? (last && yesterdayOf(todayKey) === last ? normalStreak(profile) + 1 : 1)
         : normalStreak(profile)

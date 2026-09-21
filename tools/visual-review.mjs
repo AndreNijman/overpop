@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Node 22+, zero dependencies. Real Chromium via CDP, following smoke.mjs.
 // node tools/visual-review.mjs --probe                 validate without PNGs
-// node tools/visual-review.mjs                         capture all 18 views
+// node tools/visual-review.mjs                         capture all screens and viewports
 // node tools/visual-review.mjs --screens title,maps --viewports desktop,portrait
 // Options: --browser PATH, --url URL, --out DIR, --headful, --strict-fit
 // Every run uses a disposable browser profile; no existing game saves are read.
@@ -19,7 +19,7 @@ const VIEWPORTS = {
   landscape: { width: 844, height: 390 },
   portrait: { width: 390, height: 844 }
 }
-const SCREENS = ['title', 'maps', 'settings', 'knowledge', 'gameplay-shop', 'selected-tower']
+const SCREENS = ['title', 'maps', 'settings', 'logins', 'knowledge', 'gameplay-shop', 'selected-tower', 'pause', 'pause-settings']
 
 function findBrowser () {
   const pinned = resolve(ROOT, 'tools/.chrome-path')
@@ -212,7 +212,7 @@ async function main () {
             OP.Shop.closeTree()
             OP.Shop.state.scroll = 0
             OP.Shop.state.detailKey = null
-            if (['title', 'maps', 'settings', 'knowledge'].includes(screen)) {
+            if (['title', 'maps', 'settings', 'logins', 'knowledge'].includes(screen)) {
               S.sim = null
               S.screen = 'menu'
               OP.Menus.state.mapScroll = 0
@@ -233,6 +233,8 @@ async function main () {
             OP.Sim.startRound(sim, ${startRound})
             for (let i = 0; i < ${holdTicks}; i++) OP.Sim.step(sim)
             sim.paused = true
+            if (screen === 'pause' || screen === 'pause-settings') app.togglePauseMenu()
+            if (screen === 'pause-settings' && !app.openPauseSettings()) throw new Error('Pause Settings did not open')
             if (screen === 'selected-tower') S.io.selectedId = tower.id
             if (screen === 'gameplay-shop' && !OP.Shop.showing(app)) throw new Error('Shop not showing')
             if (screen === 'selected-tower' && !OP.TowerPanel.showing(app)) throw new Error('Tower panel not showing')
@@ -241,7 +243,7 @@ async function main () {
           await cdp.eval('await document.fonts.ready; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
           const fit = await cdp.eval(`
             const app = OP.App, S = app.state, canvas = S.canvas, rect = canvas.getBoundingClientRect()
-            const models = S.screen === 'menu' ? [OP.Menus.build(app)] :
+            const models = S.screen === 'menu' ? [OP.Menus.build(app)] : S.pauseOpen ? [OP.HUD.buildPauseMenu(app)] :
               [OP.HUD.build(app), (OP.Shop.showing(app) ? OP.Shop : OP.TowerPanel).build(app)]
             const round = n => Math.round(n * 100) / 100
             const toRect = r => ({ x: round(r.x), y: round(r.y), w: round(r.width ?? r.w), h: round(r.height ?? r.h) })

@@ -3,10 +3,11 @@
 
   /* Persistence: the settings/progression profile, and the mid-round run save.
 
-     Two independent localStorage entries:
+     LocalStorage entries:
 
        overpop.profile   settings, lifetime stats, completions, bestiary unlocks
-       overpop.run       one in-progress run: OP.Sim.serialize output + its mapKey
+        overpop.run       one in-progress run: OP.Sim.serialize output + its mapKey
+        overpop.run.backup previous valid checkpoint belonging to that same run
 
      The single most important property of this file is that it CANNOT THROW on
      load. A corrupt entry — a truncated string from a killed tab, a JSON `null`
@@ -31,6 +32,9 @@
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
+  Save.RUN_BACKUP_KEY = 'overpop.run.backup'
+  Save.IMPORT_JOURNAL_KEY = 'overpop.import-journal'
+  const BACKUP_KEYS = [Save.PROFILE_KEY, Save.RUN_KEY, Save.RUN_BACKUP_KEY]
 
   /* ---------- settings ----------
      One table, so defaults(), normalise() and setSetting() cannot drift apart.
@@ -198,20 +202,37 @@
   function readKey (key) {
     const s = storage()
     if (!s) return null
-    try { return s.getItem(key) } catch (e) { return null }
+    try {
+      const journal = s.getItem(Save.IMPORT_JOURNAL_KEY)
+      if (journal && BACKUP_KEYS.indexOf(key) >= 0) return JSON.parse(journal)[key]
+      return s.getItem(key)
+    } catch (e) { return null }
+  }
+
+  // Until the journal is removed, readers see the pre-import state. An interrupted
+  // or failed import is rolled back before any later write can modify that state.
+  function recoverImport (s) {
+    const raw = s.getItem(Save.IMPORT_JOURNAL_KEY)
+    if (!raw) return
+    const before = JSON.parse(raw)
+    for (const key of BACKUP_KEYS) {
+      if (before[key] === null) s.removeItem(key)
+      else s.setItem(key, before[key])
+    }
+    s.removeItem(Save.IMPORT_JOURNAL_KEY)
   }
 
   /** @returns {boolean} false on a quota error or a denied store — never throws. */
   function writeKey (key, str) {
     const s = storage()
     if (!s) return false
-    try { s.setItem(key, str); return true } catch (e) { return false }
+    try { recoverImport(s); s.setItem(key, str); return true } catch (e) { return false }
   }
 
   function dropKey (key) {
     const s = storage()
     if (!s) return false
-    try { s.removeItem(key); return true } catch (e) { return false }
+    try { recoverImport(s); s.removeItem(key); return true } catch (e) { return false }
   }
 
   /* ---------- the profile ---------- */
@@ -425,13 +446,14 @@
   }
 
   /**
-   * Normalise active expedition state. null or { expeditionKey, stageIndex, cash, lives, time, maps }.
+   * Normalise active expedition state, including the run that owns its current leg.
    */
   function normaliseExpedition (raw) {
     if (!isPlainObject(raw)) return null
     if (!safeKey(raw.expeditionKey)) return null
     return {
       expeditionKey: raw.expeditionKey,
+      runId: typeof raw.runId === 'string' && safeKey(raw.runId) ? raw.runId : null,
       stageIndex: counter(raw.stageIndex),
       cash: counter(raw.cash),
       lives: counter(raw.lives),
@@ -455,13 +477,14 @@
   }
 
   /**
-   * Normalise active trial state. null or { trialKey, startTime }.
+   * Normalise active trial state. null or { trialKey, runId, startTime }.
    */
   function normaliseActiveTrial (raw) {
     if (!isPlainObject(raw)) return null
     if (!safeKey(raw.trialKey)) return null
     return {
       trialKey: raw.trialKey,
+      runId: typeof raw.runId === 'string' && safeKey(raw.runId) ? raw.runId : null,
       startTime: finite(raw.startTime) ? raw.startTime : Date.now()
     }
   }
@@ -788,7 +811,7 @@
       belongs to the profile that started it, so it goes too. */
   Save.reset = function () {
     dropKey(Save.PROFILE_KEY)
-    dropKey(Save.RUN_KEY)
+    Save.clearRun()
     return Save.defaults()
   }
 
@@ -1102,7 +1125,24 @@
       })
     } catch (e) { return false }
 
+    const next = parseRun(str)
+    if (!next) return false
+    const rawCurrent = readKey(Save.RUN_KEY)
+    const current = parseRun(rawCurrent)
+    const backup = parseRun(readKey(Save.RUN_BACKUP_KEY))
+    if (sameRun(current, next)) {
+      // Write the backup first. If either write fails, at least the current
+      // checkpoint remains available and the caller keeps the live game open.
+      if (!writeKey(Save.RUN_BACKUP_KEY, rawCurrent)) return false
+    } else if (!sameRun(backup, next)) {
+      // Never carry a backup across run boundaries, even on the same map.
+      if (!dropKey(Save.RUN_BACKUP_KEY)) return false
+    }
     return writeKey(Save.RUN_KEY, str)
+  }
+
+  function sameRun (a, b) {
+    return !!(a && b && a.snapshot.runId && a.snapshot.runId === b.snapshot.runId && a.mapKey === b.mapKey)
   }
 
   /**
@@ -1122,6 +1162,17 @@
    */
   Save.loadRun = function () {
     const raw = readKey(Save.RUN_KEY)
+    const current = parseRun(raw)
+    if (current) return current
+    // A missing primary is also how clearRun marks a run as intentionally gone.
+    // An orphan backup must never resurrect a completed or abandoned game.
+    if (raw === null) return null
+    const backup = parseRun(readKey(Save.RUN_BACKUP_KEY))
+    if (backup) backup.recovered = true
+    return backup
+  }
+
+  function parseRun (raw) {
     if (typeof raw !== 'string' || raw === '') return null
 
     let payload
@@ -1163,10 +1214,73 @@
     }
   }
 
-  Save.clearRun = function () { return dropKey(Save.RUN_KEY) }
+  Save.clearRun = function () {
+    const current = dropKey(Save.RUN_KEY)
+    const backup = dropKey(Save.RUN_BACKUP_KEY)
+    return current && backup
+  }
 
   /** True exactly when loadRun() would return something usable. */
   Save.hasRun = function () { return Save.loadRun() !== null }
+
+  /** Downloadable profile plus the latest usable saved run. No storage writes. */
+  Save.exportBackup = function (profile) {
+    if (!isPlainObject(profile)) return null
+    try {
+      const run = Save.loadRun()
+      return JSON.stringify({
+        format: 'overpop-backup', version: 1, exportedAt: Date.now(),
+        profile: Save.migrate(profile),
+        run: run ? {
+          schemaVersion: Save.SCHEMA_VERSION, version: OP.VERSION,
+          savedAt: run.savedAt, mapKey: run.mapKey, snapshot: run.snapshot
+        } : null
+      }, null, 2)
+    } catch (e) { return null }
+  }
+
+  /** Validate before touching storage; replace the profile and saved run together. */
+  Save.importBackup = function (text) {
+    let backup, profile, runText
+    try {
+      backup = JSON.parse(text)
+      if (!isPlainObject(backup) || backup.format !== 'overpop-backup' || backup.version !== 1 ||
+          !isPlainObject(backup.profile) || !isPlainObject(backup.profile.settings) ||
+          !isPlainObject(backup.profile.stats) || !isPlainObject(backup.profile.completions) ||
+          !Number.isInteger(backup.profile.schemaVersion) || backup.profile.schemaVersion < 0 ||
+          backup.profile.schemaVersion > Save.SCHEMA_VERSION || !own(backup, 'run')) {
+        return { ok: false, error: 'Not a supported OVERPOP backup.' }
+      }
+      profile = Save.migrate(backup.profile)
+      runText = backup.run === null ? null : JSON.stringify(backup.run)
+      if (runText !== null) {
+        const run = parseRun(runText)
+        if (!run || !OP.MAPS[run.mapKey]) return { ok: false, error: 'The backup contains an invalid saved run.' }
+        let map = OP.Maps.build(OP.MAPS[run.mapKey])
+        const mode = OP.MODES[run.snapshot.mode]
+        if (mode && mode.rules && mode.rules.reversePaths) map = OP.Maps.reversePaths(map)
+        OP.Sim.deserialize(run.snapshot, map)
+      }
+    } catch (e) { return { ok: false, error: 'The backup is damaged or incompatible.' } }
+
+    const s = storage()
+    if (!s) return { ok: false, error: 'Browser storage is unavailable.' }
+    try {
+      recoverImport(s)
+      const before = {}
+      for (const key of BACKUP_KEYS) before[key] = s.getItem(key)
+      s.setItem(Save.IMPORT_JOURNAL_KEY, JSON.stringify(before))
+      s.setItem(Save.PROFILE_KEY, JSON.stringify(profile))
+      if (runText === null) s.removeItem(Save.RUN_KEY)
+      else s.setItem(Save.RUN_KEY, runText)
+      s.removeItem(Save.RUN_BACKUP_KEY)
+      s.removeItem(Save.IMPORT_JOURNAL_KEY)
+      return { ok: true }
+    } catch (e) {
+      try { recoverImport(s) } catch (ignored) { /* Readers still use the journal. */ }
+      return { ok: false, error: 'Import failed. Existing progress has been retained.' }
+    }
+  }
 
   OP.Save = Save
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

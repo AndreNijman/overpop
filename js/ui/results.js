@@ -206,12 +206,12 @@
       // onGameOver; CONTINUE just routes to the next step (next battle, the next
       // stage's board, or the title once the campaign is fully cleared).
       var runActive = OP.Legends && OP.Legends.isActive(profile)
-      if (legendsResult.won && runActive) {
+      if (legendsResult.won && (runActive || legendsResult.campaignComplete)) {
         var legendStage = (typeof legendsResult.clearedStage === 'number')
           ? legendsResult.clearedStage + 1 : 0
         if (legendsResult.campaignComplete) {
           // The final boss fell and the whole campaign is banked.
-          widgets.push(U.button('results.legWin', P.x + 40, by, 250, 48, {
+          widgets.push(U.button('results.title', P.x + 40, by, 250, 48, {
             label: 'CAMPAIGN COMPLETE', tone: 'primary', align: 'center',
             action: 'results-title', sub: 'victory is banked to your record'
           }))
@@ -227,7 +227,7 @@
             action: 'results-legends-stage', sub: 'continue to the next board'
           }))
           widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
-            label: 'TITLE', align: 'center', action: 'results-title', sub: 'abandon the run'
+            label: 'TITLE', align: 'center', action: 'results-title', sub: 'return to the menu'
           }))
           defaultAction = 'results.legStage'
           hint = 'ENTER enters the next stage · ESC returns to the title'
@@ -237,7 +237,7 @@
             action: 'results-legends-continue', sub: 'advance through the campaign'
           }))
           widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
-            label: 'TITLE', align: 'center', action: 'results-title', sub: 'abandon the run'
+            label: 'TITLE', align: 'center', action: 'results-title', sub: 'return to the menu'
           }))
           defaultAction = 'results.legCont'
           hint = 'ENTER continues the campaign · ESC returns to the title'
@@ -247,11 +247,11 @@
           label: 'RUN OVER', tone: 'primary', align: 'center',
           action: 'results-title', sub: 'the campaign ends here'
         }))
-        widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
+        widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
           label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
         }))
         defaultAction = 'results.title'
-        hint = 'THE RUN IS OVER · your completion is banked'
+        hint = 'THE RUN IS OVER · ENTER returns to the title'
       }
     } else {
       // Normal results buttons
@@ -270,7 +270,7 @@
       } else {
         widgets.push(U.button('results.retry', P.x + 40, by, 250, 48, {
           label: 'PLAY AGAIN', tone: 'primary', align: 'center', action: 'results-retry',
-          sub: 'same map, same rules'
+          sub: expResult && !expResult.won ? 'restart the expedition from its first map' : 'same map, same rules'
         }))
         widgets.push(U.button('results.title', P.x + P.w - 290, by, 250, 48, {
           label: 'TITLE', align: 'center', action: 'results-title', sub: 'back to the menu'
@@ -327,6 +327,11 @@
     }
 
     if (w.action === 'results-retry') {
+      if (app && app.restartGame) {
+        const restarted = app.restartGame()
+        click(!!restarted)
+        return !!restarted
+      }
       click(true)
       const st = app && app.state ? app.state : null
       if (app && typeof app.startGame === 'function' && st) {
@@ -381,7 +386,7 @@
       return true
     }
 
-    if (w.action === 'results-legends-continue') {
+    if (w.action === 'results-legends-continue' || w.action === 'results-legends-stage') {
       click(true)
       if (app && typeof app.advanceLegends === 'function') app.advanceLegends()
       return true

@@ -23,6 +23,8 @@
     io: null,
     sim: null,
     profile: null,
+    loginReward: null,
+    settingsFromGame: false,
     screen: 'menu',        // 'menu' | 'game' | 'results'
     mapKey: null,
     difficulty: 'medium',
@@ -64,13 +66,8 @@
     S.profile = OP.Save && OP.Save.load ? OP.Save.load() : null
     applySettings()
 
-    // The daily login calendar: today's claim, paid straight into the profile.
-    // Silently accrues for now — the calendar screen is part of the UI pass.
-    if (S.profile && OP.Logins && OP.Logins.claim) {
-      const key = OP.Daily && OP.Daily.dateKey ? OP.Daily.dateKey(new Date())
-        : new Date().toISOString().slice(0, 10)
-      try { OP.Logins.claim(S.profile, key); OP.Save.save(S.profile) } catch (e) { /* a login claim must never block boot */ }
-    }
+    // Auto-claim on entry; the calendar reveals the reward and can retry a failed save.
+    App.claimLogin()
 
     resize()
     window.addEventListener('resize', resize)
@@ -238,7 +235,7 @@
 
   function draw () {
     const S = App.state
-    if (!S.sim) {
+    if (!S.sim || S.screen === 'menu') {
       // No game yet: let the menu own the whole canvas.
       S.ctx.setTransform(1, 0, 0, 1, 0, 0)
       S.ctx.fillStyle = '#0e1410'
@@ -278,6 +275,22 @@
 
   /* ---------- game lifecycle ---------- */
 
+  App.claimLogin = function (todayKey) {
+    const S = App.state
+    if (!S.profile || !OP.Logins || !OP.Save) return null
+    const key = todayKey || (OP.Daily && OP.Daily.dateKey
+      ? OP.Daily.dateKey(new Date()) : new Date().toISOString().slice(0, 10))
+    try {
+      const profile = JSON.parse(JSON.stringify(S.profile))
+      const reward = OP.Logins.claim(profile, key)
+      if (!reward || !reward.claimed) return reward
+      if (!OP.Save.save(profile)) return { claimed: false, saveFailed: true }
+      S.profile = profile
+      S.loginReward = Object.assign({ dateKey: key }, reward)
+      return reward
+    } catch (e) { return { claimed: false, saveFailed: true } }
+  }
+
   App.startGame = function (mapKey, difficulty, mode, opts) {
     const S = App.state
     opts = opts || {}
@@ -306,12 +319,10 @@
     S.trialResult = null
     S.legendsResult = null
     S.bossEventResult = null
-    // Generate a stable run ID and determine the run type from the mode.
+    // Activities can share a mode; their launcher supplies ownership separately.
     const runId = S.mode + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
-    const runType = (S.mode === 'boss-event') ? 'boss-event'
-      : (S.mode === 'daily') ? 'daily'
-      : (S.mode === 'race') ? 'race'
-      : 'standard'
+    const runType = opts.runType || (S.mode.indexOf('boss-event') === 0 ? 'boss-event'
+      : S.mode === 'rush-trial' ? 'race' : 'standard')
     S.sim = OP.Sim.create({
       map: map,
       seed: opts.seed === undefined ? String(Date.now()) : opts.seed,
@@ -319,6 +330,7 @@
       mode: S.mode,
       runId: runId,
       runType: runType,
+      runContext: opts.runContext || null,
       roundSetKey: (modeDef && modeDef.roundSetKey) || 'standard',
       autostart: !!(S.profile && S.profile.settings && S.profile.settings.autostart),
       knowledge: S.profile && S.profile.knowledge ? S.profile.knowledge.slice() : [],
@@ -364,8 +376,14 @@
       S.mapKey = run.mapKey
       S.difficulty = S.sim.difficulty
       S.mode = S.sim.mode
+      S.progressionResult = null
+      S.expeditionResult = null
+      S.trialResult = null
+      S.legendsResult = null
+      S.bossEventResult = null
       S.screen = 'game'
       resetSaveStatus(S.sim)
+      S._saveRecovered = !!run.recovered
       S.sim.paused = true
       S.pauseOpen = true
       OP.Input.cancel(S.io)
@@ -373,20 +391,19 @@
       OP.FX.reset()
       OP.Render.invalidateTerrain(S.view)
 
-      // The daily challenge's active state lives in memory, not the run save, so
-      // a daily run resumed after a reload would finish without recording its
-      // result. The sim's seed ("daily-<dateKey>") identifies the challenge. Skip
-      // the restore when that date is already recorded: a won challenge saved
-      // mid-freeplay must not re-activate the daily — its continuation must not
-      // re-record the day with freeplay-inflated stats.
-      if (OP.DailyCore && OP.Daily && S.profile &&
-          typeof run.snapshot.seed === 'string' &&
-          run.snapshot.seed.indexOf('daily-') === 0) {
-        const dateKey = run.snapshot.seed.slice('daily-'.length)
-        if (!OP.DailyCore.isDone(S.profile, dateKey)) {
-          const challenge = OP.Daily.generate(dateKey)
-          if (challenge) OP.DailyCore.start(challenge)
-        }
+      // Older Daily saves used a deterministic seed instead of explicit context.
+      // Voyages/Trials had no such identity: never infer their owner from an
+      // unrelated active profile entry when loading a legacy ordinary snapshot.
+      if (!S.sim.runContext && (!S.sim.runType || S.sim.runType === 'standard' || S.sim.runType === 'daily') &&
+          typeof S.sim.seed === 'string' && /^daily-\d{4}-\d{2}-\d{2}$/.test(S.sim.seed)) {
+        S.sim.runType = 'daily'
+        S.sim.runContext = { dateKey: S.sim.seed.slice('daily-'.length) }
+      }
+      if (S.sim.runType === 'daily' && S.sim.runContext && !S.sim.freeplay &&
+          OP.DailyCore && OP.Daily && S.profile &&
+          !OP.DailyCore.isDone(S.profile, S.sim.runContext.dateKey)) {
+        const challenge = OP.Daily.generate(S.sim.runContext.dateKey)
+        if (challenge) OP.DailyCore.start(challenge)
       }
 
       return S.sim
@@ -405,6 +422,7 @@
     try { ok = OP.Save.saveRun(S.sim, S.mapKey) } catch (e) { ok = false }
     S._saveFailed = !ok
     if (ok) {
+      S._saveRecovered = false
       S._lastSavedAt = Date.now()
       S._lastAutosavedRound = S.sim.stats.roundsCleared
     }
@@ -413,15 +431,18 @@
 
   function resetSaveStatus (sim) {
     const S = App.state
+    S.settingsFromGame = false
     S._lastAutosavedRound = sim.stats.roundsCleared
     S._nextAutosaveAt = 0
     S._lastSavedAt = 0
     S._saveFailed = false
+    S._saveRecovered = false
   }
 
   App.canContinueFreeplay = function () {
     const S = App.state
     return !!(S.screen === 'results' && !S.expeditionResult &&
+      S.sim && !S.sim.isLegends && ['expedition', 'trial', 'legends'].indexOf(S.sim.runType) < 0 &&
       OP.Sim && OP.Sim.canEnterFreeplay && OP.Sim.canEnterFreeplay(S.sim))
   }
 
@@ -473,6 +494,27 @@
     return saved
   }
 
+  /** Open Settings without releasing the paused simulation. */
+  App.openPauseSettings = function () {
+    const S = App.state
+    if (!S.sim || S.sim.over || S.screen !== 'game' || !S.pauseOpen || !OP.Menus) return false
+    S.settingsFromGame = true
+    S.sim.paused = true
+    S.screen = 'menu'
+    OP.Menus.go(App, 'settings')
+    return true
+  }
+
+  App.closePauseSettings = function () {
+    const S = App.state
+    if (!S.settingsFromGame || !S.sim) return false
+    S.settingsFromGame = false
+    S.screen = 'game'
+    S.pauseOpen = true
+    S.sim.paused = true
+    return true
+  }
+
   /** Toggle the pause menu overlay. Closes any open shop/tree panel. */
   App.togglePauseMenu = function () {
     const S = App.state
@@ -487,9 +529,34 @@
     } else S.sim.paused = false
   }
 
-  /**
-   * Start an expedition from the beginning.
-   */
+  function ownsExpedition (sim) {
+    const exp = App.state.profile && App.state.profile.expedition
+    const context = sim && sim.runContext
+    return !!(sim && !sim.freeplay && sim.runType === 'expedition' && sim.runId && exp && context &&
+      exp.runId === sim.runId && exp.expeditionKey === context.expeditionKey &&
+      exp.stageIndex === context.stageIndex)
+  }
+
+  function ownsTrial (sim) {
+    const trial = App.state.profile && App.state.profile.activeTrial
+    const context = sim && sim.runContext
+    return !!(sim && !sim.freeplay && sim.runType === 'trial' && sim.runId && trial && context &&
+      trial.runId === sim.runId && trial.trialKey === context.trialKey)
+  }
+
+  App.startDaily = function (dateKey) {
+    if (!OP.Daily || !OP.DailyCore) return null
+    const challenge = dateKey ? OP.Daily.generate(dateKey) : OP.Daily.today()
+    if (!challenge) return null
+    const sim = App.startGame(challenge.mapKey, challenge.difficulty, challenge.mode, {
+      seed: challenge.seed, rules: challenge.rules || {},
+      runType: 'daily', runContext: { dateKey: challenge.dateKey }
+    })
+    if (sim) OP.DailyCore.start(challenge)
+    return sim
+  }
+
+  /** Start an expedition from the beginning. */
   App.startExpedition = function (expeditionKey) {
     const S = App.state
     if (!S.profile || !OP.Expedition) return null
@@ -498,14 +565,7 @@
     var startCash = 650
     var startLives = 20
     OP.Expedition.start(S.profile, expeditionKey, startCash, startLives)
-    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
-    var mapKey = def.maps[0].key
-    // Leg 1 may already carry a mode override (a Voyage's opening leg).
-    var legMode = OP.Expedition.currentMode(S.profile) || def.mode
-    return App.startGame(mapKey, def.difficulty, legMode, {
-      expeditionCash: startCash,
-      expeditionLives: startLives
-    })
+    return App.advanceExpedition()
   }
 
   /**
@@ -523,10 +583,22 @@
     var legMode = OP.Expedition.currentMode(S.profile) || def.mode
     var result = App.startGame(mapKey, def.difficulty, legMode, {
       expeditionCash: exp.cash,
-      expeditionLives: exp.lives
+      expeditionLives: exp.lives,
+      runType: 'expedition',
+      runContext: { expeditionKey: exp.expeditionKey, stageIndex: exp.stageIndex }
     })
+    if (result) {
+      exp.runId = result.runId
+      if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    }
     S.expeditionResult = null
     return result
+  }
+
+  App.resumeExpedition = function () {
+    const run = OP.Save && OP.Save.loadRun && OP.Save.loadRun()
+    if (run && ownsExpedition(run.snapshot)) return App.resumeGame()
+    return App.advanceExpedition()
   }
 
   /**
@@ -543,8 +615,14 @@
       var hero = (OP.Menus && OP.Menus.state && OP.Menus.state.legendsStart)
         ? OP.Menus.state.legendsStart.hero : null
       if (OP.Menus && OP.Menus.state) OP.Menus.state.legendsStart = null
-      if (!OP.Legends.start(S.profile, null, { picks: picks || [], hero: hero })) return null
+      const seed = 'legends-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
+      if (!OP.Legends.start(S.profile, seed, { picks: picks || [], hero: hero })) return null
       if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    }
+    const saved = OP.Save && OP.Save.loadRun && OP.Save.loadRun()
+    if (saved && saved.snapshot.runType === 'legends' && saved.snapshot.legends &&
+        OP.Legends.matchesEncounter(S.profile, saved.snapshot.legends.encounter)) {
+      return App.resumeGame()
     }
     var launched = App.launchLegendsBattle()
     S.legendsResult = null
@@ -647,10 +725,58 @@
     var def = OP.Trials.get(trialKey)
     if (!def) return null
     OP.Trial.start(S.profile, trialKey)
-    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
-    return App.startGame(def.mapKey, def.difficulty, def.mode, {
-      rules: def.rules || {}
+    return App.launchTrial()
+  }
+
+  App.launchTrial = function () {
+    const S = App.state
+    const def = OP.Trial && OP.Trial.activeDef(S.profile)
+    if (!def) return null
+    const sim = App.startGame(def.mapKey, def.difficulty, def.mode, {
+      rules: def.rules || {}, runType: 'trial', runContext: { trialKey: def.key }
     })
+    if (sim) {
+      S.profile.activeTrial.runId = sim.runId
+      if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    }
+    return sim
+  }
+
+  App.resumeTrial = function () {
+    const run = OP.Save && OP.Save.loadRun && OP.Save.loadRun()
+    if (run && ownsTrial(run.snapshot)) return App.resumeGame()
+    return App.launchTrial()
+  }
+
+  /** Shared by the pause and results screens so an activity never becomes Standard. */
+  App.restartGame = function () {
+    const S = App.state
+    const sim = S.sim
+    if (!sim) return null
+    const context = sim.runContext || {}
+    if (sim.isLegends || sim.runType === 'legends') {
+      return OP.Legends && OP.Legends.matchesEncounter(S.profile, sim.legendsEncounter)
+        ? App.launchLegendsBattle() : null
+    }
+    if (sim.runType === 'expedition') {
+      if (ownsExpedition(sim)) return App.advanceExpedition()
+      if (sim.over && S.expeditionResult && !S.expeditionResult.won && !S.profile.expedition) {
+        return App.startExpedition(context.expeditionKey)
+      }
+      return null
+    }
+    if (sim.runType === 'trial') {
+      if (ownsTrial(sim) || (sim.over && S.trialResult &&
+          S.trialResult.trialKey === context.trialKey && !S.profile.activeTrial)) {
+        return App.startTrial(context.trialKey)
+      }
+      return null
+    }
+    if (sim.runType === 'daily' && context.dateKey) return App.startDaily(context.dateKey)
+    if (typeof sim.seed === 'string' && /^daily-\d{4}-\d{2}-\d{2}$/.test(sim.seed)) {
+      return App.startDaily(sim.seed.slice('daily-'.length))
+    }
+    return App.startGame(S.mapKey, S.difficulty, S.mode, { rules: Object.assign({}, sim.rules) })
   }
 
   /**
@@ -694,7 +820,11 @@
       S.io.selectedId = -1
     }
     if (OP.Save && OP.Save.clearRun) OP.Save.clearRun()
-    if (OP.Save && OP.Save.recordResult && S.profile) {
+    const isLegendsRun = !!(S.sim && (S.sim.isLegends || S.sim.runType === 'legends'))
+    if (isLegendsRun && S.profile && OP.Powers) {
+      S.profile.powers = OP.Powers.copyInventory(S.sim.powers)
+    }
+    if (OP.Save && OP.Save.recordResult && S.profile && !isLegendsRun) {
       var levelBefore = OP.Save.playerLevel ? OP.Save.playerLevel(S.profile) : 1
       var xpBefore = S.profile.playerXp || 0
       var savedResult = {
@@ -719,12 +849,17 @@
         level: OP.Save.playerLevel ? OP.Save.playerLevel(S.profile) : levelBefore
       }
     }
-    // Record daily challenge result if one is active
-    if (OP.DailyCore && OP.DailyCore.active() && S.profile) {
-      var dailyResult = OP.DailyCore.resultFromSim(S.sim, S.sim.outcome === 'won')
-      OP.DailyCore.record(S.profile, OP.DailyCore.active().dateKey, dailyResult)
-      OP.DailyCore.updateStreak(S.profile)
-      OP.DailyCore.complete()
+    // The saved date owns this result, even after a rollover or another Daily
+    // was viewed. A completed Daily continued into freeplay settles only once.
+    if (OP.DailyCore && S.profile && S.sim.runType === 'daily' && S.sim.runContext && !S.sim.freeplay) {
+      const dateKey = S.sim.runContext.dateKey
+      const previous = OP.DailyCore.resultFor(S.profile, dateKey)
+      if (dateKey && (!previous || !previous.won)) {
+        var dailyResult = OP.DailyCore.resultFromSim(S.sim, S.sim.outcome === 'won')
+        OP.DailyCore.record(S.profile, dateKey, dailyResult)
+        OP.DailyCore.updateStreak(S.profile)
+      }
+      if (OP.DailyCore.active() && OP.DailyCore.active().dateKey === dateKey) OP.DailyCore.complete()
     }
     // Record race result if Rush Trial
     if (OP.Race && OP.Race.isActive && OP.Race.isActive(S.sim) && S.profile) {
@@ -739,25 +874,20 @@
       S.bossEventResult = OP.BossEvent.recordResult(S.profile, S.sim)
     }
     // Handle expedition map transition
-    if (OP.Expedition && OP.Expedition.isActive(S.profile) && S.sim.outcome === 'won') {
-      OP.Expedition.extractState(S.profile, S.sim)
-      var expResult = OP.Expedition.recordGameOver(S.profile, true)
-      S.expeditionResult = expResult
-    } else if (OP.Expedition && OP.Expedition.isActive(S.profile)) {
-      // Lost during expedition — abandon it
-      OP.Expedition.abandon(S.profile)
+    if (OP.Expedition && ownsExpedition(S.sim)) {
+      const won = S.sim.outcome === 'won'
+      if (won) OP.Expedition.extractState(S.profile, S.sim)
+      S.expeditionResult = OP.Expedition.recordGameOver(S.profile, won)
     }
     // Handle trial completion
-    if (OP.Trial && OP.Trial.isActive(S.profile)) {
+    if (OP.Trial && ownsTrial(S.sim)) {
       var trialResult = OP.Trial.recordGameOver(S.profile, S.sim.outcome === 'won', S.sim.roundIndex)
       S.trialResult = trialResult
     }
     // Handle a Legends battle ending. A won battle advances the campaign here so
     // the results screen can reflect what actually happened (a chest picked up,
-    // a stage cleared, the whole campaign finished). `isLegends` is a
-    // non-serialised marker set on the live sim so a stray expedition/trial
-    // never cross-fires into it, and the advanced profile state is persisted by
-    // the normal game-over save below. Losing ends the run.
+    // a stage cleared, the whole campaign finished). The saved encounter must
+    // match the current campaign node. Losing ends that campaign only.
     if (OP.Legends && OP.Legends.isActive(S.profile) && S.sim && S.sim.isLegends &&
         OP.Legends.matchesEncounter(S.profile, S.sim.legendsEncounter)) {
       if (OP.Legends.tickBoost) OP.Legends.tickBoost(S.profile)

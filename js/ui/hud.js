@@ -697,6 +697,11 @@
 
     by += bh + 12
     // Rules / encounter objectives readout
+    widgets.push(U.button('pause.settings', bx, by, bw, bh, {
+      label: 'SETTINGS', labelSize: 16,
+      align: 'center', action: 'pause-settings'
+    }))
+    by += bh + 12
     const objectiveLines = []
     if (sim.isLegends && sim.legendsMini && OP.LegendsData) {
       const mini = sim.legendsMini
@@ -734,6 +739,10 @@
       marks.push(U.text(FIELD_W / 2, P.y + P.h - 36, 'Free browser storage, then retry Save & Quit.', {
         size: 10, colour: C.ink, align: 'center'
       }))
+    } else if (app.state._saveRecovered) {
+      marks.push(U.text(FIELD_W / 2, P.y + P.h - 36, 'Recovered previous checkpoint. Recent progress may be lost.', {
+        size: 10, colour: C.gold, align: 'center'
+      }))
     }
     marks.push(U.text(FIELD_W / 2, P.y + P.h - 12, 'ESC to resume', {
       size: 9, colour: C.faint, align: 'center'
@@ -765,6 +774,11 @@
       return true
     }
     if (w.action === 'pause-restart') {
+      if (app.restartGame) {
+        const restarted = app.restartGame()
+        click(!!restarted)
+        return !!restarted
+      }
       if (sim.isLegends) {
         if (!OP.Legends || !OP.Legends.matchesEncounter(app.state.profile, sim.legendsEncounter) ||
             !app.launchLegendsBattle) return false
@@ -787,6 +801,11 @@
         app.startGame(st.mapKey, st.difficulty, st.mode, opts)
       }
       return true
+    }
+    if (w.action === 'pause-settings') {
+      const opened = app.openPauseSettings && app.openPauseSettings()
+      click(!!opened)
+      return !!opened
     }
     return false
   }
