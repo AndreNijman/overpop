@@ -40,6 +40,7 @@
   LegendsData.MERCHANT = 'merchant'
   LegendsData.MINIGAME = 'minigame'
   LegendsData.BOOST = 'boost'
+  LegendsData.CAMPFIRE = 'campfire'
 
   /* The three official Rogue Legends mini-games. A Mini-game tile is one of
      these, rolled deterministically per seed+node; each has its own goal that

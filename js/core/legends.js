@@ -83,9 +83,10 @@
      merchant and mini-game tiles sprinkled in. */
   function pickMidKind (bos, rng) {
     if (rng.chance(0.14)) return bos.MERCHANT
-    if (rng.chance(0.22)) return bos.CHEST
-    if (rng.chance(0.14)) return bos.MINIGAME
+    if (rng.chance(0.20)) return bos.CHEST
+    if (rng.chance(0.12)) return bos.MINIGAME
     if (rng.chance(0.10)) return bos.BOOST
+    if (rng.chance(0.12)) return bos.CAMPFIRE
     return bos.BATTLE
   }
 
@@ -103,6 +104,7 @@
     }
     else if (kind === bos.ELITE) name = 'Elite Encounter'
     else if (kind === bos.BOOST) name = 'Power Surge'
+    else if (kind === bos.CAMPFIRE) name = 'Campfire'
     else if (kind === bos.BOSS) name = 'Boss'
     var node = { kind: kind, name: name }
     if (type) node.miniType = type
@@ -508,6 +510,10 @@
       var boostPick = allBoosts[boostRng.int(allBoosts.length)]
       Legends.grantBoost(profile, boostPick.key)
       result.boost = boostPick.key
+    } else if (node && node.kind === bos.CAMPFIRE) {
+      var healAmount = Math.max(5, Math.floor(Legends.START_LIVES * 0.25))
+      l.lives = Math.min(Legends.START_LIVES * 2, (l.lives || 0) + healAmount)
+      result.healed = healAmount
     }
 
     result.clearedStage = l.stage || 0
@@ -651,6 +657,11 @@
     return OP.LegendsData.merchantPrice(l.stage)
   }
 
+  /* The cash a Merchant node charges for a reroll (half the buy price). */
+  Legends.merchantRerollPrice = function (profile) {
+    return Math.floor(Legends.merchantPrice(profile) * 0.5)
+  }
+
   /* Resolve a Merchant node: buy the artifact (spin cash) or skip it (pay
      nothing). Either way the node is passed so the campaign advances to the
      next tile. Returns what happened. */
@@ -669,6 +680,35 @@
     }
     l.nodeIndex = (l.nodeIndex || 0) + 1
     return { buy: !!buy, granted: granted, price: price, affordable: true, advanced: true }
+  }
+
+  /* Resolve a Campfire node: heal lives and advance. Returns what happened. */
+  Legends.resolveCampfire = function (profile) {
+    var l = Legends.get(profile)
+    var bos = OP.LegendsData
+    if (!l) return null
+    var node = Legends.currentNode(profile)
+    if (!node || node.kind !== bos.CAMPFIRE) return null
+    var healAmount = Math.max(5, Math.floor(Legends.START_LIVES * 0.25))
+    l.lives = Math.min(Legends.START_LIVES * 2, (l.lives || 0) + healAmount)
+    l.nodeIndex = (l.nodeIndex || 0) + 1
+    return { healed: healAmount, advanced: true }
+  }
+
+  /* Resolve a Merchant reroll: spend cash to see a new artifact, then buy
+     or skip the new one. The node does not advance on reroll — the player
+     still needs to buy or skip. Returns what happened. */
+  Legends.resolveMerchantReroll = function (profile) {
+    var l = Legends.get(profile)
+    var bos = OP.LegendsData
+    if (!l) return null
+    var node = Legends.currentNode(profile)
+    if (!node || node.kind !== bos.MERCHANT) return null
+    var rerollCost = Legends.merchantRerollPrice(profile)
+    if ((l.cash || 0) < rerollCost) return { ok: false, affordable: false, price: rerollCost }
+    l.cash = Math.max(0, (l.cash || 0) - rerollCost)
+    var newArtifact = Legends.grantRandomArtifact(profile, 'merchant-reroll')
+    return { ok: true, granted: newArtifact, price: rerollCost, affordable: true }
   }
 
   /* Clear the active campaign and record a completion. */

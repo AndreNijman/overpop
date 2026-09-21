@@ -642,6 +642,24 @@
     return res
   }
 
+  /** Resolve a Campfire node: heal lives and advance. */
+  App.legendsCampfire = function () {
+    const S = App.state
+    if (!S.profile || !OP.Legends) return null
+    const res = OP.Legends.resolveCampfire(S.profile)
+    if (res && OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    return res
+  }
+
+  /** Resolve a Merchant reroll: spend cash for a new artifact. */
+  App.legendsMerchantReroll = function () {
+    const S = App.state
+    if (!S.profile || !OP.Legends) return null
+    const res = OP.Legends.resolveMerchantReroll(S.profile)
+    if (res && OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    return res
+  }
+
   /**
    * Advance a won Legends battle to the next node, then launch it (or return
    * to the board when a battle just opened a chest / the run finished).

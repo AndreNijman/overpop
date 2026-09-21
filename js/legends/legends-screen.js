@@ -180,18 +180,36 @@
     var isChest = currentNode && currentNode.kind === 'chest'
     var isMerchant = currentNode && currentNode.kind === 'merchant'
     var isMini = currentNode && currentNode.kind === 'minigame'
+    var isCampfire = currentNode && currentNode.kind === 'campfire'
 
     if (isMerchant) {
       var mPrice = (OP.Legends && OP.Legends.merchantPrice) ? OP.Legends.merchantPrice(profile) : 250
+      var rrPrice = (OP.Legends && OP.Legends.merchantRerollPrice) ? OP.Legends.merchantRerollPrice(profile) : Math.floor(mPrice * 0.5)
       var canAfford = sum.cash >= mPrice
+      var canReroll = sum.cash >= rrPrice
       marks.push(U.text(PAD, 474, 'A travelling merchant offers a relic for $' + mPrice + '.',
         { size: 11, colour: C.dim }))
-      widgets.push(U.button('legends.buy', PAD, 430, 300, 58, {
+      widgets.push(U.button('legends.buy', PAD, 430, 260, 58, {
         label: 'BUY ARTIFACT', tone: 'primary', action: 'legends-buy',
         sub: canAfford ? 'spend $' + mPrice + ' on a random relic' : 'not enough cash'
       }))
-      widgets.push(U.button('legends.skip', PAD, 430 + 72, 300, 46, {
+      widgets.push(U.button('legends.reroll', PAD + 272, 430, 120, 58, {
+        label: 'REROLL', action: 'legends-reroll',
+        sub: canReroll ? '$' + rrPrice : 'not enough cash'
+      }))
+      widgets.push(U.button('legends.skip', PAD, 430 + 72, 260, 46, {
         label: 'SKIP', action: 'legends-skip', sub: 'pass on this merchant'
+      }))
+    } else if (isCampfire) {
+      var healAmount = Math.max(5, Math.floor(40 * 0.25))
+      marks.push(U.text(PAD, 474, 'A warm campfire restores ' + healAmount + ' lives.',
+        { size: 11, colour: C.dim }))
+      widgets.push(U.button('legends.rest', PAD, 430, 300, 58, {
+        label: 'REST', tone: 'primary', action: 'legends-rest',
+        sub: 'heal and continue'
+      }))
+      widgets.push(U.button('legends.abandon', PAD, 430 + 72, 300, 46, {
+        label: 'ABANDON RUN', action: 'legends-abandon', sub: 'lose everything, keep nothing'
       }))
     } else {
       var fightLabel = isBoss ? 'FACE THE BOSS'
@@ -302,6 +320,14 @@
     }
     if (w.action === 'legends-buy' || w.action === 'legends-skip') {
       if (app && app.legendsMerchant) app.legendsMerchant(w.action === 'legends-buy')
+      return true
+    }
+    if (w.action === 'legends-reroll') {
+      if (app && app.legendsMerchantReroll) app.legendsMerchantReroll()
+      return true
+    }
+    if (w.action === 'legends-rest') {
+      if (app && app.legendsCampfire) app.legendsCampfire()
       return true
     }
     if (w.action === 'legends-abandon') {
