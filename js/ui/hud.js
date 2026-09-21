@@ -696,12 +696,25 @@
     }))
 
     by += bh + 12
-    // Rules / encounter objectives readout
     widgets.push(U.button('pause.settings', bx, by, bw, bh, {
       label: 'SETTINGS', labelSize: 16,
       align: 'center', action: 'pause-settings'
     }))
     by += bh + 12
+    // Abandon run button — only for activity runs (expedition, trial, legends).
+    const isActivity = sim.runType === 'expedition' || sim.runType === 'trial' ||
+      (sim.isLegends || sim.runType === 'legends')
+    if (isActivity) {
+      const confirming = !!app.state._confirmAbandon
+      widgets.push(U.button('pause.abandon', bx, by, bw, bh, {
+        label: confirming ? 'CONFIRM ABANDON' : 'ABANDON RUN',
+        labelSize: 16,
+        tone: confirming ? 'danger' : undefined,
+        align: 'center', action: 'pause-abandon'
+      }))
+      by += bh + 12
+    }
+    // Rules / encounter objectives readout
     const objectiveLines = []
     if (sim.isLegends && sim.legendsMini && OP.LegendsData) {
       const mini = sim.legendsMini
@@ -806,6 +819,17 @@
       const opened = app.openPauseSettings && app.openPauseSettings()
       click(!!opened)
       return !!opened
+    }
+    if (w.action === 'pause-abandon') {
+      if (!app.state._confirmAbandon) {
+        app.state._confirmAbandon = true
+        click(true)
+        return true
+      }
+      app.state._confirmAbandon = false
+      const ok = app.abandonRun && app.abandonRun()
+      click(!!ok)
+      return !!ok
     }
     return false
   }

@@ -520,6 +520,7 @@
     const S = App.state
     if (!S.sim || S.sim.over || S.screen !== 'game') return
     S.pauseOpen = !S.pauseOpen
+    S._confirmAbandon = false
     if (S.pauseOpen) {
       S.sim.paused = true
       if (S.io) { OP.Input.cancel(S.io); S.io.selectedId = -1 }
@@ -714,6 +715,32 @@
     OP.Expedition.abandon(S.profile)
     if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
     S.expeditionResult = null
+  }
+
+  /**
+   * Abandon the current activity run without settling rewards.
+   * Clears the activity state, saves the profile, and returns to the menu.
+   */
+  App.abandonRun = function () {
+    const S = App.state
+    if (!S.sim || !S.profile) return false
+    const sim = S.sim
+    const ctx = sim.runContext || {}
+    if (sim.isLegends || sim.runType === 'legends') {
+      if (OP.Legends && OP.Legends.abandon) OP.Legends.abandon(S.profile)
+    } else if (sim.runType === 'expedition') {
+      if (OP.Expedition && OP.Expedition.abandon) OP.Expedition.abandon(S.profile)
+    } else if (sim.runType === 'trial') {
+      if (OP.Trial && OP.Trial.abandon) OP.Trial.abandon(S.profile)
+    } else {
+      return false
+    }
+    if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    S.sim = null
+    S.screen = 'menu'
+    S.pauseOpen = false
+    if (OP.Audio && OP.Audio.stopMusic) OP.Audio.stopMusic()
+    return true
   }
 
   /**

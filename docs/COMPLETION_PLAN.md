@@ -139,7 +139,7 @@ their requirements extend beyond these verified paths.
 - [x] Restart.
 - [x] Settings, with Back/Escape returning to the still-paused live battle.
 - [x] Rules / encounter objectives.
-- [ ] Abandon run.
+- [x] Abandon run.
 - [x] Escape cancels active placement first; otherwise it opens the pause menu.
 - [x] Save & Quit checks whether saving succeeded before discarding the live sim.
 
@@ -587,7 +587,7 @@ and coherent interaction states.
 Validate Chrome, Edge, Firefox, Safari, and representative mobile browsers.
 Verify the deployed site's cold load, asset loading, updates, and save compatibility.
 
-Preserve the reported **60-suite / 12,475-assertion baseline**, adding targeted
+Preserve the reported **61-suite / 12,505-assertion baseline**, adding targeted
 integration coverage for newly repaired journeys.
 
 ## 5. Recommended execution order
