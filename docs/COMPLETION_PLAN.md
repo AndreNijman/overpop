@@ -166,7 +166,7 @@ unrelated active expedition or trial.
 - [x] Explicit mid-round saving with complete encounter state.
 - [x] Page-hide/background saving as a supplementary safeguard.
 - [x] Last-known-good checkpoint for run-save JSON/envelope corruption.
-- [ ] Visible Saved state and actionable storage-error messages.
+- [x] Visible Saved state and actionable storage-error messages.
 - [x] Export/import backup from Settings (profile and latest saved run).
 - [x] Campaign/event saves protected from accidental overwriting by other runs.
 - [x] Resume paused, with saved map, round, and objective visible.
