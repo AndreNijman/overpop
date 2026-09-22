@@ -484,16 +484,23 @@
     }
     var result = { won: true, chest: null, stageComplete: false, campaignComplete: false }
 
-    // A loot node (Loot Chest) grants a random artifact in addition to the
-    // resource carry. A clear Mini-game pays only when its goal is reached;
+    // A loot node (Loot Chest) generates 3 reward options for the player to
+    // choose from. A clear Mini-game pays only when its goal is reached;
     // reaching no goal still advances but hands out nothing (canon).
     if (node && node.kind === bos.CHEST) {
-      var pickedChest = Legends.grantRandomArtifact(profile, 'chest')
-      if (!pickedChest && OP.Drafts && OP.Drafts.grantRandom) {
-        var chestDraft = OP.Drafts.grantRandom(profile)
-        if (chestDraft) result.draft = chestDraft
+      var options = Legends.previewChestRewards(profile)
+      result.chestOptions = options
+      if (!options || !options.length) {
+        // No unowned artifacts: fall back to draft token
+        if (OP.Drafts && OP.Drafts.grantRandom) {
+          var chestDraft = OP.Drafts.grantRandom(profile)
+          if (chestDraft) result.draft = chestDraft
+        }
+        result.chest = null
+        // Don't advance yet — player will need to pick or the node auto-advances
+        l.nodeIndex = (l.nodeIndex || 0) + 1
       }
-      result.chest = pickedChest
+      // Don't advance on chest — player picks from options first, then claimChestReward advances
     } else if (node && node.kind === bos.MINIGAME) {
       var miniPayout = Legends.miniGameReward(profile, sim)
       result.mini = miniPayout
@@ -517,7 +524,11 @@
     }
 
     result.clearedStage = l.stage || 0
-    l.nodeIndex = (l.nodeIndex || 0) + 1
+    // Chest nodes advance when the player claims a reward, not here.
+    var isPendingChest = node && node.kind === bos.CHEST && l.pendingChest && l.pendingChest.length
+    if (!isPendingChest) {
+      l.nodeIndex = (l.nodeIndex || 0) + 1
+    }
     var board = Legends.board(profile)
 
     // Crossed the end of this stage's board -> stage complete (boss beaten).
@@ -568,6 +579,55 @@
     if (!pickedArt) return null
     l.artifacts.push(pickedArt.key)
     return pickedArt.key
+  }
+
+  /* Generate a preview of chest rewards: 3 random unowned artifacts stored
+     in l.pendingChest. Returns the options array or null. */
+  Legends.previewChestRewards = function (profile) {
+    var l = Legends.get(profile)
+    if (!l || !OP.LegendsData) return null
+    if (!Array.isArray(l.artifacts)) l.artifacts = []
+    var bos = OP.LegendsData
+    var all = bos.allArtifacts()
+    var owned = l.artifacts
+    var unowned = []
+    for (var i = 0; i < all.length; i++) {
+      if (owned.indexOf(all[i].key) < 0) unowned.push(all[i])
+    }
+    if (!unowned.length) { l.pendingChest = []; return [] }
+    var count = Math.min(3, unowned.length)
+    var options = []
+    var used = {}
+    for (var n = 0; n < count; n++) {
+      var seed = l.seed + ':chest-' + l.stage + '-' + l.nodeIndex + '-preview-' + n
+      var picked = pickWeighted(profile, unowned, all, seed)
+      if (!picked || used[picked.key]) {
+        // fallback: just pick any unowned we haven't used yet
+        for (var u = 0; u < unowned.length; u++) {
+          if (!used[unowned[u].key]) { picked = unowned[u]; break }
+        }
+      }
+      if (picked) {
+        used[picked.key] = true
+        options.push({ key: picked.key, name: picked.name, rarity: picked.rarity, blurb: picked.blurb })
+      }
+    }
+    l.pendingChest = options
+    return options
+  }
+
+  /* Claim one of the pending chest reward options by index. Grants the
+     artifact, clears pendingChest, and advances the node. */
+  Legends.claimChestReward = function (profile, index) {
+    var l = Legends.get(profile)
+    if (!l || !l.pendingChest) return null
+    var options = l.pendingChest
+    var pick = options[index]
+    if (!pick) return null
+    l.artifacts.push(pick.key)
+    l.pendingChest = null
+    l.nodeIndex = (l.nodeIndex || 0) + 1
+    return { key: pick.key, name: pick.name, advanced: true }
   }
 
   /* Choose an artifact from `unowned` honouring the stage rarity weights; falls

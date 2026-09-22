@@ -193,12 +193,17 @@ export function run (t, OP) {
   const p4 = Save.defaults(); L.start(p4, 'advance-seed')
   // Jump straight to the boss of stage 0 by advancing through every node.
   p4.legends.artifacts = []
-  const boardLen = L.board(p4).length
+  const board4 = L.board(p4)
+  const boardLen = board4.length
   let ran = 0
   let res = null
   const wonSim = makeSim(OP, { cash: 500, lives: 30 })
   while (ran < boardLen) {
     res = L.recordWin(p4, wonSim)
+    // Chest nodes require claiming a reward before advancing.
+    if (res.chestOptions && res.chestOptions.length) {
+      L.claimChestReward(p4, 0)
+    }
     ran++
     if (res.campaignComplete || res.nextStage) break
   }
@@ -208,21 +213,22 @@ export function run (t, OP) {
     t.eq(p4.legends.nodeIndex, 0, 'node reset to 0 at the new stage')
   }
 
-  t.section('a chest node grants an artifact')
+  t.section('a chest node offers selectable rewards')
   const p5 = Save.defaults(); L.start(p5, 'chest-seed')
   const chestBoard = L.board(p5)
   const chestPos = chestBoard.findIndex(n => n.kind === LD.CHEST)
   if (chestPos >= 0) {
     p5.legends.nodeIndex = chestPos
     const had = p5.legends.artifacts.length
-    const node = L.currentNode(p5)
     res = L.recordWin(p5, wonSim)
-    t.ok(res.chest, 'chest node granted an artifact on win')
-    t.ok(p5.legends.artifacts.length >= had + 1, 'artifact list grew by opening the chest')
-    t.ok(typeof res.chest === 'string' && res.chest.length > 0, 'chest reward is a key')
-    t.notOk(node.kind !== LD.CHEST, 'the node really was a chest')
+    t.ok(Array.isArray(res.chestOptions) && res.chestOptions.length > 0, 'chest node offers selectable rewards')
+    t.ok(p5.legends.pendingChest, 'pendingChest is set in profile')
+    const pick = L.claimChestReward(p5, 0)
+    t.ok(pick, 'claimChestReward returns a result')
+    t.ok(pick.key, 'claimed result has key')
+    t.ok(p5.legends.artifacts.length >= had + 1, 'artifact list grew by claiming the chest')
   } else {
-    t.ok(true, 'skipped: this seed had no chest (still fine)')
+    t.ok(true, 'no chest node on this seed')
   }
 
   t.section('an exhausted loot pool pays Draft Tokens instead')

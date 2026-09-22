@@ -219,4 +219,110 @@ export function run (t) {
       t.ok(res.healed > 0, 'healed is positive')
     }
   }
+
+  t.section('chest node generates 3 selectable rewards')
+  {
+    var profile = startCampaign(OP, app)
+    var board = OP.Legends.board(profile)
+    var chestIdx = -1
+    for (var i = 0; i < board.length; i++) {
+      if (board[i].kind === 'chest') { chestIdx = i; break }
+    }
+    if (chestIdx < 0) {
+      t.pass('no chest on this board, skipping')
+    } else {
+      profile.legends.nodeIndex = chestIdx
+      var res = OP.Legends.recordWin(profile, null)
+      t.ok(res, 'recordWin returns a result')
+      t.ok(res.won, 'won is true')
+      t.ok(Array.isArray(res.chestOptions), 'chestOptions is an array')
+      t.ok(res.chestOptions.length === 3, 'chestOptions has 3 options')
+      t.ok(profile.legends.pendingChest, 'pendingChest is set in profile')
+      t.ok(profile.legends.pendingChest.length === 3, 'pendingChest has 3 entries')
+      for (var ci = 0; ci < res.chestOptions.length; ci++) {
+        var opt = res.chestOptions[ci]
+        t.ok(opt.key, 'option ' + ci + ' has key: ' + opt.key)
+        t.ok(opt.name, 'option ' + ci + ' has name: ' + opt.name)
+        t.ok(opt.rarity, 'option ' + ci + ' has rarity: ' + opt.rarity)
+        t.ok(opt.blurb, 'option ' + ci + ' has blurb')
+      }
+    }
+  }
+
+  t.section('chest reward options are all different')
+  {
+    var profile = startCampaign(OP, app)
+    var board = OP.Legends.board(profile)
+    var chestIdx = -1
+    for (var i = 0; i < board.length; i++) {
+      if (board[i].kind === 'chest') { chestIdx = i; break }
+    }
+    if (chestIdx >= 0) {
+      profile.legends.nodeIndex = chestIdx
+      OP.Legends.recordWin(profile, null)
+      var opts = profile.legends.pendingChest
+      var keys = {}
+      var allUnique = true
+      for (var k = 0; k < opts.length; k++) {
+        if (keys[opts[k].key]) allUnique = false
+        keys[opts[k].key] = true
+      }
+      t.ok(allUnique, 'all 3 chest options are unique artifacts')
+    }
+  }
+
+  t.section('claimChestReward grants chosen artifact')
+  {
+    var profile = startCampaign(OP, app)
+    var board = OP.Legends.board(profile)
+    var chestIdx = -1
+    for (var i = 0; i < board.length; i++) {
+      if (board[i].kind === 'chest') { chestIdx = i; break }
+    }
+    if (chestIdx >= 0) {
+      profile.legends.nodeIndex = chestIdx
+      OP.Legends.recordWin(profile, null)
+      var beforeLen = profile.legends.artifacts.length
+      var pick = OP.Legends.claimChestReward(profile, 0)
+      t.ok(pick, 'claimChestReward returns a result')
+      t.ok(pick.key, 'claimed result has key')
+      t.ok(pick.advanced, 'advanced is true')
+      t.eq(profile.legends.artifacts.length, beforeLen + 1, 'artifact count increased by 1')
+      t.eq(profile.legends.artifacts[beforeLen], pick.key, 'claimed artifact added to list')
+      t.ok(!profile.legends.pendingChest, 'pendingChest cleared')
+    }
+  }
+
+  t.section('claimChestReward rejects invalid index')
+  {
+    var profile = startCampaign(OP, app)
+    var board = OP.Legends.board(profile)
+    var chestIdx = -1
+    for (var i = 0; i < board.length; i++) {
+      if (board[i].kind === 'chest') { chestIdx = i; break }
+    }
+    if (chestIdx >= 0) {
+      profile.legends.nodeIndex = chestIdx
+      OP.Legends.recordWin(profile, null)
+      var beforeLen = profile.legends.artifacts.length
+      var pick = OP.Legends.claimChestReward(profile, 99)
+      t.ok(!pick, 'invalid index returns null')
+      t.eq(profile.legends.artifacts.length, beforeLen, 'no artifact added')
+    }
+  }
+
+  t.section('previewChestRewards falls back to draft when no unowned artifacts')
+  {
+    var profile = startCampaign(OP, app)
+    // Own all artifacts
+    var all = OP.LegendsData.allArtifacts()
+    for (var i = 0; i < all.length; i++) {
+      profile.legends.artifacts.push(all[i].key)
+    }
+    var opts = OP.Legends.previewChestRewards(profile)
+    t.ok(Array.isArray(opts), 'returns an array')
+    t.eq(opts.length, 0, 'empty options when all owned')
+    t.ok(Array.isArray(profile.legends.pendingChest), 'pendingChest set')
+    t.eq(profile.legends.pendingChest.length, 0, 'pendingChest empty')
+  }
 }

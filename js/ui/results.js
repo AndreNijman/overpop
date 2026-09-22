@@ -232,9 +232,10 @@
           defaultAction = 'results.legStage'
           hint = 'ENTER enters the next stage · ESC returns to the title'
         } else {
+          var chestPending = profile && profile.legends && profile.legends.pendingChest && profile.legends.pendingChest.length
           widgets.push(U.button('results.legCont', P.x + 40, by, 250, 48, {
-            label: 'CONTINUE LEGENDS', tone: 'primary', align: 'center',
-            action: 'results-legends-continue', sub: 'advance through the campaign'
+            label: chestPending ? 'OPEN CHEST' : 'CONTINUE LEGENDS', tone: 'primary', align: 'center',
+            action: 'results-legends-continue', sub: chestPending ? 'choose your reward' : 'advance through the campaign'
           }))
           widgets.push(U.button('results.legAbandon', P.x + P.w - 290, by, 250, 48, {
             label: 'TITLE', align: 'center', action: 'results-title', sub: 'return to the menu'

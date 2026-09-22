@@ -181,8 +181,23 @@
     var isMerchant = currentNode && currentNode.kind === 'merchant'
     var isMini = currentNode && currentNode.kind === 'minigame'
     var isCampfire = currentNode && currentNode.kind === 'campfire'
+    var pendingChest = profile.legends && profile.legends.pendingChest
 
-    if (isMerchant) {
+    if (isChest && pendingChest && pendingChest.length) {
+      marks.push(U.text(PAD, 440, 'Choose a relic from the chest:', { size: 12, colour: C.ink, weight: '600' }))
+      for (var ci = 0; ci < pendingChest.length; ci++) {
+        var opt = pendingChest[ci]
+        var rarityCol = opt.rarity === 'legendary' ? '#d4a843' : opt.rarity === 'rare' ? '#7a6fd4' : C.moss
+        var cx = PAD + ci * 280
+        widgets.push(U.button('legends.chest-' + ci, cx, 460, 260, 80, {
+          label: opt.name, tone: 'primary', action: 'legends-chest', arg: ci,
+          sub: (opt.blurb || '') + ' [' + (opt.rarity || 'common').toUpperCase() + ']'
+        }))
+        marks.push(U.text(cx + 130, 460 + 20, opt.rarity ? opt.rarity.toUpperCase() : 'COMMON', {
+          size: 8, colour: rarityCol, align: 'center', track: 0.2
+        }))
+      }
+    } else if (isMerchant) {
       var mPrice = (OP.Legends && OP.Legends.merchantPrice) ? OP.Legends.merchantPrice(profile) : 250
       var rrPrice = (OP.Legends && OP.Legends.merchantRerollPrice) ? OP.Legends.merchantRerollPrice(profile) : Math.floor(mPrice * 0.5)
       var canAfford = sum.cash >= mPrice
@@ -328,6 +343,10 @@
     }
     if (w.action === 'legends-rest') {
       if (app && app.legendsCampfire) app.legendsCampfire()
+      return true
+    }
+    if (w.action === 'legends-chest') {
+      if (app && app.legendsClaimChest) app.legendsClaimChest(w.arg)
       return true
     }
     if (w.action === 'legends-abandon') {

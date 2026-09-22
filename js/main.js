@@ -660,6 +660,15 @@
     return res
   }
 
+  /** Claim a chest reward option by index. */
+  App.legendsClaimChest = function (index) {
+    const S = App.state
+    if (!S.profile || !OP.Legends) return null
+    const res = OP.Legends.claimChestReward(S.profile, index)
+    if (res && OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    return res
+  }
+
   /**
    * Advance a won Legends battle to the next node, then launch it (or return
    * to the board when a battle just opened a chest / the run finished).
@@ -680,6 +689,12 @@
       App.quitToMenu()
       if (OP.Menus && OP.Menus.go) OP.Menus.go(App, 'legends')
       return { nextStage: true }
+    }
+    // Chest nodes: return to the board so the player can pick a reward.
+    if (S.profile.legends && S.profile.legends.pendingChest && S.profile.legends.pendingChest.length) {
+      App.quitToMenu()
+      if (OP.Menus && OP.Menus.go) OP.Menus.go(App, 'legends')
+      return { chestPending: true }
     }
     if (!OP.Legends.isActive(S.profile)) return null
     return App.launchLegendsBattle()
