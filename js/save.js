@@ -506,6 +506,17 @@
         Number.isInteger(raw.boost.battlesLeft) && raw.boost.battlesLeft > 0) {
       boost = { key: raw.boost.key, battlesLeft: raw.boost.battlesLeft }
     }
+    // Tower party: array of { key, tiers: [p0, p1, p2] }.
+    const party = []
+    if (Array.isArray(raw.party)) {
+      for (const p of raw.party) {
+        if (!isPlainObject(p) || typeof p.key !== 'string' || !safeKey(p.key)) continue
+        const t = Array.isArray(p.tiers)
+          ? [counter(p.tiers[0]), counter(p.tiers[1]), counter(p.tiers[2])]
+          : [0, 0, 0]
+        party.push({ key: p.key, tiers: t })
+      }
+    }
     return {
       seed: raw.seed,
       stage: counter(raw.stage),
@@ -514,6 +525,7 @@
       lives: finite(raw.lives) ? raw.lives : 40,
       artifacts: artifacts,
       heroKey: typeof raw.heroKey === 'string' && safeKey(raw.heroKey) ? raw.heroKey : null,
+      party: party,
       boost: boost,
       wonStages: counter(raw.wonStages)
     }

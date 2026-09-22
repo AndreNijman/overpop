@@ -29,6 +29,10 @@
   Legends.STARTING_PARTY = 3
   Legends.BOOST_DURATION = 3
 
+  /* Tower party: persistent towers carried between battles. */
+  Legends.PARTY_CAPACITY = 4
+  Legends.STARTING_PARTY_SIZE = 2
+
   /* Battle rounds per stage, and how the tier ramp is tuned. `frontier` is a
      0..1 position across the whole campaign used to scale battle size. */
   Legends.BASE_ROUNDS = 12
@@ -281,6 +285,93 @@
     return OP.Heroes.place(sim, heroKey, best.x, best.y, { free: true })
   }
 
+  /* ---------- tower party ---------- */
+
+  /* Return the party array from a profile, or []. */
+  Legends.partyList = function (profile) {
+    var l = Legends.get(profile)
+    return (l && Array.isArray(l.party)) ? l.party : []
+  }
+
+  /* Add a tower to the party. Returns true on success. */
+  Legends.partyAdd = function (profile, key, tiers) {
+    var l = Legends.get(profile)
+    if (!l || !key) return false
+    if (!Array.isArray(l.party)) l.party = []
+    if (l.party.length >= Legends.PARTY_CAPACITY) return false
+    if (!OP.TOWERS || !OP.TOWERS[key]) return false
+    var t = Array.isArray(tiers) ? [tiers[0] || 0, tiers[1] || 0, tiers[2] || 0] : [0, 0, 0]
+    l.party.push({ key: key, tiers: t })
+    return true
+  }
+
+  /* Remove a party member by index. Returns the removed entry or null. */
+  Legends.partyRemove = function (profile, index) {
+    var l = Legends.get(profile)
+    if (!l || !Array.isArray(l.party) || index < 0 || index >= l.party.length) return null
+    return l.party.splice(index, 1)[0]
+  }
+
+  /* Replace a party member at index. Returns true on success. */
+  Legends.partyReplace = function (profile, index, key, tiers) {
+    var l = Legends.get(profile)
+    if (!l || !Array.isArray(l.party) || index < 0 || index >= l.party.length) return false
+    if (!OP.TOWERS || !OP.TOWERS[key]) return false
+    var t = Array.isArray(tiers) ? [tiers[0] || 0, tiers[1] || 0, tiers[2] || 0] : [0, 0, 0]
+    l.party[index] = { key: key, tiers: t }
+    return true
+  }
+
+  /* Deploy all party towers onto the sim. They are placed free near the track
+     entrance. Returns an array of placed tower entities. */
+  Legends.deployParty = function (profile, sim) {
+    var l = Legends.get(profile)
+    if (!l || !sim || !OP.Towers) return []
+    var party = Legends.partyList(profile)
+    if (!party.length) return []
+    var map = sim.map
+    var entrance = null
+    if (map && map.paths && map.paths[0]) {
+      var track = map.paths[0]
+      if (track.points && track.points.length) entrance = track.points[0]
+      else if (Array.isArray(track) && track.length) entrance = track[0]
+    }
+    var placed = []
+    var step = 16
+    for (var pi = 0; pi < party.length; pi++) {
+      var entry = party[pi]
+      if (!entry || !entry.key || !OP.TOWERS[entry.key]) continue
+      var def = OP.TOWERS[entry.key]
+      var footprint = def.footprint || 14
+      var best = null
+      var bestDist = Infinity
+      for (var cy = footprint; cy < OP.FIELD_H - footprint; cy += step) {
+        for (var cx = footprint; cx < OP.FIELD_W - footprint; cx += step) {
+          var placeCheck = OP.Maps && OP.Maps.canPlace ? OP.Maps.canPlace(map, def, cx, cy) : { ok: true }
+          if (!placeCheck.ok) continue
+          var overlap = false
+          for (var ti = 0; ti < sim.towers.length; ti++) {
+            var other = sim.towers[ti]
+            var min = footprint + (other.def.footprint || 14)
+            var dx = cx - other.x, dy = cy - other.y
+            if (dx * dx + dy * dy < min * min) { overlap = true; break }
+          }
+          if (overlap) continue
+          var dist = entrance ? ((cx - entrance.x) * (cx - entrance.x) + (cy - entrance.y) * (cy - entrance.y)) : 1e9
+          if (dist < bestDist) { bestDist = dist; best = { x: cx, y: cy } }
+        }
+      }
+      if (!best) continue
+      var tower = OP.Towers.place(sim, entry.key, best.x, best.y, { free: true })
+      if (tower) {
+        tower.tiers = [entry.tiers[0] || 0, entry.tiers[1] || 0, entry.tiers[2] || 0]
+        OP.Towers.restat(sim, tower)
+        placed.push(tower)
+      }
+    }
+    return placed
+  }
+
   /* Grant a temporary campaign-wide surge. */
   Legends.grantBoost = function (profile, boostKey) {
     var l = Legends.get(profile)
@@ -464,8 +555,18 @@
       lives: Legends.START_LIVES,
       artifacts: picks,
       heroKey: heroKey,
+      party: [],
       boost: null,
       wonStages: 0
+    }
+    // Give the player a starting party of 2 random towers.
+    if (OP.TOWER_ORDER && OP.TOWER_ORDER.length) {
+      var towerPool = OP.TOWER_ORDER.slice()
+      for (var ti = 0; ti < Legends.STARTING_PARTY_SIZE && towerPool.length; ti++) {
+        var tIdx = rng.int(towerPool.length)
+        Legends.partyAdd(profile, towerPool[tIdx], [0, 0, 0])
+        towerPool.splice(tIdx, 1)
+      }
     }
     return true
   }
@@ -628,6 +729,27 @@
     l.pendingChest = null
     l.nodeIndex = (l.nodeIndex || 0) + 1
     return { key: pick.key, name: pick.name, advanced: true }
+  }
+
+  /* Price to replace a party member at a merchant. */
+  Legends.merchantReplacePrice = function (profile) {
+    return 200
+  }
+
+  /* Replace a party member at the given index with a random new tower.
+     Returns the new party entry or null on failure. */
+  Legends.resolvePartyReplace = function (profile, index) {
+    var l = Legends.get(profile)
+    if (!l || !OP.TOWERS || !OP.TOWER_ORDER) return null
+    var party = Legends.partyList(profile)
+    if (index < 0 || index >= party.length) return null
+    var towerPool = OP.TOWER_ORDER.slice()
+    // Pick a random tower type.
+    var rng = new OP.RNG(l.seed + ':party-replace-' + l.stage + '-' + index + '-' + Date.now())
+    var newKey = towerPool[rng.int(towerPool.length)]
+    if (!newKey) return null
+    party[index] = { key: newKey, tiers: [0, 0, 0] }
+    return { key: newKey, index: index }
   }
 
   /* Choose an artifact from `unowned` honouring the stage rarity weights; falls

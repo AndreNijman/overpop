@@ -137,7 +137,18 @@
       : ''
     marks.push(U.text(PAD + 500, 172, 'HERO: ' + heroName + (boostLine ? '   ·   ' + boostLine : ''),
       { size: 10, colour: sum.boost ? '#d4a843' : C.dim }))
-    marks.push(U.rule(PAD, 190, FIELD_W - PAD * 2))
+    // Party display
+    var party = (OP.Legends && OP.Legends.partyList) ? OP.Legends.partyList(profile) : []
+    var partyNames = []
+    for (var pi = 0; pi < party.length; pi++) {
+      var pDef = OP.TOWERS && OP.TOWERS[party[pi].key]
+      var pName = pDef ? pDef.name : party[pi].key
+      var tStr = party[pi].tiers.join('-')
+      partyNames.push(pName + (tStr !== '0-0-0' ? ' ' + tStr : ''))
+    }
+    var partyLine = 'PARTY: ' + (partyNames.length ? partyNames.join(', ') : 'empty')
+    marks.push(U.text(PAD, 192, partyLine, { size: 10, colour: party.length ? C.dim : C.faint }))
+    marks.push(U.rule(PAD, 208, FIELD_W - PAD * 2))
 
     // The board: one tile per node, entrance..boss.
     var board = OP.Legends.board ? OP.Legends.board(profile) : []
@@ -215,6 +226,18 @@
       widgets.push(U.button('legends.skip', PAD, 430 + 72, 260, 46, {
         label: 'SKIP', action: 'legends-skip', sub: 'pass on this merchant'
       }))
+      // Party replace: swap a party member for a random new tower
+      var party = (OP.Legends && OP.Legends.partyList) ? OP.Legends.partyList(profile) : []
+      var rpPrice = (OP.Legends && OP.Legends.merchantReplacePrice) ? OP.Legends.merchantReplacePrice(profile) : 200
+      for (var ri = 0; ri < party.length; ri++) {
+        var rpDef = OP.TOWERS && OP.TOWERS[party[ri].key]
+        var rpName = rpDef ? rpDef.name : party[ri].key
+        var canRp = sum.cash >= rpPrice
+        widgets.push(U.button('legends.replace-' + ri, PAD + 400, 430 + ri * 34, 200, 30, {
+          label: 'REPLACE ' + rpName.toUpperCase(), action: 'legends-replace', arg: ri,
+          sub: canRp ? 'swap for $' + rpPrice : 'not enough cash'
+        }))
+      }
     } else if (isCampfire) {
       var healAmount = Math.max(5, Math.floor(40 * 0.25))
       marks.push(U.text(PAD, 474, 'A warm campfire restores ' + healAmount + ' lives.',
@@ -347,6 +370,10 @@
     }
     if (w.action === 'legends-chest') {
       if (app && app.legendsClaimChest) app.legendsClaimChest(w.arg)
+      return true
+    }
+    if (w.action === 'legends-replace') {
+      if (app && app.legendsPartyReplace) app.legendsPartyReplace(w.arg)
       return true
     }
     if (w.action === 'legends-abandon') {

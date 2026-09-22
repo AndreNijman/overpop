@@ -669,6 +669,15 @@
     return res
   }
 
+  /** Replace a party member at the given index. */
+  App.legendsPartyReplace = function (index) {
+    const S = App.state
+    if (!S.profile || !OP.Legends) return null
+    const res = OP.Legends.resolvePartyReplace(S.profile, index)
+    if (res && OP.Save && OP.Save.save) OP.Save.save(S.profile)
+    return res
+  }
+
   /**
    * Advance a won Legends battle to the next node, then launch it (or return
    * to the board when a battle just opened a chest / the run finished).
@@ -736,6 +745,8 @@
     if (OP.Legends.applyBoost) OP.Legends.applyBoost(S.profile, sim)
     // Deploy the campaign hero onto the map.
     if (OP.Legends.deployHero) OP.Legends.deployHero(S.profile, sim)
+    // Deploy party towers alongside the hero.
+    if (OP.Legends.deployParty) OP.Legends.deployParty(S.profile, sim)
     return sim
   }
 

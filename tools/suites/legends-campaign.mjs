@@ -325,4 +325,147 @@ export function run (t) {
     t.ok(Array.isArray(profile.legends.pendingChest), 'pendingChest set')
     t.eq(profile.legends.pendingChest.length, 0, 'pendingChest empty')
   }
+
+  t.section('tower party initializes on campaign start')
+  {
+    var profile = startCampaign(OP, app)
+    t.ok(Array.isArray(profile.legends.party), 'party is an array')
+    t.ok(profile.legends.party.length > 0, 'party has at least one member')
+    t.ok(profile.legends.party.length <= 2, 'party starts with up to 2 members')
+    for (var i = 0; i < profile.legends.party.length; i++) {
+      var entry = profile.legends.party[i]
+      t.ok(entry.key, 'party member ' + i + ' has a key')
+      t.ok(OP.TOWERS[entry.key], 'party member ' + i + ' is a valid tower: ' + entry.key)
+      t.ok(Array.isArray(entry.tiers), 'party member ' + i + ' has tiers array')
+    }
+  }
+
+  t.section('partyList returns party array')
+  {
+    var profile = startCampaign(OP, app)
+    var list = OP.Legends.partyList(profile)
+    t.ok(Array.isArray(list), 'returns an array')
+    t.eq(list.length, profile.legends.party.length, 'matches profile party length')
+  }
+
+  t.section('partyAdd adds a tower to the party')
+  {
+    var profile = startCampaign(OP, app)
+    var before = profile.legends.party.length
+    var towerKey = OP.TOWER_ORDER[0]
+    var ok = OP.Legends.partyAdd(profile, towerKey, [1, 0, 0])
+    t.ok(ok, 'partyAdd returns true')
+    t.eq(profile.legends.party.length, before + 1, 'party grew by 1')
+    var last = profile.legends.party[profile.legends.party.length - 1]
+    t.eq(last.key, towerKey, 'added tower key matches')
+    t.ok(last.tiers[0] === 1, 'tiers preserved')
+  }
+
+  t.section('partyAdd rejects invalid tower')
+  {
+    var profile = startCampaign(OP, app)
+    var before = profile.legends.party.length
+    var ok = OP.Legends.partyAdd(profile, 'not-a-tower', [0, 0, 0])
+    t.ok(!ok, 'invalid tower returns false')
+    t.eq(profile.legends.party.length, before, 'party unchanged')
+  }
+
+  t.section('partyAdd respects capacity limit')
+  {
+    var profile = startCampaign(OP, app)
+    // Fill to capacity
+    while (profile.legends.party.length < OP.Legends.PARTY_CAPACITY) {
+      OP.Legends.partyAdd(profile, OP.TOWER_ORDER[profile.legends.party.length % OP.TOWER_ORDER.length], [0, 0, 0])
+    }
+    t.eq(profile.legends.party.length, OP.Legends.PARTY_CAPACITY, 'party at capacity')
+    var ok = OP.Legends.partyAdd(profile, OP.TOWER_ORDER[0], [0, 0, 0])
+    t.ok(!ok, 'cannot add beyond capacity')
+    t.eq(profile.legends.party.length, OP.Legends.PARTY_CAPACITY, 'party still at capacity')
+  }
+
+  t.section('partyRemove removes a party member')
+  {
+    var profile = startCampaign(OP, app)
+    OP.Legends.partyAdd(profile, OP.TOWER_ORDER[0], [2, 0, 0])
+    var idx = profile.legends.party.length - 1
+    var removed = OP.Legends.partyRemove(profile, idx)
+    t.ok(removed, 'removed entry is returned')
+    t.eq(removed.key, OP.TOWER_ORDER[0], 'removed key matches')
+    t.ok(removed.tiers[0] === 2, 'removed tiers preserved')
+  }
+
+  t.section('partyReplace swaps a party member')
+  {
+    var profile = startCampaign(OP, app)
+    OP.Legends.partyAdd(profile, OP.TOWER_ORDER[0], [0, 0, 0])
+    var idx = profile.legends.party.length - 1
+    var newKey = OP.TOWER_ORDER[1] || OP.TOWER_ORDER[0]
+    var ok = OP.Legends.partyReplace(profile, idx, newKey, [3, 1, 0])
+    t.ok(ok, 'partyReplace returns true')
+    t.eq(profile.legends.party[idx].key, newKey, 'replaced key matches')
+    t.ok(profile.legends.party[idx].tiers[0] === 3, 'replaced tiers preserved')
+  }
+
+  t.section('deployParty places towers on the sim')
+  {
+    var profile = startCampaign(OP, app)
+    // Ensure party has entries
+    OP.Legends.partyAdd(profile, OP.TOWER_ORDER[0], [0, 0, 0])
+    OP.Legends.partyAdd(profile, OP.TOWER_ORDER[1] || OP.TOWER_ORDER[0], [0, 0, 0])
+    var mapKey = OP.MAP_ORDER ? OP.MAP_ORDER[0] : Object.keys(OP.MAPS)[0]
+    var sim = { rules: {}, towers: [], towerById: new Map(), nextEntityId: 1, map: null, heroId: -1, buffs: [], buffsDirty: false, events: [] }
+    if (OP.Maps && OP.Maps.get) {
+      var realMap = OP.Maps.get(mapKey)
+      if (realMap) sim.map = realMap
+    }
+    var placed = OP.Legends.deployParty(profile, sim)
+    t.ok(Array.isArray(placed), 'deployParty returns an array')
+    t.ok(placed.length > 0, 'at least one tower placed')
+  }
+
+  t.section('merchantReplacePrice returns a number')
+  {
+    var profile = startCampaign(OP, app)
+    var price = OP.Legends.merchantReplacePrice(profile)
+    t.ok(typeof price === 'number' && price > 0, 'price is a positive number')
+  }
+
+  t.section('resolvePartyReplace swaps a party member with random tower')
+  {
+    var profile = startCampaign(OP, app)
+    OP.Legends.partyAdd(profile, OP.TOWER_ORDER[0], [0, 0, 0])
+    var idx = profile.legends.party.length - 1
+    var oldKey = profile.legends.party[idx].key
+    var res = OP.Legends.resolvePartyReplace(profile, idx)
+    t.ok(res, 'resolvePartyReplace returns a result')
+    t.ok(res.key, 'result has a key')
+    t.eq(res.index, idx, 'result index matches')
+    t.ok(OP.TOWERS[res.key], 'new tower is valid')
+  }
+
+  t.section('resolvePartyReplace rejects invalid index')
+  {
+    var profile = startCampaign(OP, app)
+    var res = OP.Legends.resolvePartyReplace(profile, 99)
+    t.ok(!res, 'invalid index returns null')
+  }
+
+  t.section('party survives save/load round-trip')
+  {
+    var profile = startCampaign(OP, app)
+    OP.Legends.partyAdd(profile, OP.TOWER_ORDER[0], [1, 2, 0])
+    var before = JSON.parse(JSON.stringify(profile.legends.party))
+    // Simulate save/load via migrate (serialise) + normaliseLegends
+    var migrated = OP.Save.migrate(profile)
+    var loaded = OP.Save.defaults()
+    loaded.legends = migrated.legends
+    // Re-normalise through the save path
+    var reSaved = OP.Save.migrate(loaded)
+    t.ok(reSaved.legends && Array.isArray(reSaved.legends.party), 'party survives round-trip')
+    t.eq(reSaved.legends.party.length, before.length, 'party length preserved')
+    for (var i = 0; i < before.length; i++) {
+      t.eq(reSaved.legends.party[i].key, before[i].key, 'party member ' + i + ' key preserved')
+      t.ok(reSaved.legends.party[i].tiers[0] === before[i].tiers[0], 'party member ' + i + ' tiers preserved')
+    }
+  }
 }
