@@ -422,6 +422,23 @@
       }
     }
 
+    /* First-run guidance follows the real shop and placement intent. It occupies
+       board space without intercepting a tap or changing any simulation rules. */
+    const profile = app && app.state && app.state.profile
+    if (profile && profile.tutorialStep < 2 && sim.runType === 'standard') {
+      const io = ioOf(app)
+      const step = profile.tutorialStep === 1 ? 1 : 0
+      const instruction = step === 1
+        ? 'TOWER READY! Press START ROUND below to defend the path.'
+        : io && io.mode === 'placing' && !io.placingIsHero
+          ? 'Tap open ground beside the path to place your critter.'
+          : 'FIRST DEFENSE: Choose an affordable critter in the shop on the right.'
+      marks.push(U.box(262, 122, 690, 70, { fill: C.panel, stroke: C.gold, alpha: 0.96 }))
+      marks.push(U.text(282, 146, 'HOW TO PLAY · ' + (step + 1) + ' / 2',
+        { size: 11, colour: C.gold, weight: '600' }))
+      marks.push(U.text(282, 174, instruction, { size: 13, colour: C.ink }))
+    }
+
     /* ----- the bottom strip: everything you press between rounds ----- */
 
     marks.push(U.box(L.bottom.x, L.bottom.y, L.bottom.w, L.bottom.h, { fill: C.panel, alpha: 0.93 }))

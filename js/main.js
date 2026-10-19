@@ -79,7 +79,7 @@
     OP.Input.attach(S.io, S.canvas, S.view)
     OP.Input.setTowerLookup(S.io, towerAt)
     OP.Input.setHandlers(S.io, {
-      place: onPlace,
+      place: App.placeTower,
       select: onSelect,
       aim: onAim,
       context: onContext,
@@ -220,6 +220,11 @@
   App.updateGame = function (dt) {
     const S = App.state
     if (S.sim) {
+      if (S.screen === 'game' && S.profile && S.profile.tutorialStep === 1 &&
+          S.sim.runType === 'standard' && S.sim.roundIndex > 0) {
+        S.profile.tutorialStep = 2
+        if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+      }
       if (!S.pauseOpen) OP.Sim.advance(S.sim, dt)
       OP.FX.consume(OP.FX.state, S.sim)
       if (OP.Audio) OP.Audio.consume(S.sim)
@@ -1015,6 +1020,11 @@
     if (placed && Number.isInteger(placed.id)) {
       S.io.selectedId = placed.id
       OP.Input.cancel(S.io)
+      if (!isHero && S.profile && S.profile.tutorialStep === 0 &&
+          S.sim.runType === 'standard') {
+        S.profile.tutorialStep = 1
+        if (OP.Save && OP.Save.save) OP.Save.save(S.profile)
+      }
     } else if (placed && placed.reason) {
       if (OP.Audio) OP.Audio.play('deny')
       OP.FX.say(x, y - 20, placed.reason, '#e06a5a')
@@ -1024,6 +1034,7 @@
       OP.FX.say(x, y - 20, why.reason || 'Cannot place here', '#e06a5a')
     }
   }
+  App.placeTower = onPlace
 
   function onSelect (id) { App.state.io.selectedId = id }
 

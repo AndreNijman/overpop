@@ -56,6 +56,7 @@ function completeProfile (OP, p) {
   for (const k of COUNTERS) if (!Number.isInteger(st[k]) || st[k] < 0) return false
   if (!isObj(st.bestRound)) return false
   if (!Number.isInteger(p.playerXp) || p.playerXp < 0) return false
+  if (!Number.isInteger(p.tutorialStep) || p.tutorialStep < 0 || p.tutorialStep > 2) return false
 
   if (!isObj(p.completions)) return false
   if (!Array.isArray(p.unlockedTowers) || !Array.isArray(p.seenBalloons)) return false
@@ -116,7 +117,7 @@ export function run (t, OP, env) {
 
   t.section('a fresh profile is complete and storable')
   const d = S.defaults()
-  t.eq(S.SCHEMA_VERSION, 13, 'the schema starts at version 13')
+  t.eq(S.SCHEMA_VERSION, 14, 'the schema includes first-run guide progress')
   t.ok(Number.isInteger(S.SCHEMA_VERSION) && S.SCHEMA_VERSION >= 1, 'and is a positive integer')
   t.ok(completeProfile(OP, d), 'defaults() has every field the game reads')
   t.eq(d.settings.gameSpeed, 1, 'the game starts at normal speed')

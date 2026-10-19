@@ -28,7 +28,7 @@
   /* Bump when the profile shape changes, and add the from-version step to
      MIGRATIONS. The storage KEYS never change — a migration has to be able to
      find the old data. */
-  Save.SCHEMA_VERSION = 13
+  Save.SCHEMA_VERSION = 14
 
   Save.PROFILE_KEY = 'overpop.profile'
   Save.RUN_KEY = 'overpop.run'
@@ -252,6 +252,7 @@
       settings: settings,
       stats: stats,
       playerXp: 0,
+      tutorialStep: 0,        // 0: choose/place a tower, 1: start a round, 2: finished
       completions: {},   // mapKey -> difficulty -> mode -> true
       unlockedTowers: [],
       seenBalloons: [],
@@ -311,6 +312,8 @@
       if (round > 0) out.stats.bestRound[mapKey] = round
     }
     out.playerXp = counter(raw.playerXp)
+    out.tutorialStep = Number.isInteger(raw.tutorialStep)
+      ? Math.min(2, Math.max(0, raw.tutorialStep)) : 0
 
     out.completions = normaliseCompletions(raw.completions)
     out.unlockedTowers = keyList(raw.unlockedTowers)
@@ -748,6 +751,11 @@
       if (!Array.isArray(p.trophyOwned)) p.trophyOwned = []
       if (!isPlainObject(p.trophyEquipped)) p.trophyEquipped = {}
       return p
+    },
+    // Version 13 → 14: don't introduce the first-run guide to established players.
+    13: function (p) {
+      p.tutorialStep = (p.stats && (p.stats.gamesPlayed > 0 || p.stats.roundsCleared > 0)) || p.playerXp > 0 ? 2 : 0
+      return p
     }
   }
 
@@ -859,6 +867,8 @@
     }
     if (!isPlainObject(p.stats.bestRound)) p.stats.bestRound = {}
     p.playerXp = counter(p.playerXp)
+    p.tutorialStep = Number.isInteger(p.tutorialStep)
+      ? Math.min(2, Math.max(0, p.tutorialStep)) : 0
     if (!isPlainObject(p.completions)) p.completions = {}
     if (!Array.isArray(p.unlockedTowers)) p.unlockedTowers = []
     if (!Array.isArray(p.seenBalloons)) p.seenBalloons = []

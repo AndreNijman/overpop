@@ -190,7 +190,8 @@ The resumed simulation matches the expected state, and rewards settle exactly on
 
 Verify from a fresh profile rather than an unrestricted test configuration:
 
-- [ ] Tutorial and first tower placement.
+- [x] Tutorial and first tower placement — fresh-profile shop → valid placement →
+  first round, with persistent guide progress and legacy-profile migration.
 - [ ] Tower and hero unlocks.
 - [ ] XP purchase versus in-match upgrade purchase.
 - [ ] Three upgrade paths and crosspath restrictions.

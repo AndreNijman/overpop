@@ -1,7 +1,7 @@
 import { loadGame } from '../loadgame.mjs'
 
 export const name = 'player-journey'
-export const needs = ['js/main.js', 'js/core/sim.js', 'js/core/towers.js', 'js/core/economy.js', 'js/core/rounds.js']
+export const needs = ['js/main.js', 'js/core/sim.js', 'js/core/towers.js', 'js/core/economy.js', 'js/core/rounds.js', 'js/save.js', 'js/ui/hud.js', 'js/ui/shop.js']
 
 function fixture (env) {
   const { OP } = env
@@ -16,6 +16,67 @@ export function run (t) {
   const env = loadGame()
   const { OP } = env
   const app = fixture(env)
+
+  t.section('fresh-profile guide: shop, placement and first round')
+  {
+    const profile = app.state.profile
+    t.eq(profile.tutorialStep, 0, 'fresh profile has not started the guide')
+    const sim = app.startGame(OP.MAP_ORDER[0], 'easy', 'standard')
+    const hints = () => OP.HUD.build(app).marks.filter(m => m.kind === 'text').map(m => m.text).join(' ')
+    t.ok(hints().includes('Choose an affordable critter'), 'shop guidance is visible')
+    const card = OP.Shop.build(app).widgets.find(w => w.action === 'shop-buy' && !w.hero && !w.draft && w.state === 'ok')
+    t.ok(card, 'an affordable unlocked tower is in the real shop')
+    t.ok(sim.rules.allowedTowerKeys.indexOf(card.arg) >= 0, 'the first shop tower is actually unlocked')
+    const cost = OP.Economy.price(sim, OP.TOWERS[card.arg].cost)
+    const cash = sim.cash
+    OP.Input.setHandlers(app.state.io, { place: app.placeTower })
+    OP.Shop.activate(app, card)
+    t.eq(app.state.io.placingKey, card.arg, 'shop card enters placement mode')
+    t.ok(hints().includes('Tap open ground'), 'placement guidance replaces shop guidance')
+
+    // A failed attempt must not complete the guide or spend the player's money.
+    OP.Input.tap(app.state.io, -999, 200)
+    t.eq(profile.tutorialStep, 0, 'invalid placement does not advance the guide')
+    t.eq(sim.cash, cash, 'invalid placement does not spend cash')
+    t.eq(app.state.io.placingKey, card.arg, 'placement remains active for another try')
+
+    let spot = null
+    for (let y = 140; y < 520 && !spot; y += 32) {
+      for (let x = 80; x < 850; x += 32) {
+        if (OP.Towers.canPlace(sim, card.arg, x, y).ok) { spot = { x, y }; break }
+      }
+    }
+    t.ok(spot, 'the first map has an accessible legal placement')
+    const point = OP.Camera.boardToField(spot.x, spot.y)
+    OP.Input.tap(app.state.io, point.x, point.y)
+    t.eq(sim.towers.length, 1, 'field tap places the selected tower')
+    t.eq(sim.towers[0].key, card.arg, 'the chosen shop tower was placed')
+    t.eq(sim.cash, cash - cost, 'first placement pays the real purchase price')
+    t.eq(profile.tutorialStep, 1, 'first tower advances the guide')
+    t.ok(hints().includes('START ROUND'), 'the next instruction points to the round control')
+    t.eq(OP.Save.load().tutorialStep, 1, 'guide progress persists across reload')
+
+    const start = OP.HUD.build(app).widgets.find(w => w.action === 'hud-start')
+    t.ok(start, 'start-round button is visible')
+    OP.HUD.activate(app, start)
+    app.updateGame(0)
+    t.eq(profile.tutorialStep, 2, 'starting the round completes the guide')
+    t.eq(OP.Save.load().tutorialStep, 2, 'completion persists across reload')
+    t.notOk(hints().includes('HOW TO PLAY'), 'completed guide stays hidden')
+    app.startGame(OP.MAP_ORDER[0], 'easy', 'standard')
+    t.notOk(hints().includes('HOW TO PLAY'), 'guide does not reappear next game')
+  }
+
+  t.section('legacy progress does not trigger the first-run guide')
+  {
+    const old = OP.Save.defaults()
+    old.schemaVersion = 13
+    old.stats.gamesPlayed = 1
+    delete old.tutorialStep
+    t.eq(OP.Save.migrate(old).tutorialStep, 2, 'established players skip the guide')
+    old.stats.gamesPlayed = 0
+    t.eq(OP.Save.migrate(old).tutorialStep, 0, 'unused old profiles can still see the guide')
+  }
 
   t.section('victory on final round')
   {
