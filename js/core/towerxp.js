@@ -196,6 +196,10 @@
       banked half first, then live runXp — so what the run can unlock right now
       is exactly what the run says the tower type holds. */
   TowerXp.unlockCell = function (profile, sim, towerKey, path, tier) {
+    const def = OP.TOWERS && OP.TOWERS[towerKey]
+    if (!def || !Object.prototype.hasOwnProperty.call(OP.TOWERS, towerKey)) {
+      return { ok: false, reason: 'Unknown tower.' }
+    }
     if (!Number.isInteger(path) || path < 0 || path > 2) {
       return { ok: false, reason: 'That branch does not exist.' }
     }
@@ -206,6 +210,10 @@
     const onRun = !!(sim && sim.towerXp)
     const holder = onRun ? sim : profile
     const have = onRun ? TowerXp.available(sim, towerKey) : TowerXp.profileXp(profile, towerKey)
+    if (!holder) return { ok: false, reason: 'No profile or run to unlock for.' }
+    if (TowerXp.pathUnlocked(holder, towerKey, path) >= tier) {
+      return { ok: false, reason: 'That upgrade is already unlocked.' }
+    }
     if (have + 1e-9 < cost) {
       return { ok: false, reason: 'Needs ' + Math.floor(cost) + ' XP — you have ' + Math.floor(have) + '.' }
     }
@@ -220,6 +228,11 @@
       if (cur > 0) {
         const take = Math.min(cur, remaining)
         holder.towerXp[towerKey] = cur - take
+        // The run's bank is a copy, not another wallet. Spend its profile half
+        // too, otherwise quitting or starting another run refunds the purchase.
+        if (onRun && profile && profile.towerXp) {
+          profile.towerXp[towerKey] = Math.max(0, TowerXp.bankedOf(profile, towerKey) - take)
+        }
         remaining -= take
       }
     }

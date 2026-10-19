@@ -1261,6 +1261,26 @@
     } catch (e) { return null }
   }
 
+  /** Commit a progression purchase and its live XP debit as one journalled pair.
+      Keeping the old run checkpoint would allow spent run XP to be recovered.
+      Reuse backup validation/recovery rather than inventing another transaction. */
+  Save.saveProgress = function (profile, sim, mapKey) {
+    if (!isPlainObject(profile) || !isPlainObject(sim) || sim.over) return false
+    try {
+      const snapshot = OP.Sim.serialize(sim)
+      const key = String(mapKey || (sim.map && sim.map.key) || snapshot.mapKey || '')
+      if (!key) return false
+      snapshot.mapKey = key
+      return Save.importBackup(JSON.stringify({
+        format: 'overpop-backup', version: 1, profile: profile,
+        run: {
+          schemaVersion: Save.SCHEMA_VERSION, version: OP.VERSION,
+          savedAt: Date.now(), mapKey: key, snapshot: snapshot
+        }
+      })).ok
+    } catch (e) { return false }
+  }
+
   /** Validate before touching storage; replace the profile and saved run together. */
   Save.importBackup = function (text) {
     let backup, profile, runText

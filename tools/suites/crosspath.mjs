@@ -43,6 +43,11 @@ export function run (t, OP) {
   t.notOk(U.canBuy(fake(0, 0, 0), -1).ok, 'a negative branch index is refused')
   t.notOk(U.canBuy(fake(0, 0, 0), 3).ok, 'an out-of-range branch index is refused')
   t.notOk(U.canBuy(fake(5, 0, 0), 0).ok, 'tier 5 is the ceiling')
+  for (const path of [NaN, Infinity, 0.5, undefined, null, '0']) {
+    t.notOk(U.canBuy(fake(0, 0, 0), path).ok, 'non-integer branch is refused: ' + String(path))
+    t.eq(U.nextUpgrade({ ...fake(0, 0, 0), def: { paths: [{ tiers: [{}] }] } }, path), null,
+      'non-integer branch has no next upgrade: ' + String(path))
+  }
 
   t.section('legal end states are exactly 5-2-0 and its permutations, and below')
   const maxima = U.legalMaxima()
@@ -93,6 +98,11 @@ export function run (t, OP) {
   t.eq(disagreements, 0, 'the predicate and the enumeration describe the same set')
   t.notOk(U.isLegalState([-1, 0, 0]), 'negative tiers are illegal')
   t.notOk(U.isLegalState([6, 0, 0]), 'tier 6 is illegal')
+  for (const tiers of [[], [0, 0], [0, 0, 0, 0], [0.5, 0, 0], [NaN, 0, 0], [Infinity, 0, 0], ['1', 0, 0], [undefined, 0, 0]]) {
+    t.notOk(U.isLegalState(tiers), 'malformed tier triple is illegal: ' + String(tiers))
+    t.notOk(U.canBuy({ ...fake(0, 0, 0), tiers: tiers }, 0).ok, 'malformed tower cannot buy another upgrade')
+  }
+  t.noThrow(() => t.notOk(U.isLegalState(null), 'null is not a tier triple'), 'null state is safely rejected')
 
   t.section('labels and top tier')
   t.eq(U.label(fake(2, 5, 0)), '2-5-0', 'the label is the tier triple')

@@ -193,14 +193,38 @@ Verify from a fresh profile rather than an unrestricted test configuration:
 - [x] Tutorial and first tower placement — fresh-profile shop → valid placement →
   first round, with persistent guide progress and legacy-profile migration.
 - [ ] Tower and hero unlocks.
-- [ ] XP purchase versus in-match upgrade purchase.
-- [ ] Three upgrade paths and crosspath restrictions.
+  - Tower level locks verified through shop refusal, result XP, reload, and paid
+    placement. Heroes currently have no account unlock gates; their currency and
+    unlock economy remain unfinished.
+- [x] XP purchase versus in-match upgrade purchase — real starter run earns XP,
+  menu unlock spends and saves it, then a new match charges cash to install the
+  chosen upgrade. The installed upgrade and cash balance survive resume.
+- [x] Three upgrade paths and crosspath restrictions — a fresh player earns XP
+  for all three first-tier cells, buys two branches, and is refused the third.
+  Funded late-game fixtures verify all six 5–2–0 permutations through paid menu
+  unlocks and panel purchases, including tier-five caps, stale-button refusals,
+  unchanged wallets/stats on refusal, and save/resume.
 - [ ] Targeting modes and manual aiming.
 - [ ] Abilities, cooldowns, selling, income, and buffs.
 - [ ] Land/water placement and line of sight.
 - [ ] Difficulty and mode unlocks.
 - [ ] Victory, defeat, restart, and permitted continues.
 - [ ] Displayed prices use purchase pricing functions, including knowledge discounts.
+
+Progression regression evidence (2026-10-19):
+`tools/suites/progression-journey.mjs` covers the paths above plus repeated unlock
+requests and storage-denied menu purchases. Menu unlocks now persist immediately;
+failed profile writes leave XP and unlocks unchanged and retryable. Banked XP
+spent through a live run also debits the profile wallet. Live-run menu unlocks
+commit the profile and spent run XP together using the existing backup-import
+journal; a failed write retains both previous saves and the unspent live wallets.
+
+`tools/suites/upgrade-journey.mjs` verifies paid upgrade effects and crosspaths
+through the actual tower panel. It replaces two earlier player-journey checks
+that applied stat functions directly without buying upgrades. Malformed branch
+indices and non-integer, incomplete, or illegal tier triples are now rejected
+before a purchase can spend cash or alter a tower; `crosspath.mjs` also covers
+these validation boundaries directly.
 
 ### B. Complete freeplay
 

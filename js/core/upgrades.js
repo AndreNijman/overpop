@@ -23,8 +23,13 @@
    * @returns {{ok:boolean, reason:string}}
    */
   Upgrades.canBuy = function (tower, pathIdx) {
+    if (!Number.isInteger(pathIdx) || pathIdx < 0 || pathIdx >= Upgrades.PATHS) {
+      return no('That branch does not exist.')
+    }
+    if (!tower || !Upgrades.isLegalState(tower.tiers)) {
+      return no('This tower has an invalid upgrade configuration.')
+    }
     const tiers = tower.tiers
-    if (pathIdx < 0 || pathIdx >= Upgrades.PATHS) return no('That branch does not exist.')
 
     const next = tiers[pathIdx] + 1
     if (next > Upgrades.MAX_TIER) return no('This branch is fully upgraded.')
@@ -64,10 +69,11 @@
 
   /** Is this tier triple reachable at all? */
   Upgrades.isLegalState = function (tiers) {
+    if (!Array.isArray(tiers) || tiers.length !== Upgrades.PATHS) return false
     let overTwo = 0
     let touched = 0
     for (let i = 0; i < tiers.length; i++) {
-      if (tiers[i] < 0 || tiers[i] > Upgrades.MAX_TIER) return false
+      if (!Number.isInteger(tiers[i]) || tiers[i] < 0 || tiers[i] > Upgrades.MAX_TIER) return false
       if (tiers[i] > 2) overTwo++
       if (tiers[i] > 0) touched++
     }
@@ -76,6 +82,7 @@
 
   /** The upgrade definition for a branch's next step, or null. */
   Upgrades.nextUpgrade = function (tower, pathIdx) {
+    if (!Number.isInteger(pathIdx) || pathIdx < 0 || pathIdx >= Upgrades.PATHS) return null
     const path = tower.def.paths[pathIdx]
     if (!path) return null
     return path.tiers[tower.tiers[pathIdx]] || null

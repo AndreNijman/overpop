@@ -5,6 +5,9 @@ If you must change something here, change it deliberately, bump the *Revision*
 below, and re-run `node tools/harness.mjs --all` — a silent divergence between
 this file and the code is the single most expensive failure mode in this project.
 
+**Revision:** 7 · 2026-10-19 — journal profile/run XP purchases together through
+`Save.saveProgress(profile, sim, mapKey)`, reusing backup-import recovery (see §7).
+
 **Revision:** 6 · 2026-09-19 — persist activity ownership separately from gameplay
 mode, and retain a same-run recovery checkpoint (see §7).
 
@@ -543,6 +546,12 @@ the replacement completes. While it exists, readers use those old bytes; later
 writes first restore them and remove the journal. Removing the journal after all
 replacement writes is the import commit point. The live shell reloads its profile
 only after success, and an imported run is resumed through the normal paused path.
+
+`Save.saveProgress(profile, sim, mapKey)` uses the same validated journalled
+replacement for live XP purchases. Success commits the permanent unlock and the
+spent run XP together; failure leaves both previous saves readable. The caller
+stages wallet changes and only applies them to the live state after success.
+The pre-purchase recovery checkpoint is removed so it cannot refund spent XP.
 
 ---
 

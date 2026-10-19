@@ -199,33 +199,8 @@ export function run (t) {
     }
   }
 
-  t.section('upgrade applies stat changes to the tower')
-  {
-    app.startGame(OP.MAP_ORDER[0], 'easy', 'standard', { rules: { startCash: 99999 } })
-    const sim = app.state.sim
-    const tower = OP.Towers.place(sim, OP.TOWER_ORDER[0], 200, 200, { free: true })
-    const snapshot = JSON.parse(JSON.stringify(tower.s))
-    const def = OP.TOWERS[OP.TOWER_ORDER[0]]
-    def.paths[0].tiers[0].apply(tower.s)
-    const changed = tower.s.damage !== snapshot.damage || tower.s.range !== snapshot.range ||
-      tower.s.cooldown !== snapshot.cooldown || tower.s.pierce !== snapshot.pierce
-    t.ok(changed, 'first upgrade changes at least one stat')
-  }
-
-  t.section('crosspath restriction: max 2 paths can be upgraded')
-  {
-    app.startGame(OP.MAP_ORDER[0], 'easy', 'standard', { rules: { startCash: 99999 } })
-    const sim = app.state.sim
-    const tower = OP.Towers.place(sim, OP.TOWER_ORDER[0], 200, 200, { free: true })
-    const def = OP.TOWERS[OP.TOWER_ORDER[0]]
-    for (let p = 0; p < def.paths.length; p++) {
-      for (let ti = 0; ti < def.paths[p].tiers.length; ti++) {
-        def.paths[p].tiers[ti].apply(tower.s)
-      }
-    }
-    const pathsUsed = tower.tiers.filter(t => t > 0).length
-    t.ok(pathsUsed <= 3, 'at most 3 paths touched (upgrade validation handles crosspath rules)')
-  }
+  // Paid stat changes and crosspath enforcement are exercised through the real
+  // tower panel in upgrade-journey, rather than calling upgrade.apply directly.
 
   t.section('income towers are blocked when allowIncome is false')
   {

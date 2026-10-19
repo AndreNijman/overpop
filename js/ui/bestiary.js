@@ -78,7 +78,8 @@
   /** The live run, if one is open — so an unlock can spend the run's own XP
       (banked + this run) rather than only the banked half. */
   function simOf (app) {
-    return app && app.state ? app.state.sim : null
+    const sim = app && app.state ? app.state.sim : null
+    return sim && !sim.over ? sim : null
   }
 
   /** type -> lifetime banked tower XP, for every shipped tower. Tolerant of an
@@ -86,11 +87,14 @@
   function totalXp (app) {
     const out = {}
     const p = profileOf(app)
+    const sim = simOf(app)
     const map = (p && p.towerXp) || {}
     const list = towers()
     for (let i = 0; i < list.length; i++) {
       out[list[i].key] = (OP.TowerXp && OP.TowerXp.profileXp)
-        ? OP.TowerXp.profileXp(p, list[i].key)
+        ? (sim && sim.towerXp
+            ? OP.TowerXp.available(sim, list[i].key)
+            : OP.TowerXp.profileXp(p, list[i].key))
         : (typeof map[list[i].key] === 'number' ? map[list[i].key] : 0)
     }
     return out
@@ -132,7 +136,38 @@
     if (!key || !OP.TowerXp || !OP.TowerXp.unlockCell) return true
     const profile = profileOf(app)
     if (!profile) { notice('No profile yet — play a round first.'); return true }
-    const res = OP.TowerXp.unlockCell(profile, simOf(app), key, path, tier)
+    const sim = simOf(app)
+    // Stage the wallets and unlock maps so denied storage never spends XP or
+    // advertises a permanent unlock that will disappear on the next reload.
+    const candidate = Object.assign({}, profile, {
+      towerXp: Object.assign({}, profile.towerXp),
+      towerUnlocks: OP.TowerXp.simUnlocks(profile)
+    })
+    const run = sim ? Object.assign({}, sim, {
+      towerXp: Object.assign({}, sim.towerXp),
+      towerUnlocks: OP.TowerXp.simUnlocks(sim),
+      towers: sim.towers.map(t => Object.assign({}, t))
+    }) : null
+    const res = OP.TowerXp.unlockCell(candidate, run, key, path, tier)
+    if (res.ok) {
+      let saved = false
+      try {
+        saved = !!(OP.Save && (run
+          ? OP.Save.saveProgress && OP.Save.saveProgress(candidate, run, app.state.mapKey)
+          : OP.Save.save && OP.Save.save(candidate)))
+      } catch (e) { saved = false }
+      if (!saved) {
+        notice('Could not save the unlock. Your XP was not spent. Free storage and try again.')
+        return true
+      }
+      profile.towerXp = candidate.towerXp
+      profile.towerUnlocks = candidate.towerUnlocks
+      if (sim) {
+        sim.towerXp = run.towerXp
+        sim.towerUnlocks = run.towerUnlocks
+        for (let i = 0; i < sim.towers.length; i++) sim.towers[i].runXp = run.towers[i].runXp
+      }
+    }
     notice(res.ok ? 'Unlocked ' + key + ' branch ' + (path + 1) + ' tier ' + tier + '.' : res.reason)
     return true
   }
