@@ -131,6 +131,29 @@
     return amount
   }
 
+  /** The saved cleared-round ledger also recovers checkpoints from older builds
+      that saved before their next-tick payout. New rounds settle synchronously. */
+  function settleWarren (sim, tower, completedRound) {
+    const s = tower.s
+    const d = tower.data
+    if (d.rounds === undefined) d.rounds = sim.stats.roundsCleared
+    const owed = Math.min(8, sim.stats.roundsCleared - d.rounds)
+    if (!(owed > 0)) return
+    d.rounds = sim.stats.roundsCleared
+    const last = completedRound === undefined
+      ? sim.roundIndex - (sim.round && !sim.round.done ? 1 : 0)
+      : completedRound
+    for (let i = 0; i < owed; i++) {
+      if (s.bankRate > 0 && d.bank > 0) {
+        d.bank = Math.min(s.bankCap, Math.floor(d.bank * (1 + s.bankRate)))
+        if (d.bank >= s.bankCap) emptyBank(sim, tower)
+      }
+      if (s.lump > 0) {
+        OP.Economy.earn(sim, s.lump + s.lumpPerRound * (last - owed + 1 + i), tower.id)
+      }
+    }
+  }
+
   /* ---------- abilities ---------- */
 
   OP.ABILITIES['berry-collect'] = function (sim, tower) {
@@ -324,8 +347,13 @@
       if (d.rounds === undefined) d.rounds = sim.stats.roundsCleared
       if (d.bank === undefined) d.bank = 0
 
+      // Repair a legacy pending payout before earning anything in the new round.
+      settleWarren(sim, tower)
+      if (d.h === undefined) d.h = 0
+      if (sim.over || !sim.round || sim.round.done) return
+
       // Period is re-read from `s` every tick, so an upgrade lands immediately.
-      d.h = (d.h === undefined ? 0 : d.h) + dt
+      d.h += dt
       let guard = 0
       while (d.h >= s.harvest && guard++ < 64) {
         d.h -= s.harvest
@@ -336,24 +364,9 @@
           OP.Economy.earn(sim, s.yield, tower.id)
         }
       }
+    },
 
-      // Round-end work. There is no per-tower round hook in the engine, so the
-      // cleared-round counter is watched instead — it is plain sim state, so this
-      // survives a mid-round save without paying twice.
-      if (sim.stats.roundsCleared > d.rounds) {
-        let owed = sim.stats.roundsCleared - d.rounds
-        d.rounds = sim.stats.roundsCleared
-        if (owed > 8) owed = 8
-        for (let i = 0; i < owed; i++) {
-          if (s.bankRate > 0 && d.bank > 0) {
-            d.bank = Math.min(s.bankCap, Math.floor(d.bank * (1 + s.bankRate)))
-          }
-          if (s.lump > 0) {
-            OP.Economy.earn(sim, s.lump + s.lumpPerRound * sim.roundIndex, tower.id)
-          }
-        }
-      }
-    }
+    onRoundEnd: settleWarren
   })
 
   /* ============================================================================

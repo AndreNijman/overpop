@@ -123,6 +123,8 @@ The sim is deterministic, so the game can be tested without playing it:
 node tools/harness.mjs --list                 # available suites
 node tools/harness.mjs --all                  # every suite
 node tools/smoke.mjs                          # real browser boot and play
+node tools/smoke.mjs --aim                    # pointer-driven manual aim and resume
+node tools/smoke.mjs --economy                # bank collection and keyboard sell safety
 node tools/playthroughs.mjs --rounds 100      # difficulty x mode matrix
 node tools/state.mjs verify all               # do all completed build steps still pass?
 ```

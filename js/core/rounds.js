@@ -191,6 +191,7 @@
     sim.stats.roundsCleared++
     if (OP.TowerXp && OP.TowerXp.settle) OP.TowerXp.settle(sim)
     OP.Economy.payRoundBonus(sim)
+    OP.Towers.roundEnd(sim, r.index)
     sim.events.push({ kind: 'roundend', round: r.index })
 
     if (r.index >= sim.rules.lastRound && !sim.freeplay) {

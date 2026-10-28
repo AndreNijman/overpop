@@ -287,6 +287,9 @@
 
   /** Second ability, unlocked at a level the hero declares. */
   Heroes.canActivateSecond = function (sim, hero) {
+    if (!sim || sim.over || !hero || sim.heroId !== hero.id || sim.towerById.get(hero.id) !== hero) {
+      return { ok: false, reason: 'This hero is no longer active.' }
+    }
     if (!hero.s.ability2) return { ok: false, reason: 'No second ability.' }
     if (!sim.rules.allowAbilities) return { ok: false, reason: 'Abilities are disabled in this mode.' }
     if (hero.ability2Cd > 0) return { ok: false, reason: 'On cooldown (' + hero.ability2Cd.toFixed(1) + 's).' }

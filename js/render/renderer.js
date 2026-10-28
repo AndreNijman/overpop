@@ -247,6 +247,11 @@
       ctx.stroke()
       ctx.restore()
     }
+    if (highlight && highlight.s && highlight.s.manualAim && highlight.data &&
+        Number.isFinite(highlight.data.aimX) && Number.isFinite(highlight.data.aimY)) {
+      aimMarker(ctx, highlight.data.aimX, highlight.data.aimY, 0, '#c9a227')
+    }
+    if (frame.aiming) aimMarker(ctx, frame.aiming.x, frame.aiming.y, frame.aiming.radius, '#ffffff')
     if (frame.placing) {
       const p = frame.placing
       ctx.save()
@@ -265,6 +270,24 @@
       ctx.fill()
       ctx.restore()
     }
+  }
+
+  function aimMarker (ctx, x, y, radius, colour) {
+    ctx.save()
+    ctx.strokeStyle = colour
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(x, y, 10, 0, M.TAU)
+    ctx.moveTo(x - 16, y); ctx.lineTo(x + 16, y)
+    ctx.moveTo(x, y - 16); ctx.lineTo(x, y + 16)
+    ctx.stroke()
+    if (radius > 0) {
+      ctx.setLineDash([5, 5])
+      ctx.beginPath()
+      ctx.arc(x, y, radius, 0, M.TAU)
+      ctx.stroke()
+    }
+    ctx.restore()
   }
 
   function drawProjectiles (ctx, sim, view, frame, alpha) {

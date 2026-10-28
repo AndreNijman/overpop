@@ -258,6 +258,8 @@
       selected: selectedTower(),
       hover: hoverTower(),
       placing: OP.Input.placementPreview(S.io, S.sim),
+      aiming: !S.pauseOpen && !OP.HUD.chromeAt(App, S.io.x, S.io.y)
+        ? OP.Input.aimingPreview(S.io, S.sim) : null,
       app: App
     })
   }
@@ -361,6 +363,7 @@
     OP.Render.invalidateTerrain(S.view)
     OP.Input.cancel(S.io)
     S.io.selectedId = -1
+    if (OP.TowerPanel && OP.TowerPanel.close) OP.TowerPanel.close()
     if (OP.Audio) OP.Audio.startMusic('calm')
     return S.sim
   }
@@ -393,6 +396,7 @@
       S.pauseOpen = true
       OP.Input.cancel(S.io)
       S.io.selectedId = -1
+      if (OP.TowerPanel && OP.TowerPanel.close) OP.TowerPanel.close()
       OP.FX.reset()
       OP.Render.invalidateTerrain(S.view)
 
@@ -1036,15 +1040,17 @@
   }
   App.placeTower = onPlace
 
-  function onSelect (id) { App.state.io.selectedId = id }
+  function onSelect (id) {
+    App.state.io.selectedId = id
+    if (OP.TowerPanel && OP.TowerPanel.close) OP.TowerPanel.close()
+  }
 
   function onAim (towerId, x, y) {
     const S = App.state
-    if (!S.sim || S.pauseOpen) return
+    if (!S.sim || S.sim.over || S.screen !== 'game' || S.pauseOpen) return
     const tower = S.sim.towerById.get(towerId)
-    if (!tower) return
-    tower.data.aimX = x
-    tower.data.aimY = y
+    if (!tower || !tower.s.manualAim) { OP.Input.cancel(S.io); return }
+    if (!OP.Military.setAimPoint(S.sim, tower, x, y)) return
     OP.Input.cancel(S.io)
   }
 
@@ -1067,7 +1073,7 @@
    * Returns true when the press was CLAIMED, which is how Escape reaches an open
    * overlay instead of being spent cancelling a placement mode behind it.
    */
-  function onKey (key) {
+  function onKey (key, ev) {
     const S = App.state
     if (!S.sim) return false
     if (OP.Shop && OP.Shop.key && OP.Shop.key(App, key)) return true
@@ -1076,7 +1082,7 @@
     if (key === 'Escape') {
       if (S.pauseOpen) { App.togglePauseMenu(); return true }
       if (S.io && S.io.mode !== 'idle') { OP.Input.cancel(S.io); return true }
-      if (S.io && S.io.selectedId >= 0) { S.io.selectedId = -1; return true }
+      if (S.io && S.io.selectedId >= 0) { onSelect(-1); return true }
       if (S.screen === 'game' && !S.sim.over) { App.togglePauseMenu(); return true }
       return false
     }
@@ -1094,8 +1100,9 @@
       OP.Sim.togglePause(S.sim)
       return true
     } else if (key === 'Backspace' || key === 'Delete') {
+      if (ev && ev.repeat) return true
       const tower = selectedTower()
-      if (tower && OP.Towers.sell(S.sim, tower) > 0) S.io.selectedId = -1
+      if (tower && OP.TowerPanel) OP.TowerPanel.activate(App, { action: 'panel-sell', keepId: tower.id })
       return true
     }
     return false

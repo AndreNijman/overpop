@@ -5,6 +5,15 @@ If you must change something here, change it deliberately, bump the *Revision*
 below, and re-run `node tools/harness.mjs --all` — a silent divergence between
 this file and the code is the single most expensive failure mode in this project.
 
+**Revision:** 10 · 2026-10-19 — income harvests use active-round time; tower
+round-end hooks settle payouts before victory, autostart, and checkpoints (§6–7).
+
+**Revision:** 9 · 2026-10-19 — sales and abilities require a live entity owned by
+the current simulation; selling a hero immediately frees its slot (see §6).
+
+**Revision:** 8 · 2026-10-19 — expose manual ground targeting through the tower
+panel with a pure, range-limited preview and durable aim coordinates (see §5).
+
 **Revision:** 7 · 2026-10-19 — journal profile/run XP purchases together through
 `Save.saveProgress(profile, sim, mapKey)`, reusing backup-import recovery (see §7).
 
@@ -311,6 +320,16 @@ OP.TARGET_MODES = ['first','last','close','strong']   // plus tower-specific ext
   `s.ignoresLOS`, the segment tower→balloon must not cross a blocker.
 - Ties break on **ascending balloon id**. Never on iteration order.
 
+Point-target towers opt in with `s.manualAim`. Their panel exposes Set Aim instead
+of balloon-priority controls. `Military.aimPoint(tower, x, y)` projects a finite
+BOARD-space point into range and field bounds without mutating the tower;
+`Military.setAimPoint(sim, tower, x, y)` applies that projection to the existing
+serialized `tower.data.aimX/aimY` fields. Non-finite inputs are refused.
+`Input.aimingPreview(io, sim)` returns the same projected point and blast radius
+for rendering without advancing the sim or RNG. HUD controls retain first
+refusal while aiming; confirmation, cancellation, and pause are shell intents,
+not simulation state.
+
 ---
 
 ## 6. Tower module contract
@@ -358,9 +377,37 @@ OP.defineTower({
   fire (sim, tower) { /* required — emit projectiles via OP.Projectiles.spawn */ },
   update (sim, tower, dt) { /* optional — for towers with non-projectile behaviour */ },
   onPlace (sim, tower) { /* optional */ },
-  onSell (sim, tower) { /* optional */ }
+  onSell (sim, tower) { /* optional */ },
+  onRoundEnd (sim, tower, roundIndex) { /* optional — synchronous round payout */ }
 })
 ```
+
+### Live ownership for sales and abilities
+
+Sales and ability activation require the exact tower object held by
+`sim.towerById`, and refuse finished runs. Cached objects from a sold tower or a
+different simulation cannot refund money or trigger effects. Hero second-slot
+abilities additionally require the current `sim.heroId`; selling a hero clears
+that slot immediately, without waiting for the next simulation tick.
+
+Delete/Backspace and the panel Sell button share the same confirmation path.
+Keyboard auto-repeat cannot confirm destructive actions. Pending confirmations
+are UI state only and are cleared on selection changes, pause, start, and resume.
+
+### Income clock and round settlement
+
+Berry Warren harvests advance only while a round exists and is not done. Idle
+time before or between rounds never generates harvests or precharges their clock;
+partial harvest progress still serializes. This also applies to its paragon,
+which shares the base update hook.
+
+In update step 13, `Rounds.complete` pays the ordinary bonus and invokes
+`Towers.roundEnd(sim, roundIndex)` before victory or autostart. Each tower's
+optional `def.onRoundEnd` receives the round that actually completed. Farm
+interest and windfalls settle there, including on the final winning round.
+Interest reaching bank capacity collects immediately. The existing saved
+`data.rounds` ledger prevents duplicate payouts; older pending checkpoints are
+repaired before any new-round harvest, without changing the profile schema.
 
 ### Stat resolution — order is fixed
 

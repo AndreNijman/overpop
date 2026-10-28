@@ -130,6 +130,7 @@ export function run (t, OP, env) {
   {
     const s = sim()
     const warren = build(s, 'berry-warren', 300, 0, -80)
+    OP.Sim.startRound(s)
     const before = s.cash
     OP.Sim.run(s, 600)                                  // 10 seconds
     const delta = s.cash - before
@@ -144,6 +145,7 @@ export function run (t, OP, env) {
   {
     const a = sim(); const wa = build(a, 'berry-warren', 300, 0, -80, [0, 0, 0])
     const b = sim(); const wb = build(b, 'berry-warren', 300, 0, -80, [5, 0, 0])
+    OP.Sim.startRound(a); OP.Sim.startRound(b)
     const ca = a.cash; const cb = b.cash
     OP.Sim.run(a, 600); OP.Sim.run(b, 600)
     const da = a.cash - ca; const db = b.cash - cb
@@ -157,6 +159,7 @@ export function run (t, OP, env) {
   {
     const s = sim()
     const warren = build(s, 'berry-warren', 300, 0, -80, [0, 3, 0])
+    OP.Sim.startRound(s)
     t.eq(warren.s.bankCap, 1200, 'the bank holds $1,200 at tier 3')
     t.close(warren.s.bankRate, 0.15, 1e-9, 'and pays 15% interest a round')
     const before = s.cash
@@ -171,6 +174,7 @@ export function run (t, OP, env) {
     const s = sim()
     const warren = build(s, 'berry-warren', 300, 0, -80, [0, 3, 0])
     warren.data.bank = 1197
+    OP.Sim.startRound(s)
     warren.data.h = 0
     const before = s.cash
     OP.Sim.run(s, 130)                                   // just past one harvest

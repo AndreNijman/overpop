@@ -1074,6 +1074,12 @@
         if (typeof prev.place === 'function') prev.place(key, x, y, isHero, draft)
       }
 
+      next.aim = function (towerId, x, y) {
+        const f = fieldOf(x, y)
+        if (gameActive(app) && HUD.chromeAt(app, f[0], f[1])) { HUD.route(app, f[0], f[1]); return }
+        if (typeof prev.aim === 'function') prev.aim(towerId, x, y)
+      }
+
       OP.Input.setHandlers(io, next)
     }
 

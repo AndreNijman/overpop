@@ -61,7 +61,8 @@
    * Clamped into the tower's own range and onto the field, so the UI can pass a
    * raw cursor position and get a legal aim point back.
    */
-  Military.setAimPoint = function (sim, tower, x, y) {
+  Military.aimPoint = function (tower, x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
     const range = tower.s ? tower.s.range : tower.def.base.range
     const d = M.dist(tower.x, tower.y, x, y)
     if (d > range) {
@@ -69,8 +70,14 @@
       x = tower.x + Math.cos(a) * range
       y = tower.y + Math.sin(a) * range
     }
-    tower.data.aimX = M.clamp(x, 4, OP.FIELD_W - 4)
-    tower.data.aimY = M.clamp(y, 4, OP.FIELD_H - 4)
+    return { x: M.clamp(x, 4, OP.FIELD_W - 4), y: M.clamp(y, 4, OP.FIELD_H - 4) }
+  }
+
+  Military.setAimPoint = function (sim, tower, x, y) {
+    const point = Military.aimPoint(tower, x, y)
+    if (!point) return null
+    tower.data.aimX = point.x
+    tower.data.aimY = point.y
     return tower.data
   }
 
@@ -1324,6 +1331,7 @@
       blastRadius: 42,
       blastFalloff: 0.2,
       aimSpread: 0,
+      manualAim: true,
       blimpBonus: 0,
       burnDps: 0, burnTime: 0, acidDps: 0, acidTime: 0,
       brittleMag: 0, brittleTime: 0, glueMag: 0, glueTime: 0,

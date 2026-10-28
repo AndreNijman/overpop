@@ -34,6 +34,11 @@
   TowerPanel.state = { confirmSell: -1, confirmParagon: -1 }
   const state = TowerPanel.state
 
+  TowerPanel.close = function () {
+    state.confirmSell = -1
+    state.confirmParagon = -1
+  }
+
   function ui () { return OP.Menus && OP.Menus.UI ? OP.Menus.UI : null }
 
   function colours () {
@@ -205,7 +210,14 @@
     let y = S.y + 76
 
     /* ----- live stats, straight off tower.s ----- */
-    const cells = [
+    const cells = tower.def.income ? [
+      ['HARVEST', M.money(s.yield || 0)],
+      ['EVERY', (s.harvest || 0).toFixed(2) + 's'],
+      ['PAID', M.money(tower.earned || 0)],
+      ['BANK', s.bankCap > 0 ? M.money(Math.floor(tower.data.bank || 0)) : 'DIRECT'],
+      ['CAPACITY', s.bankCap > 0 ? M.money(s.bankCap) : '—'],
+      ['INTEREST', s.bankRate > 0 ? Math.round(s.bankRate * 100) + '% / rd' : '—']
+    ] : [
       ['DAMAGE', String(s.damage === undefined ? '—' : s.damage)],
       ['TYPE', dmgLabel(s.dmgType).toUpperCase()],
       ['PIERCE', String(s.pierce === undefined ? '—' : s.pierce)],
@@ -254,7 +266,7 @@
     else y = upgradeSection(app, sim, tower, marks, widgets, over, x0, innerW, y)
 
     /* ----- targeting ----- */
-    y = targetingSection(sim, tower, marks, widgets, over, x0, innerW, y)
+    y = targetingSection(app, sim, tower, marks, widgets, over, x0, innerW, y)
 
     /* ----- abilities ----- */
     if (s.ability) {
@@ -401,13 +413,24 @@
 
   /* ---------- targeting ---------- */
 
-  function targetingSection (sim, tower, marks, widgets, over, x0, innerW, y) {
+  function targetingSection (app, sim, tower, marks, widgets, over, x0, innerW, y) {
     const U = ui(); const C = colours()
     const s = tower.s || {}
     const modes = Array.isArray(s.targetModes) ? s.targetModes : []
 
     marks.push(U.tracked(x0, y, 'TARGETING', { size: 9, colour: C.moss, track: 0.28 }))
     y += 8
+
+    if (s.manualAim) {
+      const io = ioOf(app)
+      const aiming = io && io.mode === 'aiming' && io.aimingTowerId === tower.id
+      widgets.push(stamp(U.button('panel.aim', x0, y, innerW, 28, {
+        label: aiming ? 'CANCEL AIM' : 'SET AIM', tint: C.gold, action: 'panel-aim'
+      }), tower))
+      marks.push(U.text(x0, y + 40, aiming ? 'Tap the battlefield to aim · ESC cancels' : 'Shells land at the marked aim point.',
+        { size: 8, colour: C.faint }))
+      return y + 46
+    }
 
     if (!modes.length) {
       marks.push(U.text(x0, y + 14, 'This tower does not choose targets.', { size: 9, colour: C.faint }))
@@ -584,6 +607,7 @@
     const tower = w.keepId >= 0 && sim.towerById ? sim.towerById.get(w.keepId) : null
 
     if (w.action === 'panel-close') {
+      if (io.mode === 'aiming') OP.Input.cancel(io)
       io.selectedId = -1
       state.confirmSell = -1
       state.confirmParagon = -1
@@ -592,6 +616,14 @@
     }
 
     if (!tower) return false
+
+    if (w.action === 'panel-aim') {
+      if (!tower.s.manualAim || !gameActive(app) || app.state.pauseOpen) return true
+      if (io.mode === 'aiming' && io.aimingTowerId === tower.id) OP.Input.cancel(io)
+      else OP.Input.beginAiming(io, tower.id)
+      click(true)
+      return true
+    }
 
     if (w.action === 'panel-upgrade') {
       // Ask, then buy. Upgrades.buy re-checks and returns the same reason, so the
@@ -627,6 +659,7 @@
       state.confirmSell = -1
       const value = OP.Towers.sell(sim, tower)
       if (value > 0) {
+        if (io.aimingTowerId === tower.id) OP.Input.cancel(io)
         io.selectedId = -1
         click(true)
       } else {

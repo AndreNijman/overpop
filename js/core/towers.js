@@ -331,6 +331,7 @@
   }
 
   Towers.sell = function (sim, tower) {
+    if (!sim || sim.over || !tower || sim.towerById.get(tower.id) !== tower) return 0
     if (!sim.rules.allowSell) return 0
     const value = OP.Economy.sellValue(sim, tower)
     if (tower.def.onSell) tower.def.onSell(sim, tower)
@@ -339,6 +340,7 @@
     const i = sim.towers.indexOf(tower)
     if (i >= 0) sim.towers.splice(i, 1)
     sim.towerById.delete(tower.id)
+    if (sim.heroId === tower.id) sim.heroId = -1
 
     OP.Economy.earn(sim, value, -1)
     Towers.restatAll(sim)
@@ -355,6 +357,7 @@
 
   Towers.cycleTargetMode = function (sim, tower, dir) {
     const modes = tower.s.targetModes
+    if (!modes.length) return tower.targetMode
     const at = modes.indexOf(tower.targetMode)
     const next = (at + (dir || 1) + modes.length) % modes.length
     tower.targetMode = modes[next]
@@ -420,6 +423,9 @@
   /* ---------- abilities ---------- */
 
   Towers.canActivate = function (sim, tower) {
+    if (!sim || sim.over || !tower || sim.towerById.get(tower.id) !== tower) {
+      return { ok: false, reason: 'This tower is no longer active.' }
+    }
     if (!tower.s.ability) return { ok: false, reason: 'This tower has no ability.' }
     if (!sim.rules.allowAbilities) return { ok: false, reason: 'Abilities are disabled in this mode.' }
     if (tower.abilityCd > 0) return { ok: false, reason: 'On cooldown (' + tower.abilityCd.toFixed(1) + 's).' }
@@ -438,6 +444,14 @@
     tower.abilityT = ability.duration || 0
     sim.events.push({ kind: 'ability', towerId: tower.id, ability: ability.key })
     return { ok: true, reason: '' }
+  }
+
+  /** Settle round-bound tower effects before autostart or victory changes phase. */
+  Towers.roundEnd = function (sim, roundIndex) {
+    for (let i = 0; i < sim.towers.length; i++) {
+      const tower = sim.towers[i]
+      if (tower.def.onRoundEnd) tower.def.onRoundEnd(sim, tower, roundIndex)
+    }
   }
 
   /* ---------- queries ---------- */

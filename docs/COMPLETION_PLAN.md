@@ -204,8 +204,19 @@ Verify from a fresh profile rather than an unrestricted test configuration:
   Funded late-game fixtures verify all six 5–2–0 permutations through paid menu
   unlocks and panel purchases, including tier-five caps, stale-button refusals,
   unchanged wallets/stats on refusal, and save/resume.
-- [ ] Targeting modes and manual aiming.
+- [x] Targeting modes and manual aiming — real panel taps select First, Last,
+  Close, and Strong and change the firing pass's target. Howitzer Mole now has a
+  Set Aim / Cancel Aim control, range-clamped ground preview with blast radius,
+  HUD-safe input, Escape cancellation, and mid-flight save/resume coverage.
 - [ ] Abilities, cooldowns, selling, income, and buffs.
+  - Verified bank harvests, visible savings/capacity/interest, Collect and its
+    cooldown, paused-time behaviour, pending round-interest settlement across
+    reloads, support aura restoration/removal, and hero replacement after sale.
+    Delete/Backspace now use the same confirmation as the Sell button; held-key
+    repeats cannot confirm. Sold entity references cannot refund or activate again.
+    Harvests now accrue only during active rounds, with their partial clock
+    preserved across pauses and reloads. Idle-round cooldown policy and the
+    wider ability roster still need review before the category is complete.
 - [ ] Land/water placement and line of sight.
 - [ ] Difficulty and mode unlocks.
 - [ ] Victory, defeat, restart, and permitted continues.
@@ -225,6 +236,23 @@ that applied stat functions directly without buying upgrades. Malformed branch
 indices and non-integer, incomplete, or illegal tier triples are now rejected
 before a purchase can spend cash or alter a tower; `crosspath.mjs` also covers
 these validation boundaries directly.
+
+`tools/suites/targeting-journey.mjs` verifies targeting and manual aiming through
+boot-installed input handlers, including invalid coordinates, stale sold-tower
+intents, and rendering purity. `node tools/smoke.mjs --aim` adds real-browser
+pointer and Escape-key checks for the ground-targeting flow.
+
+`tools/suites/economy-journey.mjs` exercises bank, cooldown, sell-confirmation,
+support and hero-sale journeys through paid upgrades and boot-installed input.
+`node tools/smoke.mjs --economy` adds browser pointer/keyboard checks for bank
+collection and confirmation safety. Sale confirmations are cleared when the
+player changes selection, pauses, resumes a save, or starts another run.
+
+`tools/suites/income-journey.mjs` covers fresh-profile idle-income prevention,
+preserved harvest remainders, final-round windfalls, autostart round numbering,
+interest-triggered automatic bank collection, and recovery of older pending
+payout checkpoints. Farm round-end income now settles on the completion tick,
+before victory or autostart; new checkpoints already contain the settled ledger.
 
 ### B. Complete freeplay
 

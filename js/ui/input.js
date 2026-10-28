@@ -308,6 +308,7 @@
   }
 
   Input.beginAiming = function (io, towerId) {
+    Input.cancel(io)
     io.mode = 'aiming'
     io.aimingTowerId = towerId
     return io
@@ -432,6 +433,15 @@
   }
 
   Input.isDown = function (io, key) { return !!io.keys[key] }
+
+  /** A pure preview of the same clamped BOARD point confirmation will use. */
+  Input.aimingPreview = function (io, sim) {
+    if (io.mode !== 'aiming' || !sim || sim.over) return null
+    const tower = sim.towerById.get(io.aimingTowerId)
+    if (!tower || !tower.s.manualAim || !OP.Military) return null
+    const point = OP.Military.aimPoint(tower, io.bx, io.by)
+    return point ? { x: point.x, y: point.y, radius: tower.s.blastRadius || 0 } : null
+  }
 
   OP.Input = Input
 })(typeof window !== 'undefined' ? (window.OP = window.OP || {}) : (globalThis.OP = globalThis.OP || {}))

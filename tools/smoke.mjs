@@ -6,6 +6,8 @@
 //   node tools/smoke.mjs --shot out.png  where to write the screenshot
 //   node tools/smoke.mjs --url file://…  override the page URL
 //   node tools/smoke.mjs --headful       keep the browser visible (debugging)
+//   node tools/smoke.mjs --aim           also test manual aim with real pointer events
+//   node tools/smoke.mjs --economy       also test bank collection and sell confirmation
 //
 // The headless harness proves the simulation is correct. This proves the *page*
 // works: that ~50 classic scripts load in the declared order under file://, that
@@ -407,6 +409,121 @@ async function main () {
       return threw === null
     `)
     check(inputWorked, 'a pointer event on the canvas does not throw')
+
+    if (argv.includes('--aim')) {
+      const aiming = await cdp.eval(`
+        const app = OP.App, S = app.state, canvas = S.canvas
+        canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 }))
+        S.profile = OP.Save.defaults()
+        S.profile.playerXp = 18000 // disposable level-19 account, no unlock bypass
+        const sim = app.startGame(OP.MAP_ORDER[0], 'easy', 'standard', { seed: 'aim-smoke' })
+        const tower = OP.Towers.place(sim, 'howitzer-mole', 200, 200)
+        if (!tower) return { ok: false, why: 'Could not buy the Howitzer' }
+        function pointer(type, x, y) {
+          const p = OP.Camera.toScreen(S.view, x, y), r = canvas.getBoundingClientRect()
+          canvas.dispatchEvent(new PointerEvent(type, {
+            clientX: r.left + p.x, clientY: r.top + p.y, pointerId: 1,
+            isPrimary: true, bubbles: true, cancelable: true
+          }))
+        }
+        function tap(x, y) { pointer('pointerdown', x, y); pointer('pointerup', x, y) }
+        function press(w) { if (!w) throw new Error('Missing aim widget'); tap(w.x + w.w / 2, w.y + w.h / 2) }
+        function aimButton() { return OP.TowerPanel.build(app).widgets.find(w => w.action === 'panel-aim') }
+        const selected = OP.Camera.boardToField(tower.x, tower.y)
+        tap(selected.x, selected.y)
+        press(aimButton())
+        const entered = S.io.mode === 'aiming'
+        const original = JSON.stringify(tower.data)
+        press(OP.HUD.build(app).widgets.find(w => w.action === 'hud-speed' && w.arg === 2))
+        const hudWorks = sim.speed === 2 && S.io.mode === 'aiming' && JSON.stringify(tower.data) === original
+        const field = OP.Camera.boardToField(1000, 600)
+        pointer('pointermove', field.x, field.y)
+        const preview = OP.Input.aimingPreview(S.io, sim)
+        tap(field.x, field.y)
+        const confirmed = S.io.mode === 'idle' && preview &&
+          Math.abs(tower.data.aimX - preview.x) < 1e-6 && Math.abs(tower.data.aimY - preview.y) < 1e-6
+        const saved = app.saveRun()
+        app.resumeGame()
+        const restored = S.sim.towers[0]
+        const retained = saved && restored.data.aimX === tower.data.aimX && restored.data.aimY === tower.data.aimY
+        press(OP.HUD.buildPauseMenu(app).widgets.find(w => w.action === 'pause-resume'))
+        tap(selected.x, selected.y)
+        press(aimButton())
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        const cancelled = S.io.mode === 'idle' && !S.pauseOpen && S.io.selectedId === restored.id
+        press(aimButton())
+        pointer('pointermove', field.x, field.y) // leave the preview visible for the screenshot
+        return { ok: true, entered, hudWorks, confirmed, retained, cancelled }
+      `)
+      check(aiming && aiming.ok && aiming.entered, 'real pointer events enter manual aiming', aiming?.why)
+      check(aiming && aiming.hudWorks, 'HUD remains usable without retargeting during aim')
+      check(aiming && aiming.confirmed, 'real battlefield tap confirms the range-limited preview')
+      check(aiming && aiming.retained, 'confirmed aim survives browser save/resume')
+      check(aiming && aiming.cancelled, 'real Escape key cancels aim without deselecting or pausing')
+    }
+
+    if (argv.includes('--economy')) {
+      const economy = await cdp.eval(`
+        const app = OP.App, S = app.state, canvas = S.canvas
+        canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 }))
+        S.profile = OP.Save.defaults()
+        S.profile.tutorialStep = 2
+        S.profile.settings.confirmSell = true
+        S.profile.towerXp['berry-warren'] = 6000
+        app.quitToMenu()
+        OP.TowerMenu.activate(app, { action: 'bestiary-tower', arg: 'berry-warren' })
+        for (let tier = 1; tier <= 4; tier++) {
+          const w = OP.TowerMenu.build(app).widgets.find(w => w.action === 'bestiary-unlock' && w.arg === 'berry-warren|1|' + tier)
+          OP.TowerMenu.activate(app, w)
+        }
+        const sim = app.startGame(OP.MAP_ORDER[0], 'easy', 'standard', { seed: 'economy-smoke' })
+        OP.Economy.earn(sim, 10000, -1)
+        const bank = OP.Towers.place(sim, 'berry-warren', 200, 200)
+        function tap(x, y) {
+          const p = OP.Camera.toScreen(S.view, x, y), r = canvas.getBoundingClientRect()
+          for (const type of ['pointerdown', 'pointerup']) canvas.dispatchEvent(new PointerEvent(type, {
+            clientX: r.left + p.x, clientY: r.top + p.y, pointerId: 1,
+            isPrimary: true, bubbles: true, cancelable: true
+          }))
+        }
+        function press(w) { if (!w) throw new Error('Missing economy widget'); tap(w.x + w.w / 2, w.y + w.h / 2) }
+        function select(tower) { const p = OP.Camera.boardToField(tower.x, tower.y); tap(p.x, p.y) }
+        select(bank)
+        for (let tier = 1; tier <= 4; tier++) press(OP.TowerPanel.build(app).widgets.find(w => w.action === 'panel-upgrade' && w.arg === 1))
+        const idleCash = sim.cash, idleClock = bank.data.h
+        OP.Sim.run(sim, 600)
+        const idleSafe = sim.cash === idleCash && bank.data.bank === 0 && bank.data.h === idleClock
+        OP.Sim.startRound(sim)
+        OP.Sim.run(sim, 121)
+        const balance = bank.data.bank, cash = sim.cash
+        const visible = OP.TowerPanel.build(app).marks.some(m => m.text === 'BANK') &&
+          OP.TowerPanel.build(app).marks.some(m => m.text === OP.M.money(balance))
+        press(OP.TowerPanel.build(app).widgets.find(w => w.action === 'panel-ability'))
+        const collected = balance > 0 && sim.cash === cash + balance && bank.data.bank === 0 && bank.abilityCd === 20
+        const fox = OP.Towers.place(sim, 'acorn-fox', 260, 200)
+        select(fox)
+        const value = OP.Economy.sellValue(sim, fox), beforeSell = sim.cash
+        function key(repeat) {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', repeat, bubbles: true, cancelable: true }))
+          window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Delete', bubbles: true }))
+        }
+        key(false)
+        const armed = sim.towerById.has(fox.id) && sim.cash === beforeSell &&
+          OP.TowerPanel.build(app).widgets.some(w => w.action === 'panel-sell' && w.label === 'CONFIRM')
+        key(true)
+        const heldSafe = sim.towerById.has(fox.id)
+        key(false)
+        const sold = !sim.towerById.has(fox.id) && sim.cash === beforeSell + value
+        select(bank)
+        return { idleSafe, visible, collected, armed, heldSafe, sold }
+      `)
+      check(economy && economy.idleSafe, 'waiting before Start Round produces no farm income or harvest progress')
+      check(economy && economy.visible, 'farm panel displays its live bank savings')
+      check(economy && economy.collected, 'real pointer tap collects bank savings and starts cooldown')
+      check(economy && economy.armed, 'real Delete key arms a visible sale confirmation')
+      check(economy && economy.heldSafe, 'held Delete key cannot confirm a sale')
+      check(economy && economy.sold, 'second intentional Delete press pays exactly one refund')
+    }
 
     /* ---------- frame budget ---------- */
 
