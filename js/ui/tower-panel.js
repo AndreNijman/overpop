@@ -235,14 +235,14 @@
     else y = upgradeSection(app, sim, tower, marks, widgets, over, x0, innerW, y)
 
     /* ----- targeting ----- */
-    y = targetingSection(sim, tower, marks, widgets, over, x0, innerW, y)
+    y = targetingSection(sim, tower, marks, widgets, over, x0, innerW, y, !!s.ability)
 
     /* ----- abilities ----- */
     if (s.ability) {
-      y = abilityButton(sim, tower, marks, widgets, over, s.ability, 1, x0, y, innerW, 42) + 6
+      y = abilityButton(sim, tower, marks, widgets, over, s.ability, 1, x0, y, innerW, 36) + 6
     }
     if (isHero && s.ability2) {
-      y = abilityButton(sim, tower, marks, widgets, over, s.ability2, 2, x0, y, innerW, 42) + 6
+      y = abilityButton(sim, tower, marks, widgets, over, s.ability2, 2, x0, y, innerW, 36) + 6
     }
 
     /* ----- sell and paragon ----- */
@@ -301,12 +301,15 @@
         over.push(U.box(px, by + 6, 9, 9, owned ? { fill: C.moss } : { stroke: C.lineHi }))
       }
 
+      // The lock reason is laid out first and the description gets what is left,
+      // so a two-line reason and a two-line description can never share a row.
+      const reasonLines = st.reason ? U.wrapText(st.reason, 10, innerW - 8, 2) : []
       if (st.up) {
         over.push(U.text(x0 + 4, by + 32, U.clipText(st.up.name, 11, innerW - 70),
           { size: 11, colour: st.ok ? C.ink : C.dim }))
         over.push(U.text(x0 + innerW - 4, by + 32, M.money(st.cost),
           { size: 10, colour: st.ok ? C.gold : C.faint, align: 'right' }))
-        const desc = U.wrapText(st.up.desc, 10, innerW - 8, st.reason ? 2 : 3)
+        const desc = U.wrapText(st.up.desc, 10, innerW - 8, 3 - reasonLines.length)
         for (let i = 0; i < desc.length; i++) {
           over.push(U.text(x0 + 4, by + 48 + i * 12, desc[i], { size: 10, colour: C.dim }))
         }
@@ -317,7 +320,7 @@
       /* The whole point of this panel: a lock says why, in the engine's own
          words, on screen, without a hover. */
       if (st.reason) {
-        const lines = U.wrapText(st.reason, 10, innerW - 8, 2)
+        const lines = reasonLines
         for (let i = 0; i < lines.length; i++) {
           over.push(U.text(x0 + 4, by + blockH - 9 + i * 12 - (lines.length - 1) * 12, lines[i],
             { size: 9, colour: st.locked ? C.warn : C.bad }))
@@ -370,7 +373,7 @@
 
   /* ---------- targeting ---------- */
 
-  function targetingSection (sim, tower, marks, widgets, over, x0, innerW, y) {
+  function targetingSection (sim, tower, marks, widgets, over, x0, innerW, y, compact) {
     const U = ui(); const C = colours()
     const s = tower.s || {}
     const modes = Array.isArray(s.targetModes) ? s.targetModes : []
@@ -402,11 +405,13 @@
     }
     y += rows * (bh + 4)
 
+    // When an ability button needs the height, the mode's one-line explanation
+    // sits tighter under the buttons rather than going away.
     const hint = OP.Targeting && OP.Targeting.modeHint ? OP.Targeting.modeHint(tower.targetMode) : ''
     if (hint) {
       marks.push(U.text(x0, y + 10, U.clipText(hint, 8, innerW), { size: 8, colour: C.faint }))
     }
-    return y + 18
+    return y + (compact ? 14 : 18)
   }
 
   /* ---------- one ability, with its cooldown ---------- */
@@ -426,19 +431,25 @@
     })
     widgets.push(stamp(widget, tower))
 
-    over.push(U.text(x + 8, y + 17, U.clipText(ability.name || 'Ability', 11, w - 80),
+    /* Name and state share the top line, so the button fits in 36: the state is
+       what a player glances for, and the effect length is secondary. */
+    const status = cd > 0 ? cd.toFixed(1) + 's' : (check.ok ? 'READY' : '')
+    over.push(U.text(x + 8, y + 15, U.clipText(ability.name || 'Ability', 11, w - 80),
       { size: 11, colour: check.ok ? C.ink : C.dim }))
-    over.push(U.text(x + w - 8, y + 17, ability.duration ? ability.duration + 's effect' : 'instant',
-      { size: 8, colour: C.faint, align: 'right' }))
+    if (status) {
+      over.push(U.text(x + w - 8, y + 15, status,
+        { size: 10, colour: cd > 0 ? C.warn : C.moss, align: 'right', weight: '600' }))
+    }
 
     if (cd > 0) {
-      over.push(U.box(x + 8, y + 24, w - 16, 5, { fill: C.deep }))
-      over.push(U.box(x + 8, y + 24, Math.max(1, Math.round((w - 16) * M.clamp01(1 - cd / full))), 5,
+      over.push(U.box(x + 8, y + 23, w - 16, 5, { fill: C.deep }))
+      over.push(U.box(x + 8, y + 23, Math.max(1, Math.round((w - 16) * M.clamp01(1 - cd / full))), 5,
         { fill: C.warn }))
-      over.push(U.text(x + 8, y + 38, cd.toFixed(1) + 's of ' + full + 's', { size: 8, colour: C.warn }))
     } else {
-      over.push(U.text(x + 8, y + 38, check.ok ? 'READY' : U.clipText(check.reason, 8, w - 16),
-        { size: 8, colour: check.ok ? C.moss : C.faint }))
+      over.push(U.text(x + 8, y + 30, check.ok
+        ? (ability.duration ? ability.duration + 's effect · ' + full + 's cooldown' : 'instant · ' + full + 's cooldown')
+        : U.clipText(check.reason, 10, w - 16),
+      { size: 10, colour: C.faint }))
     }
     return y + h
   }
@@ -471,8 +482,10 @@
 
     // Keep the footer pinned to the bottom when the panel above it is short, but
     // never let it climb into the section above when it is tall.
-    const btnH = 42
-    let fy = Math.min(Math.max(y + info.length * 13 + 4, bottom - btnH - 8), S.y + S.h - btnH - 22)
+    const btnH = 40
+    const reasonBelow = !preview.ok && !!preview.reason && !!(OP.Paragon && OP.Paragon.exists && OP.Paragon.exists(tower.key))
+    let fy = Math.min(Math.max(y + info.length * 13 + 8, bottom - btnH - 8),
+      S.y + S.h - btnH - (reasonBelow ? 22 : 10))
     for (let i = 0; i < info.length; i++) {
       marks.push(U.text(x0, fy - 6 - (info.length - 1 - i) * 13,
         U.clipText(info[i].text, 9, innerW), { size: 9, colour: info[i].colour }))
