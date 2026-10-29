@@ -1,5 +1,5 @@
 export const name = 'ui-menus'
-export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js', 'js/core/towerxp.js', 'js/core/daily.js', 'js/core/expedition.js', 'js/core/trial.js']
+export const needs = ['js/ui/menus.js', 'js/ui/bestiary.js', 'js/ui/knowledge.js', 'js/ui/boss-event.js', 'js/core/towerxp.js', 'js/core/daily.js', 'js/core/expedition.js', 'js/core/trial.js']
 
 import { makeSim } from './_fixture.mjs'
 import { arena } from './_towerfamily.mjs'
@@ -528,6 +528,51 @@ export function run (t, OP, env) {
   }
   const hit = (allText.match(BANNED_ANY) || allText.match(BANNED_CAPS) || [])[0]
   t.notOk(hit, 'menu text borrows nothing' + (hit ? ` — found "${hit}"` : ''))
+
+  t.section('every screen fits the field and every knowledge node is reachable')
+  {
+    // Regression: Critter Wisdom laid seven branches side by side past the right
+    // edge and showed only seven nodes of each; Boss Event ran six cards off
+    // screen; Daily/Expedition/Trials put BACK on top of their last row.
+    const fitApp = stubApp()
+    Menus.install(fitApp)
+    if (KnowledgeScreen.install) KnowledgeScreen.install(fitApp)
+    if (OP.EventScreen && OP.EventScreen.install) OP.EventScreen.install(fitApp)
+    const inField = w => w.x >= 0 && w.y >= 0 && w.x + w.w <= OP.FIELD_W && w.y + w.h <= OP.FIELD_H
+    const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+    const seen = new Set()
+    const kState = KnowledgeScreen.state || {}
+    for (const branch of (OP.KNOWLEDGE_BRANCH_ORDER || [])) {
+      kState.branch = branch
+      kState.key = null
+      const m = KnowledgeScreen.build(fitApp)
+      for (const w of m.widgets) {
+        if (/^knowledge\.[a-z]+-/.test(w.id)) seen.add(w.id.slice('knowledge.'.length))
+        if (!inField(w)) t.ok(false, `${w.id} on the ${branch} tab sits outside the field`)
+      }
+    }
+    t.eq(seen.size, (OP.KNOWLEDGE_ORDER || []).length, 'every knowledge node appears on some branch tab')
+    const screens = ['knowledge', 'boss-event', 'daily', 'expedition', 'trials']
+    for (const screen of screens) {
+      if (Menus.go(fitApp, screen) !== screen) { t.ok(false, screen + ' is registered'); continue }
+      const m = Menus.build(fitApp)
+      const out = m.widgets.filter(w => !inField(w)).map(w => w.id)
+      t.deep(out, [], screen + ': every widget is inside the field')
+      const clash = []
+      for (let i = 0; i < m.widgets.length; i++) {
+        for (let j = i + 1; j < m.widgets.length; j++) {
+          if (overlaps(m.widgets[i], m.widgets[j])) clash.push(m.widgets[i].id + ' / ' + m.widgets[j].id)
+        }
+      }
+      t.deep(clash, [], screen + ': no two widgets overlap')
+    }
+    if (OP.bossRoster) {
+      Menus.go(fitApp, 'boss-event')
+      const cards = Menus.build(fitApp).widgets.filter(w => w.id.startsWith('event.card.'))
+      t.eq(cards.length, OP.bossRoster().length, 'boss event lists the whole roster')
+    }
+    Menus.go(fitApp, 'title')
+  }
 
   t.section('keyboard handling does not throw')
   const keyApp = stubApp()

@@ -13,7 +13,7 @@
 
   var LegendsScreen = {}
 
-  var PAD = 40
+  var PAD = 96
   var FIELD_W = OP.FIELD_W
   var FIELD_H = OP.FIELD_H
 
@@ -35,90 +35,78 @@
     var profile = app && app.state ? app.state.profile : null
     var sum = state(app)
 
-    marks.push(U.tracked(PAD, 90, 'LEGENDS', { size: 30, colour: C.ink, track: 0.2, weight: '600' }))
+    // The shared menu header: title top-left, BACK top-right, a rule under both.
+    marks.push(U.tracked(PAD, 84, 'LEGENDS', { size: 20, colour: C.ink, track: 0.26, weight: '600' }))
+    widgets.push(U.button('legends.back', FIELD_W - PAD - 96, 62, 96, 32, {
+      label: 'BACK', action: 'back', align: 'center'
+    }))
 
     if (!sum || !sum.active) {
       // Entry screen — build a Starter Party (up to 3 artifacts), then begin.
+      // Artifacts on the left, heroes on the right, actions underneath; the old
+      // stacked layout ran off the bottom of the field.
       var starters = (OP.LegendsData && OP.LegendsData.starterKeys)
         ? OP.LegendsData.starterKeys() : []
       var pickState = (OP.Menus && OP.Menus.state && OP.Menus.state.legendsStart) || null
       var picks = (pickState && Array.isArray(pickState.picks)) ? pickState.picks.slice() : []
       var maxParty = OP.Legends && OP.Legends.STARTING_PARTY ? OP.Legends.STARTING_PARTY : 3
+      var contentW = FIELD_W - PAD * 2
 
-      marks.push(U.text(PAD, 140, 'No campaign in progress. Build a Starter Party, then begin.',
+      marks.push(U.text(PAD, 108, 'A rogue-lite campaign of rising stages. Pick up to ' + maxParty + ' artifacts and a hero, then begin.',
         { size: 11, colour: C.dim }))
-      marks.push(U.tracked(PAD, 176, 'STARTER PARTY', { size: 18, colour: C.moss, track: 0.24, weight: '600' }))
-      marks.push(U.text(PAD + 2, 200, 'Pick up to ' + maxParty + ' artifacts to carry into the campaign.',
-        { size: 10, colour: C.dim }))
-      marks.push(U.rule(PAD, 218, FIELD_W - PAD * 2))
+      marks.push(U.rule(PAD, 126, contentW))
 
-      var cardW = 360
-      var cardH = 78
-      var gap = 24
-      var rowY0 = 252
+      var top = 172
+      var leftW = 520
+      marks.push(U.tracked(PAD, 156, 'STARTER PARTY  ' + picks.length + '/' + maxParty, { size: 11, colour: C.gold, track: 0.22, weight: '700' }))
+      var shown = 0
       for (var a = 0; a < starters.length; a++) {
-        var artKey = starters[a]
         var art = (OP.LegendsData && OP.LegendsData.getArtifact)
-          ? OP.LegendsData.getArtifact(artKey) : null
+          ? OP.LegendsData.getArtifact(starters[a]) : null
         if (!art) continue
-        var col = a % 3
-        var row = Math.floor(a / 3)
-        var ax = PAD + col * (cardW + gap)
-        var ay = rowY0 + row * (cardH + 16)
         var sel = picks.indexOf(art.key) >= 0
-        widgets.push(U.button('legends.pick.' + art.key, ax, ay, cardW, cardH, {
-          label: art.name, action: 'legends-pick', arg: art.key, selected: sel,
-          sub: art.blurb, align: 'left'
+        widgets.push(U.row('legends.pick.' + art.key, PAD, top + shown * 50, leftW, 44, {
+          label: art.name, sub: art.blurb, note: sel ? 'IN PARTY' : '',
+          action: 'legends-pick', arg: art.key, selected: sel
         }))
+        shown++
       }
 
-      var vy = rowY0 + 2 * (cardH + 16) + 8
-      marks.push(U.text(PAD, vy, picks.length + ' / ' + maxParty + ' selected' +
-        (picks.length === maxParty ? '  (party full)' : ''),
-        { size: 11, colour: picks.length ? C.moss : C.dim }))
-
       // Hero selection — pick one hero to carry into the campaign.
-      var heroY = vy + 40
       var heroKey = (pickState && pickState.hero) ? pickState.hero : null
       var heroes = OP.HERO_ORDER ? OP.HERO_ORDER.slice() : []
-      marks.push(U.tracked(PAD, heroY, 'CHOOSE YOUR HERO', { size: 16, colour: C.moss, track: 0.24, weight: '600' }))
-      marks.push(U.text(PAD + 2, heroY + 22, 'One hero deploys on each battlefield. Choose wisely.',
-        { size: 10, colour: C.dim }))
-      marks.push(U.rule(PAD, heroY + 38, FIELD_W - PAD * 2))
-      var heroCardW = 220
-      var heroCardH = 48
-      var heroGap = 16
+      var hx0 = PAD + leftW + 24
+      var heroW = FIELD_W - PAD - hx0
+      marks.push(U.tracked(hx0, 156, 'HERO', { size: 11, colour: C.gold, track: 0.22, weight: '700' }))
+      marks.push(U.text(FIELD_W - PAD, 156, heroKey && OP.HEROES && OP.HEROES[heroKey]
+        ? OP.HEROES[heroKey].name : 'none picked: the first available deploys',
+        { size: 11, colour: heroKey ? C.moss : C.faint, align: 'right' }))
+      var perCol = Math.max(1, Math.ceil(heroes.length / 2))
+      var hColW = Math.floor((heroW - 12) / 2)
+      var hRowH = Math.min(30, Math.floor((shown * 50 - 6 + 4) / perCol) - 4)
       for (var hi = 0; hi < heroes.length; hi++) {
         var hk = heroes[hi]
         var hDef = OP.HEROES && OP.HEROES[hk] ? OP.HEROES[hk] : null
         if (!hDef) continue
-        var hCol = hi % 5
-        var hRow = Math.floor(hi / 5)
-        var hx = PAD + hCol * (heroCardW + heroGap)
-        var hy = heroY + 54 + hRow * (heroCardH + 10)
-        var hSel = heroKey === hk
-        widgets.push(U.button('legends.hero.' + hk, hx, hy, heroCardW, heroCardH, {
-          label: hDef.name, action: 'legends-hero', arg: hk, selected: hSel,
-          sub: '$' + hDef.cost, align: 'left'
-        }))
+        widgets.push(U.row('legends.hero.' + hk, hx0 + Math.floor(hi / perCol) * (hColW + 12),
+          top + (hi % perCol) * (hRowH + 4), hColW, hRowH, {
+            label: hDef.name, note: '$' + hDef.cost,
+            action: 'legends-hero', arg: hk, selected: heroKey === hk
+          }))
       }
-      marks.push(U.text(PAD, heroY + 54 + Math.ceil(heroes.length / 5) * (heroCardH + 10) + 4,
-        heroKey ? 'Hero: ' + (OP.HEROES && OP.HEROES[heroKey] ? OP.HEROES[heroKey].name : heroKey)
-          : 'No hero selected (first available will deploy)',
-        { size: 11, colour: heroKey ? C.moss : C.dim }))
 
-      var startY = heroY + 54 + Math.ceil(heroes.length / 5) * (heroCardH + 10) + 24
-      widgets.push(U.button('legends.start', PAD, startY, 360, 54, {
-        label: 'BEGIN RUN', tone: 'primary', action: 'legends-start',
+      var startY = 584
+      widgets.push(U.button('legends.start', PAD, startY, leftW, 54, {
+        label: 'BEGIN RUN', tone: 'primary', action: 'legends-start', align: 'center',
         sub: picks.length ? 'start with your chosen artifacts' : 'start with a random artifact'
       }))
-      widgets.push(U.button('legends.quick', PAD + 384, startY, 360, 54, {
-        label: 'CLEAR PICKS', action: 'legends-clear',
-        sub: 'clear the party, begin with a random artifact'
+      widgets.push(U.button('legends.quick', hx0, startY, heroW, 54, {
+        label: 'CLEAR PICKS', action: 'legends-clear', align: 'center',
+        sub: 'empty the party and begin with a random artifact'
       }))
-      widgets.push(U.button('legends.back', FIELD_W - PAD - 120, 60, 120, 38, {
-        label: '< BACK', action: 'back'
-      }))
+      marks.push(U.rule(PAD, 676, contentW, { alpha: 0.6 }))
+      marks.push(U.text(PAD, 700, 'ESC back · artifacts last the whole campaign; the hero deploys on every battlefield',
+        { size: 11, colour: C.faint }))
       return model(marks, widgets, 'legends.start')
     }
 
@@ -154,7 +142,6 @@
     var board = OP.Legends.board ? OP.Legends.board(profile) : []
     if (!board.length) {
       marks.push(U.text(PAD, 220, 'This stage has no nodes.', { size: 13, colour: C.dim }))
-      widgets.push(U.button('legends.back', FIELD_W - PAD - 120, 60, 120, 38, { label: '< BACK', action: 'back' }))
       return model(marks, widgets)
     }
 
@@ -279,10 +266,6 @@
         label: 'ABANDON RUN', action: 'legends-abandon', sub: 'lose everything, keep nothing'
       }))
     }
-    widgets.push(U.button('legends.back', FIELD_W - PAD - 120, 60, 120, 38, {
-      label: '< BACK', action: 'back'
-    }))
-
     return model(marks, widgets)
   }
 

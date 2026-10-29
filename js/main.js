@@ -120,6 +120,8 @@
     if (OP.LegendsScreen && OP.LegendsScreen.install) OP.LegendsScreen.install(App)
     if (OP.EventScreen && OP.EventScreen.install) OP.EventScreen.install(App)
     if (OP.DraftScreen && OP.DraftScreen.install) OP.DraftScreen.install(App)
+    // The title's TROPHY STORE button went nowhere: the screen was never registered.
+    if (OP.TrophyScreen && OP.TrophyScreen.install) OP.TrophyScreen.install(App)
     if (OP.Results && OP.Results.install) OP.Results.install(App)
 
     // Something must be on screen even with no menu module built yet.

@@ -28,8 +28,12 @@
     const bank = T ? T.bank(p) : 0
     marks.push(U.tracked(PAD, 84, 'TROPHY STORE', { size: 20, colour: C.ink, track: 0.26, weight: '600' }))
     marks.push(U.text(PAD, 108, 'Trophies are earned by winning. Spend them on looks and critters — nothing here changes the game.', { size: 11, colour: C.dim }))
-    marks.push(U.text(FIELD_W - PAD - 140, 84, String(bank), { size: 16, colour: C.gold, align: 'right', weight: '700' }))
-    if (U.icon) marks.push(U.icon(FIELD_W - PAD - 152, 79, 10, 'trophy', { colour: C.gold }))
+    // Icon first, count left-aligned after it: right-aligning the count and
+    // guessing its width put the icon on top of the digits.
+    const bankText = bank + (bank === 1 ? ' TROPHY' : ' TROPHIES')
+    const bx = FIELD_W - PAD - 270
+    if (U.icon) marks.push(U.icon(bx, 79, 10, 'trophy', { colour: C.gold }))
+    marks.push(U.text(bx + 18, 84, bankText, { size: 16, colour: C.gold, weight: '700' }))
     widgets.push(U.button('store.back', FIELD_W - PAD - 96, 62, 96, 32, { label: 'BACK', action: 'back', align: 'center' }))
 
     /* kind tabs */

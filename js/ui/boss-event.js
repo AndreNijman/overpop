@@ -153,7 +153,8 @@
       backdrop: 'solid',
       marks: marks,
       widgets: widgets,
-      defaultId: 'event.card.' + (shown || '')
+      // Once a boss is picked, ENTER fights it on Normal.
+      defaultId: sel ? 'event.fight.normal' : 'event.card.' + (shown || '')
     }
   }
 

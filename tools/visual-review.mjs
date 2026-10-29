@@ -19,7 +19,7 @@ const VIEWPORTS = {
   landscape: { width: 844, height: 390 },
   portrait: { width: 390, height: 844 }
 }
-const MENU_SCREENS = ['title', 'maps', 'setup', 'settings', 'logins', 'knowledge', 'bestiary', 'towers', 'daily', 'expedition', 'trials', 'drafts', 'boss-event']
+const MENU_SCREENS = ['title', 'maps', 'setup', 'settings', 'logins', 'knowledge', 'bestiary', 'towers', 'daily', 'expedition', 'trials', 'drafts', 'boss-event', 'trophy-store', 'legends']
 const SCREENS = [...MENU_SCREENS, 'gameplay-shop', 'selected-tower', 'pause', 'pause-settings']
 
 function findBrowser () {

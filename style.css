@@ -72,6 +72,8 @@ html, body {
   padding: 32px;
   text-align: center;
   background: var(--bg-deep);
+  /* The canvas font, not the page's monospace. */
+  font-family: 'Trebuchet MS', 'Verdana', 'Segoe UI', 'DejaVu Sans', sans-serif;
 }
 #rotate .rotate-phone {
   width: 44px;
