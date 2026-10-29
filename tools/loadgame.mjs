@@ -20,7 +20,7 @@ export function scriptManifest () {
   const re = /<script[^>]+src=["']([^"']+)["']/gi
   let m
   while ((m = re.exec(html)) !== null) {
-    if (!/^https?:|^\/\//i.test(m[1])) out.push(m[1].replace(/^\.\//, ''))
+    if (!/^https?:|^\/\//i.test(m[1])) out.push(m[1].replace(/^\.\//, '').replace(/[?#].*$/, ''))
   }
   return out
 }
