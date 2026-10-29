@@ -367,9 +367,41 @@
     ctx.fillStyle = mark.colour
     ctx.textAlign = 'left'
     ctx.textBaseline = 'alphabetic'
-    const s = mark.text
-    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), mark.x + i * step, mark.y)
+    const xs = trackedXs(ctx, mark.text, step)
+    for (let i = 0; i < xs.length; i++) ctx.fillText(mark.text.charAt(i), mark.x + xs[i], mark.y)
     ctx.restore()
+  }
+
+  /* Where each glyph of letter-spaced text starts. The face is proportional, so a
+     fixed step per character left a hole after every narrow letter ("FRUI T",
+     "TARGETI NG"). Each glyph advances by its own measured width instead, and the
+     slack is shared out evenly so the run still spans exactly trackedWidth, which
+     the layout already centred and right-aligned against. When the glyphs are
+     wider than that span (the heavy logo), the overlap is shared out the same way
+     rather than piling up after the narrow letters. */
+  function trackedXs (ctx, s, step) {
+    const n = s.length
+    const xs = new Array(n)
+    let widths = null
+    if (n > 1 && ctx.measureText) {
+      widths = []
+      let total = 0
+      for (let i = 0; i < n; i++) {
+        const w = ctx.measureText(s.charAt(i)).width
+        if (!(w >= 0)) { widths = null; break }
+        widths.push(w); total += w
+      }
+    }
+    if (!widths) {
+      for (let i = 0; i < n; i++) xs[i] = i * step
+      return xs
+    }
+    let used = 0
+    for (let i = 0; i < n; i++) used += widths[i]
+    const gap = (step * n - used) / n
+    let x = 0
+    for (let i = 0; i < n; i++) { xs[i] = x; x += widths[i] + gap }
+    return xs
   }
 
   UI.trackedWidth = function (mark) {
@@ -752,21 +784,23 @@
     const size = m.size || 74
     const step = size * (ADV + (m.track || 0.18))
     const s = m.text || ''
+    setFont(ctx, size, '800')
+    const xs = trackedXs(ctx, s, step)
 
     /* Shadow */
     ctx.fillStyle = 'rgba(0, 0, 0, 0.45)'
     setFont(ctx, size, '800')
-    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), m.x + i * step + 3, m.y + 4)
+    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), m.x + xs[i] + 3, m.y + 4)
 
     /* Dark outline for readability against sky */
     ctx.strokeStyle = m.stroke || '#2a1a0a'
     ctx.lineWidth = Math.max(3, size * 0.06)
     ctx.lineJoin = 'round'
-    for (let i = 0; i < s.length; i++) ctx.strokeText(s.charAt(i), m.x + i * step, m.y)
+    for (let i = 0; i < s.length; i++) ctx.strokeText(s.charAt(i), m.x + xs[i], m.y)
 
     /* White fill */
     ctx.fillStyle = m.colour || C.ink
-    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), m.x + i * step, m.y)
+    for (let i = 0; i < s.length; i++) ctx.fillText(s.charAt(i), m.x + xs[i], m.y)
 
     ctx.restore()
   }
