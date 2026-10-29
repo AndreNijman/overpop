@@ -19,7 +19,8 @@ const VIEWPORTS = {
   landscape: { width: 844, height: 390 },
   portrait: { width: 390, height: 844 }
 }
-const SCREENS = ['title', 'maps', 'settings', 'logins', 'knowledge', 'gameplay-shop', 'selected-tower', 'pause', 'pause-settings']
+const MENU_SCREENS = ['title', 'maps', 'setup', 'settings', 'logins', 'knowledge', 'bestiary', 'towers', 'daily', 'expedition', 'trials', 'drafts', 'boss-event']
+const SCREENS = [...MENU_SCREENS, 'gameplay-shop', 'selected-tower', 'pause', 'pause-settings']
 
 function findBrowser () {
   const pinned = resolve(ROOT, 'tools/.chrome-path')
@@ -212,7 +213,7 @@ async function main () {
             OP.Shop.closeTree()
             OP.Shop.state.scroll = 0
             OP.Shop.state.detailKey = null
-            if (['title', 'maps', 'settings', 'logins', 'knowledge'].includes(screen)) {
+            if (${JSON.stringify(MENU_SCREENS)}.includes(screen)) {
               S.sim = null
               S.screen = 'menu'
               OP.Menus.state.mapScroll = 0

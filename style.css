@@ -3,8 +3,8 @@
    crawlers and screen readers, and cover the boot gap. */
 
 :root {
-  --bg: #4db3f0;
-  --bg-deep: #2f8fd4;
+  --bg: #163d5c;
+  --bg-deep: #0f2c44;
   --ink: #ffffff;
   --moss: #7ec850;
   --mono: ui-monospace, 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
@@ -32,8 +32,11 @@ html, body {
   inset: 0;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(120% 90% at 50% 0%, #87CEEB 0%, var(--bg) 70%);
+  /* --edge-top / --edge-bottom are set each screen change to the colours the
+     canvas paints at its own edges (js/main.js matchEdges), so the letterbox
+     reads as more of the screen rather than a band of a different colour. */
+  background: linear-gradient(to bottom,
+    var(--edge-top, var(--bg)) 0 50%, var(--edge-bottom, var(--bg)) 50% 100%);
 }
 
 /* The canvas keeps its 16:9 aspect and scales to fit — the renderer works in a

@@ -467,43 +467,48 @@
       return model(marks, widgets, backId)
     }
 
-    const lx = PAD, lw = 290, top = 200, bottom = 656
-    const rowH = listRows(list.length, top, bottom, 24)
+    /* Two columns of real rows. One column squeezed 31 towers into 15px rows,
+       name on top of name. */
+    const lx = PAD, lw = 312, top = mode.noTabs ? 150 : 190, bottom = 664
+    const lcols = list.length > 18 ? 2 : 1
+    const perCol = Math.ceil(list.length / lcols)
+    const lcw = Math.floor((lw - 6 * (lcols - 1)) / lcols)
+    const rowH = listRows(perCol, top, bottom, 30)
     const xp = totalXp(app)
     for (let i = 0; i < list.length; i++) {
       const def = list[i]
-      widgets.push(U.row('bestiary.tower.' + def.key, lx, top + i * rowH, lw, rowH - 2, {
+      const col = Math.floor(i / perCol)
+      widgets.push(U.row('bestiary.tower.' + def.key, lx + col * (lcw + 6), top + (i % perCol) * rowH, lcw, rowH - 3, {
         label: def.name || def.key,
-        note: xp[def.key] === 0 ? '$' + (def.cost === undefined ? '?' : def.cost)
-          : fmtXp(xp[def.key]) + ' XP',
+        note: xp[def.key] ? fmtXp(xp[def.key]) + ' XP' : '',
         selected: !!sel && def.key === sel.key,
         action: 'bestiary-tower',
         arg: def.key
       }))
     }
 
-    const dx = 418
+    const dx = lx + lw + 28
     const dw = FIELD_W - PAD - dx
     if (!sel) return model(marks, widgets, backId, screen)
 
     const famLabel = (OP.FAMILY_LABELS && OP.FAMILY_LABELS[sel.family]) || sel.family || '—'
-    marks.push(U.tracked(dx, 232, (sel.name || sel.key).toUpperCase(), { size: 22, colour: C.ink, track: 0.16, weight: '600' }))
-    marks.push(U.text(dx, 252, String(famLabel).toUpperCase() + ' · $' + (sel.cost === undefined ? '?' : sel.cost) +
-      ' · ' + (sel.placement || 'land') + (sel.unlockLevel > 1 ? ' · unlocks level ' + sel.unlockLevel : ''),
-      { size: 10, colour: C.moss }))
+    marks.push(U.tracked(dx, top + 22, (sel.name || sel.key).toUpperCase(), { size: 22, colour: C.ink, track: 0.12, weight: '700' }))
+    marks.push(U.text(dx, top + 42, String(famLabel).toUpperCase() + ' · $' + (sel.cost === undefined ? '?' : sel.cost) +
+      ' · ' + (sel.placement || 'land') + (sel.unlockLevel > 1 ? ' · unlocks at level ' + sel.unlockLevel : ''),
+      { size: 11, colour: C.moss, weight: '600' }))
 
     /* ----- lifetime tower XP and the unlock ladder ----- */
     const selXp = xp[sel.key] || 0
-    marks.push(U.text(dx, 270, 'TOWER XP  ' + fmtXp(selXp), { size: 10, colour: C.gold, weight: '600' }))
     const selUnlock = nextUnlock(app, sel)
-    marks.push(U.text(dx + 130, 270, selUnlock === null
-      ? 'all upgrades unlocked'
-      : 'NEXT UNLOCK ' + (selUnlock.path + 1) + '-' + selUnlock.tier + ' · ' + fmtXp(selUnlock.cost) + ' XP',
-      { size: 10, colour: selUnlock === null ? C.moss : C.dim }))
+    marks.push(U.text(dx + dw, top + 22, 'TOWER XP  ' + fmtXp(selXp), { size: 12, colour: C.gold, weight: '700', align: 'right' }))
+    marks.push(U.text(dx + dw, top + 42, selUnlock === null
+      ? 'every upgrade unlocked'
+      : 'next unlock ' + (selUnlock.path + 1) + '-' + selUnlock.tier + ' · ' + fmtXp(selUnlock.cost) + ' XP',
+      { size: 11, colour: selUnlock === null ? C.moss : C.dim, align: 'right' }))
 
-    const blurb = U.wrapText(sel.blurb, 11, dw - 20, 3)
+    const blurb = U.wrapText(sel.blurb, 12, dw, 2)
     for (let i = 0; i < blurb.length; i++) {
-      marks.push(U.text(dx, 282 + i * 16, blurb[i], { size: 11, colour: C.dim }))
+      marks.push(U.text(dx, top + 66 + i * 16, blurb[i], { size: 12, colour: C.dim }))
     }
 
     const base = sel.base || {}
@@ -515,25 +520,29 @@
       ['EVERY', (base.cooldown === undefined ? '?' : base.cooldown) + 's'],
       ['SEES VEILED', base.camoDetect ? 'yes' : 'no']
     ]
-    marks.push(U.rule(dx, 340, dw, { alpha: 0.6 }))
+    const sy = top + 96
+    marks.push(U.box(dx, sy, dw, 44, { fill: '#0f2c44', stroke: '#2a1a0a' }))
     for (let i = 0; i < stats.length; i++) {
-      const cx = dx + i * Math.floor(dw / stats.length)
-      marks.push(U.text(cx, 360, stats[i][0], { size: 9, colour: C.faint }))
-      marks.push(U.text(cx, 382, stats[i][1], { size: 14, colour: C.ink, weight: '600' }))
+      const cx = dx + 12 + i * Math.floor((dw - 12) / stats.length)
+      marks.push(U.text(cx, sy + 16, stats[i][0], { size: 10, colour: C.faint }))
+      marks.push(U.text(cx, sy + 35, stats[i][1], { size: 14, colour: C.ink, weight: '700' }))
     }
 
-    /* ----- the three branches ----- */
+    /* ----- the three branches: one box per tier ----- */
     const paths = Array.isArray(sel.paths) ? sel.paths : []
     if (!paths.length) {
-      marks.push(U.text(dx, 430, 'No upgrade branches declared.', { size: 12, colour: C.warn }))
+      marks.push(U.text(dx, sy + 80, 'No upgrade branches declared.', { size: 12, colour: C.warn }))
       return model(marks, widgets, backId, screen)
     }
-    const colW = Math.floor(dw / Math.max(1, paths.length))
+    const gapX = 10
+    const colW = Math.floor((dw - gapX * (paths.length - 1)) / Math.max(1, paths.length))
+    const by0 = sy + 70
+    const cellGap = 6
+    const cellH = Math.min(58, Math.floor((bottom - by0 - 4) / 5) - cellGap)
     for (let p = 0; p < paths.length; p++) {
       const path = paths[p] || {}
-      const cx = dx + p * colW
-      marks.push(U.tracked(cx, 452, String(path.name || 'PATH ' + (p + 1)).toUpperCase(), { size: 10, colour: C.moss, track: 0.24 }))
-      marks.push(U.rule(cx, 462, colW - 16, { alpha: 0.6 }))
+      const cx = dx + p * (colW + gapX)
+      marks.push(U.tracked(cx, by0 - 8, String(path.name || 'PATH ' + (p + 1)).toUpperCase(), { size: 11, colour: C.moss, track: 0.2, weight: '700' }))
       const ups = Array.isArray(path.tiers) ? path.tiers : []
       for (let i = 0; i < ups.length; i++) {
         const up = ups[i] || {}
@@ -541,30 +550,32 @@
         const unlocked = OP.TowerXp && OP.TowerXp.pathUnlocked
           ? OP.TowerXp.pathUnlocked(profileOf(app), sel.key, p) >= tier
           : true
-        const y = 484 + i * 42
-        marks.push(U.text(cx, y, String(tier), { size: 9, colour: unlocked ? C.faint : C.warn }))
-        if (!unlocked) marks.push(U.text(cx + 5, y - 3, 'LOCKED', { size: 7, colour: C.warn }))
-        marks.push(U.text(cx + 14, y, U.clipText(up.name || '—', 11, colW - 96), {
-          size: 11, colour: unlocked ? C.ink : C.faint
+        const y = by0 + i * (cellH + cellGap)
+        marks.push(U.box(cx, y, colW, cellH, { fill: unlocked ? '#5a3a1e' : '#3e2a18', stroke: '#2a1a0a' }))
+        const canUnlock = !unlocked && OP.TowerXp && OP.TowerXp.unlockCell
+        const rightW = canUnlock ? 96 : 56
+        marks.push(U.text(cx + 10, y + 18, tier + '  ' + U.clipText(up.name || '—', 12, colW - 34 - rightW), {
+          size: 12, colour: unlocked ? C.ink : C.dim, weight: '700'
         }))
-        marks.push(U.text(cx + colW - 20, y, unlocked ? '$' + (up.cost === undefined ? '?' : up.cost) : fmtXp(OP.TowerXp ? OP.TowerXp.unlockCost(tier) : 0) + ' XP', {
-          size: 10, colour: unlocked ? C.gold : C.warn, align: 'right'
-        }))
-        if (!unlocked && OP.TowerXp && OP.TowerXp.unlockCell) {
+        if (canUnlock) {
           widgets.push(U.button('bestiary.unlock.' + sel.key + '.' + p + '.' + tier,
-            cx + colW - 66, y, 46, 15, {
-              label: 'UNLOCK', action: 'bestiary-unlock',
-              arg: [sel.key, p, tier].join('|')
+            cx + colW - rightW - 6, y + 5, rightW, 20, {
+              label: fmtXp(OP.TowerXp.unlockCost(tier)) + ' XP', labelSize: 10, align: 'center',
+              action: 'bestiary-unlock', arg: [sel.key, p, tier].join('|')
             }))
+        } else {
+          marks.push(U.text(cx + colW - 10, y + 18, unlocked ? '$' + (up.cost === undefined ? '?' : up.cost) : 'locked', {
+            size: 12, colour: unlocked ? C.gold : C.warn, align: 'right', weight: '700'
+          }))
         }
-        const desc = U.wrapText(up.desc, 9, colW - 32, 2)
+        const desc = U.wrapText((unlocked ? '' : 'Locked · ') + (up.desc || ''), 10, colW - 20, cellH >= 52 ? 2 : 1)
         for (let d = 0; d < desc.length; d++) {
-          marks.push(U.text(cx + 14, y + 13 + d * 11, desc[d], { size: 9, colour: unlocked ? C.faint : C.deep }))
+          marks.push(U.text(cx + 10, y + 34 + d * 13, desc[d], { size: 10, colour: unlocked ? C.dim : C.faint }))
         }
       }
     }
 
-    marks.push(U.text(PAD, 700, 'ESC back · XP unlocks one upgrade permanently; UNLOCK it, then money pays for it in a run', { size: 10, colour: C.faint }))
+    marks.push(U.text(PAD, 694, 'ESC back · XP unlocks an upgrade for good; money still pays for it in a run', { size: 11, colour: C.faint }))
     return model(marks, widgets, backId, screen)
   }
 

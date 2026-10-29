@@ -45,8 +45,12 @@
   /* The palette reads like the source game's menu: a bright sky behind warm
      wooden panels, chunky green accents, gold for money and celebration. */
   const C = {
-    bg: '#4db3f0',
-    deep: '#2f8fd4',
+    // Menu screens draw their text straight onto `bg`, so it is the deep blue of
+    // the source game's menus rather than the sky: on #4db3f0 even white text
+    // measured 2.3:1, and the moss and tan labels were invisible. The sky lives
+    // on in the illustrated title backdrop, where nothing small sits on it bare.
+    bg: '#163d5c',
+    deep: '#0f2c44',
     panel: '#7a4f2d',
     panelHi: '#9c6b3f',
     panelSel: '#a97a45',
@@ -54,12 +58,15 @@
     lineHi: '#6b4526',
     ink: '#ffffff',
     dim: '#f5e9d8',
-    faint: '#c9a97f',
-    moss: '#7ec850',
+    // faint and moss are text colours on the wooden panels as much as accents,
+    // so both are lifted to clear 4.5:1 on `panel`; they measured 3.2 and 3.4.
+    faint: '#e8d2ae',
+    moss: '#a6e67a',
     mossDeep: '#4f9b3d',
     gold: '#ffd23f',
     warn: '#ffb648',
-    bad: '#e05545'
+    // 1.9:1 on wood before; lighter still reads as danger and clears 3:1.
+    bad: '#ffa090'
   }
 
   const FONT = "'Trebuchet MS', 'Verdana', 'Segoe UI', 'DejaVu Sans', sans-serif"
@@ -305,8 +312,10 @@
     return {
       kind: 'preview', x: x, y: y, w: w, h: h,
       paths: Array.isArray(paths) ? paths : [],
-      colour: opts.colour || C.mossDeep, bg: opts.bg || C.deep,
-      lineWidth: opts.lineWidth || 2
+      // A little picture of the map itself — grass, and a dirt road with an
+      // edge — rather than a thin green line on a flat blue box.
+      colour: opts.colour || '#e9cf94', edge: opts.edge || '#7a5a32', bg: opts.bg || '#5fae45',
+      lineWidth: opts.lineWidth || Math.max(3, Math.round(w / 26))
     }
   }
 
@@ -331,7 +340,9 @@
       previewPaths: opts.previewPaths || null,
       swatch: opts.swatch || '',
       hitClip: opts.hitClip || null,
-      noHit: !!opts.noHit
+      noHit: !!opts.noHit,
+      // Callers already passed this (the HUD's power buttons) and it was dropped.
+      labelSize: opts.labelSize || 14
     }
     return o
   }
@@ -905,27 +916,35 @@
     ctx.save()
     ctx.fillStyle = m.bg
     ctx.fillRect(m.x, m.y, m.w, m.h)
-    ctx.strokeStyle = C.line
+    ctx.strokeStyle = '#2a1a0a'
     ctx.lineWidth = 1
     ctx.strokeRect(m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1)
 
     const sx = m.w / FIELD_W
     const sy = m.h / FIELD_H
-    ctx.strokeStyle = m.colour
-    ctx.lineWidth = m.lineWidth
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
-    for (let p = 0; p < m.paths.length; p++) {
-      const pts = m.paths[p]
-      if (!Array.isArray(pts) || pts.length < 2) continue
-      ctx.beginPath()
-      for (let i = 0; i < pts.length; i++) {
-        const px = m.x + pts[i].x * sx
-        const py = m.y + pts[i].y * sy
-        if (i === 0) ctx.moveTo(px, py)
-        else ctx.lineTo(px, py)
+    ctx.beginPath()
+    ctx.rect(m.x + 1, m.y + 1, m.w - 2, m.h - 2)
+    ctx.clip()
+    // Edge first, then the road over it, for every path, so crossings read as
+    // one road rather than one lane drawn on top of the other's border.
+    const passes = m.edge ? [[m.edge, m.lineWidth + 2], [m.colour, m.lineWidth]] : [[m.colour, m.lineWidth]]
+    for (const [colour, width] of passes) {
+      ctx.strokeStyle = colour
+      ctx.lineWidth = width
+      for (let p = 0; p < m.paths.length; p++) {
+        const pts = m.paths[p]
+        if (!Array.isArray(pts) || pts.length < 2) continue
+        ctx.beginPath()
+        for (let i = 0; i < pts.length; i++) {
+          const px = m.x + pts[i].x * sx
+          const py = m.y + pts[i].y * sy
+          if (i === 0) ctx.moveTo(px, py)
+          else ctx.lineTo(px, py)
+        }
+        ctx.stroke()
       }
-      ctx.stroke()
     }
     ctx.restore()
   }
@@ -979,12 +998,14 @@
         const hasIcon = w.icon && typeof drawIconMark === 'function'
         const iconSpace = hasIcon ? 20 : 0
         const cx = w.align === 'center' ? w.x + w.w / 2 : w.x + 16 + iconSpace
-        const baseY = w.sub ? w.y + w.h / 2 - 2 : w.y + w.h / 2 + 5
+        const ls = w.labelSize || 14
+        const baseY = w.sub ? w.y + w.h / 2 - 2 : w.y + w.h / 2 + Math.round(ls * 0.36)
         if (hasIcon) {
           drawIconMark(ctx, { kind: 'icon', x: w.x + 18, y: w.y + w.h / 2, r: 10, key: w.icon, colour: t.ink })
         }
-        drawTracked(ctx, UI.tracked(w.align === 'center' ? cx - UI.trackedWidth(UI.tracked(0, 0, w.label, { size: 14 })) / 2 : cx,
-          baseY, w.label, { size: 14, colour: t.ink, track: 0.18 }))
+        const track = ls < 14 ? 0.08 : 0.18
+        drawTracked(ctx, UI.tracked(w.align === 'center' ? cx - UI.trackedWidth(UI.tracked(0, 0, w.label, { size: ls, track: track })) / 2 : cx,
+          baseY, w.label, { size: ls, colour: t.ink, track: track }))
         if (w.sub) drawText(ctx, cx, w.y + w.h / 2 + 14, UI.clipText(w.sub, 10, w.w - 24 - iconSpace), 10, w.disabled ? C.faint : C.dim, w.align === 'center' ? 'center' : 'left')
         if (hover && !w.disabled) {
           ctx.save(); ctx.fillStyle = C.moss
@@ -1004,10 +1025,17 @@
           ctx.save(); ctx.fillStyle = w.swatch; ctx.fillRect(w.x + 12, w.y + w.h / 2 - 4, 8, 8); ctx.restore()
         }
         const tx = w.x + (w.swatch ? 30 : 14)
-        drawText(ctx, tx, w.y + (w.sub ? 19 : w.h / 2 + 4), UI.clipText(w.label, 13, w.w - 100), 13, t.ink, 'left', '600')
-        if (w.sub) drawText(ctx, tx, w.y + 34, UI.clipText(w.sub, 10, w.w - 40), 10, w.disabled ? C.faint : C.dim)
-        if (w.note) drawText(ctx, w.x + w.w - 12, w.y + (w.sub ? 19 : w.h / 2 + 4), w.note, 10, w.disabled ? C.faint : C.moss, 'right')
-        if (w.disabled && w.reason) drawText(ctx, w.x + w.w - 12, w.y + 34, UI.clipText(w.reason, 9, w.w / 2), 9, C.warn, 'right')
+        // The label gets whatever the note leaves, not a fixed 100px; narrow rows
+        // were clipping every name to a few letters.
+        const noteW = w.note ? UI.textWidth(w.note, 10) + 12 : 0
+        // Label + sub is a 44px block; centre it so tall rows aren't top-heavy.
+        const oy = w.y + Math.max(0, Math.round((w.h - 44) / 2))
+        drawText(ctx, tx, w.sub ? oy + 19 : w.y + w.h / 2 + 4, UI.clipText(w.label, 13, w.w - (tx - w.x) - 12 - noteW), 13, t.ink, 'left', '600')
+        // A locked row says why in place of its description; drawn side by side
+        // the two collided on any row narrower than the full width.
+        if (w.disabled && w.reason) drawText(ctx, tx, oy + 34, UI.clipText(w.reason, 10, w.w - 40), 10, C.warn)
+        else if (w.sub) drawText(ctx, tx, oy + 34, UI.clipText(w.sub, 10, w.w - 40), 10, w.disabled ? C.faint : C.dim)
+        if (w.note) drawText(ctx, w.x + w.w - 12, w.sub ? oy + 19 : w.y + w.h / 2 + 4, w.note, 10, w.disabled ? C.faint : C.moss, 'right')
         break
       }
       case 'card': {
@@ -1335,6 +1363,16 @@
     marks.push(UI.text(PAD, 700, hint || 'ESC back · ENTER confirm', { size: 10, colour: C.faint }))
   }
 
+  // The header every list screen shares: title and one line of context top-left,
+  // BACK top-right, a rule under both. Daily, Expedition and Trials each had a
+  // 48px title that pushed their lists down until BACK sat on top of a row.
+  function screenHead (marks, widgets, title, sub, backId) {
+    marks.push(UI.tracked(PAD, 84, title, { size: 20, colour: C.ink, track: 0.26, weight: '600' }))
+    if (sub) marks.push(UI.text(PAD, 108, sub, { size: 11, colour: C.dim }))
+    widgets.push(UI.button(backId, FIELD_W - PAD - 96, 62, 96, 32, { label: 'BACK', action: 'back', align: 'center' }))
+    marks.push(UI.rule(PAD, 126, CONTENT_W))
+  }
+
   function noticeMark (marks) {
     if (!state.notice) return
     marks.push(UI.text(FIELD_W - PAD, 700, state.notice, { size: 10, colour: C.warn, align: 'right' }))
@@ -1354,114 +1392,105 @@
 
     /* Big logo with outline shadow — the BTD6-style hero title */
     marks.push({ kind: 'logo', x: PAD, y: 130, text: 'OVERPOP', size: 80, colour: C.ink, stroke: '#2a1a0a', track: 0.18 })
-    marks.push(UI.tracked(PAD + 6, 175, 'AN ORIGINAL TOWER DEFENSE', { size: 12, colour: C.gold, track: 0.34 }))
-    marks.push(UI.text(PAD, 198, 'Every sprite drawn in code. Every sound synthesised.', { size: 10, colour: C.dim }))
+    // Bare on the sky, so dark: gold and cream measured under 2:1 here.
+    marks.push(UI.tracked(PAD + 6, 176, 'AN ORIGINAL TOWER DEFENSE', { size: 13, colour: C.bg, track: 0.3, weight: '700' }))
+    marks.push(UI.text(PAD + 6, 200, 'Every sprite drawn in code. Every sound synthesised.', { size: 12, colour: C.bg }))
 
     /* Decorative balloon row — floats in the sky area */
     const tiers = Array.isArray(OP.BALLOON_TIERS) ? OP.BALLOON_TIERS : []
     const shown = tiers.slice(0, 6)
     for (let i = 0; i < shown.length; i++) {
-      marks.push(UI.balloon(PAD + 420 + i * 40, 110 + Math.sin(i * 1.8) * 14, 10, shown[i]))
+      marks.push(UI.balloon(PAD + 500 + i * 46, 104 + Math.sin(i * 1.8) * 14, 11, shown[i]))
     }
 
-    /* Left column: primary buttons on a wooden panel background */
-    marks.push(UI.box(PAD - 12, 220, 400, 320, { fill: 'rgba(90, 55, 25, 0.55)', stroke: '#4a2f18' }))
-    const bx = PAD + 8, bw = 370, bh = 50, gap = 6
-    let byL = 240
+    /* Three solid wooden panels in one row, each laid out from its own content:
+       ways to PLAY, the COLLECTION you build up between runs, and your RECORD.
+       The old layout sized panels by hand, so eight mode buttons spilled out of a
+       panel built for six, and the panels were 55% see-through over the hills. */
+    const top = 228
+    const head = 46
+    const gap = 8
+    const cols = [
+      { x: PAD, w: 420, title: 'PLAY' },
+      { x: PAD + 444, w: 300, title: 'COLLECTION' },
+      { x: PAD + 768, w: FIELD_W - PAD - (PAD + 768), title: 'RECORD' }
+    ]
+    const inset = 14
+    const play = []
+    const coll = []
 
-    widgets.push(UI.button('title.play', bx, byL, bw, bh, {
-      label: 'PLAY', tone: 'primary', action: 'goto', arg: 'maps',
-      sub: 'choose a map, a difficulty and a mode'
-    }))
-    byL += bh + gap
+    play.push({ id: 'title.play', h: 60, opts: {
+      label: 'PLAY', tone: 'primary', action: 'goto', arg: 'maps', sub: 'choose a map, a difficulty and a mode' } })
     if (refreshRun()) {
-      widgets.push(UI.button('title.continue', bx, byL, bw, bh, {
-        label: 'CONTINUE', action: 'continue', sub: 'resume the run in progress'
-      }))
-      byL += bh + gap
+      play.push({ id: 'title.continue', h: 46, opts: { label: 'CONTINUE', action: 'continue', sub: 'resume the run in progress' } })
     }
-    widgets.push(UI.button('title.settings', bx, byL, bw, bh, {
-      label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'volume, trails, round autostart'
-    }))
-    byL += bh + gap
-    widgets.push(UI.button('title.store', bx, byL, bw, bh, {
-      label: 'TROPHY STORE', action: 'goto', arg: 'trophy-store',
-      sub: 'spend trophies on looks and critter crates'
-    }))
-
-    /* Right column: content screens on a panel */
-    const gx = 540, gw = 220, gh = 38
-    marks.push(UI.box(gx - 10, 220, 240, 320, { fill: 'rgba(90, 55, 25, 0.55)', stroke: '#4a2f18' }))
-    let byR = 240
-    widgets.push(UI.button('title.bestiary', gx, byR, gw, gh, {
-      label: 'BESTIARY', action: 'goto', arg: 'bestiary', sub: 'balloons, immunities and towers'
-    }))
-    byR += gh + gap
-    widgets.push(UI.button('title.towers', gx, byR, gw, gh, {
-      label: 'TOWERS', action: 'goto', arg: 'towers', sub: 'upgrades, costs and tower XP'
-    }))
-    byR += gh + gap
-    if (OP.Drafts && OP.Drafts.list) {
-      var draftsOwned = OP.Drafts.count(profileOf(app))
-      if (draftsOwned > 0) {
-        widgets.push(UI.button('title.drafts', gx, byR, gw, gh, {
-          label: 'DRAFTS', action: 'goto', arg: 'drafts',
-          sub: draftsOwned + ' token' + (draftsOwned === 1 ? '' : 's') + ' — free placed towers'
-        }))
-        byR += gh + gap
-      }
-    }
-    widgets.push(UI.button('title.knowledge', gx, byR, gw, gh, {
-      label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'spend knowledge points on permanent bonuses'
-    }))
-    byR += gh + gap
     if (OP.Daily && OP.DailyCore) {
-      var daily = OP.DailyCore.summary ? OP.DailyCore.summary(profileOf(app)) : null
-      var dailyDone = daily && daily.done
-      var dailySub = dailyDone ? 'already completed today — come back tomorrow' : 'a fresh challenge every day'
-      widgets.push(UI.button('title.daily', gx, byR, gw, gh, {
-        label: 'DAILY CHALLENGE', action: 'goto', arg: 'daily', sub: dailySub,
-        disabled: dailyDone
-      }))
-      byR += gh + gap
+      const daily = OP.DailyCore.summary ? OP.DailyCore.summary(p) : null
+      const dailyDone = !!(daily && daily.done)
+      play.push({ id: 'title.daily', h: 46, opts: {
+        label: 'DAILY CHALLENGE', action: 'goto', arg: 'daily', disabled: dailyDone,
+        sub: dailyDone ? 'done for today, back tomorrow' : 'a fresh challenge every day' } })
     }
     if (OP.Expedition && OP.Expeditions) {
-      var expActive = OP.Expedition.isActive(profileOf(app))
-      var expSub = expActive ? 'resume your active expedition' : 'multi-map campaigns with resource carry-over'
-      widgets.push(UI.button('title.expedition', gx, byR, gw, gh, {
-        label: 'EXPEDITION', action: 'goto', arg: 'expedition', sub: expSub
-      }))
-      byR += gh + gap
+      play.push({ id: 'title.expedition', h: 46, opts: {
+        label: 'EXPEDITION', action: 'goto', arg: 'expedition',
+        sub: OP.Expedition.isActive(p) ? 'resume your active expedition' : 'several maps in a row, resources carried over' } })
     }
     if (OP.Trial && OP.Trials) {
-      var trialActive = OP.Trial.isActive(profileOf(app))
-      var trialSub = trialActive ? 'resume your active trial' : 'curated challenge scenarios with unique rules'
-      widgets.push(UI.button('title.trial', gx, byR, gw, gh, {
-        label: 'TRIALS', action: 'goto', arg: 'trials', sub: trialSub
-      }))
-      byR += gh + gap
+      play.push({ id: 'title.trial', h: 46, opts: {
+        label: 'TRIALS', action: 'goto', arg: 'trials',
+        sub: OP.Trial.isActive(p) ? 'resume your active trial' : 'set challenges with their own rules' } })
     }
     if (OP.Legends && OP.LegendsData) {
-      var legendsActive = OP.Legends.isActive(profileOf(app))
-      var legendsSub = legendsActive ? 'resume your active campaign' : 'a rogue-lite campaign across escalating stages'
-      widgets.push(UI.button('title.legends', gx, byR, gw, gh, {
-        label: 'LEGENDS', action: 'goto', arg: 'legends', sub: legendsSub
-      }))
-      byR += gh + gap
+      play.push({ id: 'title.legends', h: 46, opts: {
+        label: 'LEGENDS', action: 'goto', arg: 'legends',
+        sub: OP.Legends.isActive(p) ? 'resume your active campaign' : 'a rogue-lite campaign of rising stages' } })
     }
     if (OP.BossEvent && OP.Boss) {
-      var bossSub = 'weekly rotating boss fights with tier rewards'
-      widgets.push(UI.button('title.bossEvent', gx, byR, gw, gh, {
-        label: 'BOSS EVENT', action: 'goto', arg: 'boss-event', sub: bossSub
-      }))
-      byR += gh + gap
+      play.push({ id: 'title.bossEvent', h: 46, opts: {
+        label: 'BOSS EVENT', action: 'goto', arg: 'boss-event', sub: 'this week\'s boss, with tier rewards' } })
     }
 
-    /* Record panel — far right column */
-    const rx = 800
-    marks.push(UI.box(rx - 10, 60, 400, 420, { fill: 'rgba(90, 55, 25, 0.55)', stroke: '#4a2f18' }))
-    marks.push(UI.tracked(rx, 82, 'RECORD', { size: 12, colour: C.gold, track: 0.3 }))
-    marks.push(UI.rule(rx, 94, 370))
+    coll.push({ id: 'title.bestiary', h: 46, opts: { label: 'BESTIARY', action: 'goto', arg: 'bestiary', sub: 'balloons, immunities and towers' } })
+    coll.push({ id: 'title.towers', h: 46, opts: { label: 'TOWERS', action: 'goto', arg: 'towers', sub: 'upgrades, costs and tower XP' } })
+    coll.push({ id: 'title.knowledge', h: 46, opts: { label: 'CRITTER WISDOM', action: 'goto', arg: 'knowledge', sub: 'permanent bonuses for knowledge points' } })
+    if (OP.Drafts && OP.Drafts.list) {
+      const draftsOwned = OP.Drafts.count(p)
+      if (draftsOwned > 0) {
+        coll.push({ id: 'title.drafts', h: 46, opts: { label: 'DRAFTS', action: 'goto', arg: 'drafts',
+          sub: draftsOwned + ' free tower' + (draftsOwned === 1 ? '' : 's') + ' to place' } })
+      }
+    }
+    coll.push({ id: 'title.store', h: 46, opts: { label: 'TROPHY STORE', action: 'goto', arg: 'trophy-store', sub: 'looks and critter crates' } })
+    const settings = { id: 'title.settings', h: 46, opts: { label: 'SETTINGS', action: 'goto', arg: 'settings', sub: 'sound, trails, autostart, backups' } }
+
+    const stackH = list => list.reduce((n, it) => n + it.h + gap, -gap)
+    const recordRows = 8
+    const recordH = recordRows * 24 + 12 + 50
+    const bodyH = Math.max(stackH(play), stackH(coll) + gap + settings.h + 12, recordH)
+    const panelH = head + bodyH + inset
+
+    for (const c of cols) {
+      marks.push(UI.box(c.x, top, c.w, panelH, { fill: '#5a3a1e', stroke: '#2a1a0a', alpha: 0.97 }))
+      marks.push(UI.tracked(c.x + inset, top + 26, c.title, { size: 12, colour: C.gold, track: 0.3, weight: '700' }))
+      marks.push(UI.rule(c.x + inset, top + 36, c.w - inset * 2, { colour: '#2a1a0a' }))
+    }
+
+    function stack (list, c, y) {
+      for (const it of list) {
+        widgets.push(UI.button(it.id, c.x + inset, y, c.w - inset * 2, it.h, it.opts))
+        y += it.h + gap
+      }
+    }
+    stack(play, cols[0], top + head)
+    stack(coll, cols[1], top + head)
+    // Settings sits at the foot of its panel, apart from the things you collect.
+    stack([settings], cols[1], top + panelH - inset - settings.h)
+
+    /* Record */
+    const rc = cols[2]
+    const rx = rc.x + inset
+    const rw = rc.w - inset * 2
     const stats = (p && p.stats) || {}
     const xp = OP.Save && OP.Save.xpProgress
       ? OP.Save.xpProgress(p)
@@ -1470,31 +1499,31 @@
     const bestMap = (stats.bestRound && typeof stats.bestRound === 'object') ? stats.bestRound : {}
     for (const k in bestMap) if (bestMap[k] > best) best = bestMap[k]
     const rows = [
+      ['Player level', xp.level],
+      ['Next level', xp.current + ' / ' + xp.needed + ' XP'],
       ['Games played', stats.gamesPlayed || 0],
       ['Games won', stats.gamesWon || 0],
+      ['Best round', best || '—'],
       ['Rounds cleared', stats.roundsCleared || 0],
       ['Balloons popped', fmtBig(stats.totalPops || 0)],
-      ['Cash earned', '$' + fmtBig(stats.totalCash || 0)],
-      ['Best round', best || '—'],
-      ['Player level', xp.level],
-      ['Next level', xp.current + ' / ' + xp.needed + ' XP']
+      ['Cash earned', '$' + fmtBig(stats.totalCash || 0)]
     ]
     for (let i = 0; i < rows.length; i++) {
-      const y = 118 + i * 26
-      marks.push(UI.text(rx, y, rows[i][0], { size: 11, colour: C.dim }))
-      marks.push(UI.text(rx + 360, y, String(rows[i][1]), { size: 12, colour: C.ink, align: 'right' }))
+      const y = top + head + 14 + i * 24
+      marks.push(UI.text(rx, y, rows[i][0], { size: 12, colour: C.dim }))
+      marks.push(UI.text(rx + rw, y, String(rows[i][1]), { size: 13, colour: C.ink, align: 'right', weight: '700' }))
     }
 
     if (OP.Logins) {
       const login = OP.Logins.status(p, OP.Daily.dateKey(new Date()))
-      widgets.push(UI.button('title.logins', rx, 365, 370, 50, {
-        label: 'DAILY REWARDS', action: 'goto', arg: 'logins',
+      widgets.push(UI.button('title.logins', rx, top + panelH - inset - 50, rw, 50, {
+        label: 'DAILY REWARDS', action: 'goto', arg: 'logins', tone: login.available ? 'primary' : undefined,
         sub: login.available ? 'claim ' + login.kp + ' KP' + (login.hasToken ? ' + a Draft Token' : '')
-          : 'reward collected · view your seven-day calendar'
+          : 'collected · see the seven-day calendar'
       }))
     }
 
-    marks.push(UI.text(PAD, FIELD_H - 12, 'v' + (OP.VERSION || '?') + ' · no downloads, works offline', { size: 10, colour: C.dim }))
+    marks.push(UI.text(PAD, FIELD_H - 12, 'v' + (OP.VERSION || '?') + ' · no downloads, works offline', { size: 11, colour: '#1f3d14' }))
     noticeMark(marks)
 
     return {
@@ -1847,7 +1876,10 @@
     // The illustrated sky behind a smoked panel keeps the map list readable
     // while the screen no longer looks like a flat colour fill.
     marks.push({ kind: 'titleBg', x: 0, y: 0, w: FIELD_W, h: FIELD_H })
-    marks.push(UI.box(PAD - 12, 140, CONTENT_W + 24, FIELD_H - 160, { fill: 'rgba(90, 55, 25, 0.62)', stroke: '#4a2f18' }))
+    // Solid wood, like the title's panels: at 62% the hills showed through as a
+    // muddy grey band across the middle of the list.
+    marks.push(UI.box(PAD - 12, 140, CONTENT_W + 24, FIELD_H - 146, { fill: '#5a3a1e', stroke: '#2a1a0a', alpha: 0.97 }))
+    marks.push({ kind: 'logo', x: PAD, y: 112, text: 'CHOOSE A MAP', size: 40, colour: C.ink, stroke: '#2a1a0a', track: 0.08 })
 
     const layout = mapLayout(maps)
     state.mapMaxScroll = Math.max(0, layout.contentH - MAP_VIEW.h)
@@ -2099,13 +2131,22 @@
     if (!modes.length) {
       marks.push(UI.text(mx, 214, 'No modes are registered.', { size: 12, colour: C.dim }))
     }
-    const rowH = 40
+    /* Two columns, filled top to bottom. One column of seventeen ran off the
+       bottom of the screen with nothing to say there was more. */
+    const mcols = modes.length > 9 ? 2 : 1
+    const perCol = Math.ceil(modes.length / mcols)
+    const colGap = 12
+    const cw = Math.floor((mw - colGap * (mcols - 1)) / mcols)
+    const rowGap = 6
+    const rowH = Math.min(46, Math.floor((FIELD_H - 64 - 190) / Math.max(1, perCol)) - rowGap)
     for (let i = 0; i < modes.length; i++) {
       const m = OP.MODES[modes[i]]
       const ok = modeAllowed(modes[i], state.difficulty)
-      widgets.push(UI.row('mode.' + modes[i], mx, 190 + i * (rowH + 2), mw, rowH, {
+      const col = Math.floor(i / perCol)
+      const row = i % perCol
+      widgets.push(UI.row('mode.' + modes[i], mx + col * (cw + colGap), 190 + row * (rowH + rowGap), cw, rowH, {
         label: (m && m.name) || modes[i],
-        sub: UI.clipText(firstSentence((m && m.blurb) || ''), 10, mw - 200),
+        sub: UI.clipText(firstSentence((m && m.blurb) || ''), 10, cw - 28),
         selected: modes[i] === state.mode,
         disabled: !ok,
         reason: ok ? '' : modeGateReason(modes[i]),
@@ -2172,74 +2213,101 @@
     const widgets = []
     const p = profileOf(app)
 
-    marks.push(UI.tracked(PAD, 190, 'DAILY CHALLENGE', { size: 48, colour: C.ink, track: 0.14, weight: '600' }))
-    marks.push(UI.rule(PAD, 230, 360))
-
     if (!OP.Daily || !OP.DailyCore) {
-      marks.push(UI.text(PAD, 270, 'Daily challenge is not available.', { size: 14, colour: C.dim }))
-      return { screen: 'daily', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: null }
+      screenHead(marks, widgets, 'DAILY CHALLENGE', '', 'daily.back')
+      marks.push(UI.text(PAD, 170, 'Daily challenge is not available.', { size: 14, colour: C.dim }))
+      return { screen: 'daily', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: 'daily.back' }
     }
 
     var summary = OP.DailyCore.summary(p)
     var challenge = summary.challenge
+    screenHead(marks, widgets, 'DAILY CHALLENGE',
+      'One seeded run a day, the same for everyone. Only your first attempt counts.', 'daily.back')
 
     if (!challenge) {
-      marks.push(UI.text(PAD, 270, 'Could not generate today\'s challenge.', { size: 14, colour: C.dim }))
-      return { screen: 'daily', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: null }
+      marks.push(UI.text(PAD, 170, 'Could not generate today\'s challenge.', { size: 14, colour: C.dim }))
+      return { screen: 'daily', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: 'daily.back' }
     }
 
-    marks.push(UI.text(PAD, 262, challenge.dateKey, { size: 14, colour: C.moss, weight: '600' }))
-
-    var descLines = UI.wrapText(challenge.description, 12, 400, 4)
+    /* ----- left: today's rules ----- */
+    var top = 150
+    var bottom = 664
+    var lw = 680
+    var lx = PAD
+    marks.push(UI.box(lx, top, lw, bottom - top, { fill: '#5a3a1e', stroke: '#2a1a0a', alpha: 0.97 }))
+    var ix = lx + 22
+    var iw = lw - 44
+    marks.push(UI.tracked(ix, top + 30, 'TODAY · ' + challenge.dateKey, { size: 11, colour: C.gold, track: 0.2, weight: '700' }))
+    var descLines = UI.wrapText(challenge.description, 20, iw, 3)
     for (var i = 0; i < descLines.length; i++) {
-      marks.push(UI.text(PAD, 290 + i * 18, descLines[i], { size: 12, colour: C.ink }))
+      marks.push(UI.text(ix, top + 66 + i * 28, descLines[i], { size: 20, colour: C.ink, weight: '700' }))
+    }
+    var y = top + 66 + descLines.length * 28 + 12
+    marks.push(UI.rule(ix, y, iw, { alpha: 0.6 }))
+    y += 26
+    marks.push(UI.tracked(ix, y, 'MODIFIERS', { size: 10, colour: C.moss, track: 0.24, weight: '700' }))
+    y += 22
+    if (!challenge.modifiers.length) {
+      marks.push(UI.text(ix, y, 'None today: the map, the mode and you.', { size: 13, colour: C.dim }))
+    }
+    for (var j = 0; j < challenge.modifiers.length && y < bottom - 20; j++) {
+      var mod = challenge.modifiers[j]
+      marks.push(UI.text(ix, y, mod.name, { size: 13, colour: C.ink, weight: '700' }))
+      if (mod.detail) {
+        var det = UI.wrapText(mod.detail, 12, iw - 16, 2)
+        for (var d = 0; d < det.length; d++) marks.push(UI.text(ix + 16, y + 18 + d * 16, det[d], { size: 12, colour: C.dim }))
+        y += det.length * 16
+      }
+      y += 28
     }
 
-    var modY = 290 + descLines.length * 18 + 12
-    if (challenge.modifiers.length > 0) {
-      marks.push(UI.text(PAD, modY, 'MODIFIERS', { size: 10, colour: C.moss, track: 0.2 }))
-      modY += 16
-      for (var j = 0; j < challenge.modifiers.length; j++) {
-        var mod = challenge.modifiers[j]
-        var modText = mod.name + (mod.detail ? ': ' + mod.detail : '')
-        marks.push(UI.text(PAD + 12, modY, modText, { size: 11, colour: C.ink }))
-        modY += 16
+    // Today's map, drawn large in whatever room the modifiers leave.
+    var mdef = OP.MAPS ? OP.MAPS[challenge.mapKey] : null
+    var ph = Math.min(220, bottom - 22 - (y + 28))
+    if (mdef && ph >= 120) {
+      var pw = Math.round(ph * FIELD_W / FIELD_H)
+      var py = bottom - 22 - ph
+      marks.push(UI.tracked(ix, py - 12, 'MAP · ' + (mdef.name || challenge.mapName || challenge.mapKey).toUpperCase(), { size: 10, colour: C.moss, track: 0.24, weight: '700' }))
+      marks.push(UI.preview(ix, py, pw, ph, pathsOf(mdef)))
+      if (mdef.blurb) {
+        var mb = UI.wrapText(mdef.blurb, 12, iw - pw - 20, 8)
+        for (var m = 0; m < mb.length; m++) marks.push(UI.text(ix + pw + 20, py + 14 + m * 18, mb[m], { size: 12, colour: C.dim }))
       }
     }
 
-    var resultY = Math.max(modY + 10, 400)
-    if (summary.done && summary.result) {
-      marks.push(UI.text(PAD, resultY, 'TODAY\'S RESULT', { size: 10, colour: C.moss, track: 0.2 }))
-      resultY += 16
-      var r = summary.result
-      var resultText = r.won ? 'WON' : 'LOST'
-      marks.push(UI.text(PAD + 12, resultY, resultText + ' — Round ' + r.bestRound, { size: 12, colour: r.won ? '#5daa68' : '#e06a5a' }))
-      resultY += 16
-      marks.push(UI.text(PAD + 12, resultY, 'Pops: ' + fmtBig(r.pops) + '  Cash: $' + fmtBig(r.cash), { size: 11, colour: C.dim }))
-      resultY += 20
-    }
-
-    var streakY = Math.max(resultY + 10, 440)
+    /* ----- right: streak, today's result, play ----- */
+    var rx = lx + lw + 24
+    var rw = FIELD_W - PAD - rx
+    marks.push(UI.box(rx, top, rw, bottom - top, { fill: '#5a3a1e', stroke: '#2a1a0a', alpha: 0.97 }))
+    var sx = rx + 22
+    var sw = rw - 44
     var streak = summary.streak
-    marks.push(UI.text(PAD, streakY, 'STREAK', { size: 10, colour: C.moss, track: 0.2 }))
-    streakY += 16
-    marks.push(UI.text(PAD + 12, streakY, 'Current: ' + streak.current + '  Best: ' + streak.best, { size: 12, colour: C.ink }))
-    streakY += 16
-    marks.push(UI.text(PAD + 12, streakY, 'Total completed: ' + summary.totalCompleted, { size: 11, colour: C.dim }))
-
-    var bw = 330, bh = 52
-    var by = Math.max(streakY + 30, 520)
-    if (!summary.done) {
-      widgets.push(UI.button('daily.play', PAD, by, bw, bh, {
-        label: 'PLAY TODAY\'S CHALLENGE', tone: 'primary', action: 'play-daily'
+    marks.push(UI.tracked(sx, top + 30, 'STREAK', { size: 11, colour: C.gold, track: 0.2, weight: '700' }))
+    var stats = [['CURRENT', String(streak.current)], ['BEST', String(streak.best)], ['TOTAL', String(summary.totalCompleted)]]
+    var cw = Math.floor(sw / stats.length)
+    for (var k = 0; k < stats.length; k++) {
+      marks.push(UI.text(sx + k * cw, top + 76, stats[k][1], { size: 30, colour: C.ink, weight: '700' }))
+      marks.push(UI.text(sx + k * cw, top + 96, stats[k][0], { size: 10, colour: C.faint }))
+    }
+    marks.push(UI.rule(sx, top + 118, sw, { alpha: 0.6 }))
+    marks.push(UI.tracked(sx, top + 146, 'TODAY\'S RESULT', { size: 11, colour: C.gold, track: 0.2, weight: '700' }))
+    if (summary.done && summary.result) {
+      var r = summary.result
+      marks.push(UI.text(sx, top + 178, (r.won ? 'WON' : 'LOST') + ' · round ' + r.bestRound, {
+        size: 18, colour: r.won ? C.moss : C.bad, weight: '700'
       }))
+      marks.push(UI.text(sx, top + 202, fmtBig(r.pops) + ' pops · $' + fmtBig(r.cash) + ' earned', { size: 12, colour: C.dim }))
     } else {
-      widgets.push(UI.button('daily.play', PAD, by, bw, bh, {
-        label: 'PLAY AGAIN', tone: 'primary', action: 'play-daily',
-        sub: 'score will not be recorded'
-      }))
+      marks.push(UI.text(sx, top + 178, 'Not played yet.', { size: 14, colour: C.dim }))
+      marks.push(UI.text(sx, top + 200, 'Win to keep your streak going.', { size: 12, colour: C.faint }))
     }
 
+    widgets.push(UI.button('daily.play', sx, bottom - 78, sw, 56, summary.done
+      ? { label: 'PLAY AGAIN', tone: 'primary', action: 'play-daily', align: 'center', sub: 'score will not be recorded' }
+      : { label: 'PLAY TODAY\'S CHALLENGE', tone: 'primary', action: 'play-daily', align: 'center' }))
+
+    footer(marks, 'ESC back · ENTER plays')
+    noticeMark(marks)
     return {
       screen: 'daily',
       backdrop: 'solid',
@@ -2296,61 +2364,40 @@
   }
 
   function buildExpedition (app) {
-    var PAD = 40
-    var P = { x: PAD, y: 90, w: FIELD_W - PAD * 2, h: FIELD_H - 90 - PAD }
     var marks = []
     var widgets = []
     var exp = expeditionSummary(app)
-    var profile = profileOf(app)
     var active = exp && exp.active
 
-    marks.push(UI.tracked(PAD, 190, 'EXPEDITION', { size: 48, colour: C.ink, track: 0.14, weight: '600' }))
-    if (active) {
-      marks.push(UI.text(PAD, 244, 'ACTIVE EXPEDITION', { size: 11, colour: C.moss }))
-    } else {
-      marks.push(UI.text(PAD, 244, 'Choose a route to begin.', { size: 11, colour: C.moss }))
-    }
-    marks.push(UI.rule(PAD, 258, P.w))
-
-    if (expState.notice) {
-      marks.push(UI.text(PAD, 270, expState.notice, { size: 11, colour: '#d4a843' }))
-    }
+    screenHead(marks, widgets, 'EXPEDITION',
+      active ? 'An expedition is under way. Continue it, or finish it before starting another.'
+        : 'Several maps in a row. Cash and lives carry from one map to the next.',
+      'expedition.back')
 
     if (!exp || !exp.list) {
-      marks.push(UI.text(PAD, 300, 'Expedition system is not available.', { size: 13, colour: C.dim }))
+      marks.push(UI.text(PAD, 170, 'Expedition system is not available.', { size: 13, colour: C.dim }))
     } else {
-      /* Eight campaigns (five expeditions + three Voyages) cannot use the old
-         58px rows from y=290 — that ran past the 720px field. Compact rows keep
-         the whole roster on one screen. */
-      var y = 280
+      var gap = 8
+      var rowH = Math.min(56, Math.floor((664 - 150 + gap) / Math.max(1, exp.list.length)) - gap)
       for (var i = 0; i < exp.list.length; i++) {
         var e = exp.list[i]
-        var isActive = e.active
-        var isCompleted = e.completed
         var diffDef = OP.DIFFICULTIES && OP.DIFFICULTIES[e.difficulty]
-        var diffName = diffDef ? diffDef.name : e.difficulty
         var modeDef = OP.MODES && OP.MODES[e.mode]
-        var modeName = modeDef ? modeDef.name : e.mode
-
-        var label = e.name
-        if (isActive) label += '  [STAGE ' + (e.stageIndex + 1) + '/' + e.maps + ']'
-        else if (isCompleted) label += '  [DONE x' + e.completions + ']'
-
-        var sub = diffName + ' ' + modeName + ' — ' + e.maps + ' maps — ' + e.desc
-        var btnId = 'expedition.' + e.key
-        widgets.push(UI.button(btnId, PAD, y, P.w, 46, {
-          label: label, action: 'start-expedition', arg: e.key, sub: sub,
-          disabled: active && !isActive
+        var note = e.active ? 'STAGE ' + (e.stageIndex + 1) + '/' + e.maps
+          : e.completed ? 'DONE x' + e.completions : e.maps + ' MAPS'
+        widgets.push(UI.row('expedition.' + e.key, PAD, 150 + i * (rowH + gap), CONTENT_W, rowH, {
+          label: e.name,
+          sub: (diffDef ? diffDef.name : e.difficulty) + ' · ' + (modeDef ? modeDef.name : e.mode) + ' · ' + e.desc,
+          note: note,
+          selected: !!e.active,
+          action: 'start-expedition', arg: e.key,
+          disabled: active && !e.active
         }))
-        y += 54
       }
     }
 
-    // Back button
-    widgets.push(UI.button('expedition.back', PAD, P.y + P.h - 50, 120, 38, {
-      label: '< BACK', action: 'back'
-    }))
-
+    footer(marks, 'ESC back · ENTER starts or continues a route')
+    if (expState.notice) marks.push(UI.text(FIELD_W - PAD, 700, expState.notice, { size: 11, colour: C.warn, align: 'right' }))
     return { screen: 'expedition', backdrop: 'solid', marks: marks, widgets: widgets }
   }
 
@@ -2421,58 +2468,38 @@
   }
 
   function buildTrials (app) {
-    var PAD = 40
-    var P = { x: PAD, y: 90, w: FIELD_W - PAD * 2, h: FIELD_H - 90 - PAD }
     var marks = []
     var widgets = []
     var trl = trialSummary(app)
-    var profile = profileOf(app)
     var active = trl && trl.active
 
-    marks.push(UI.tracked(PAD, 190, 'TRIALS', { size: 48, colour: C.ink, track: 0.14, weight: '600' }))
-    if (active) {
-      marks.push(UI.text(PAD, 244, 'ACTIVE TRIAL', { size: 11, colour: C.moss }))
-    } else {
-      marks.push(UI.text(PAD, 244, 'Choose a curated challenge.', { size: 11, colour: C.moss }))
-    }
-    marks.push(UI.rule(PAD, 258, P.w))
-
-    if (trialState.notice) {
-      marks.push(UI.text(PAD, 270, trialState.notice, { size: 11, colour: '#d4a843' }))
-    }
+    screenHead(marks, widgets, 'TRIALS',
+      active ? 'A trial is under way. Finish it before starting another.'
+        : 'Curated challenges, each with its own rules and a round to reach.',
+      'trial.back')
 
     if (!trl || !trl.list) {
-      marks.push(UI.text(PAD, 300, 'Trial system is not available.', { size: 13, colour: C.dim }))
+      marks.push(UI.text(PAD, 170, 'Trial system is not available.', { size: 13, colour: C.dim }))
     } else {
-      var y = 290
+      var gap = 8
+      var rowH = Math.min(56, Math.floor((664 - 150 + gap) / Math.max(1, trl.list.length)) - gap)
       for (var i = 0; i < trl.list.length; i++) {
         var t = trl.list[i]
-        var isActive = t.active
-        var isCompleted = t.completed
         var diffDef = OP.DIFFICULTIES && OP.DIFFICULTIES[t.difficulty]
-        var diffName = diffDef ? diffDef.name : t.difficulty
-
-        var label = t.name
-        if (isActive) label += '  [ACTIVE]'
-        else if (isCompleted) label += '  [DONE]'
-
-        var filterText = t.towerFilter ? t.towerFilter.join('/') + ' only' : 'all towers'
-        var sub = diffName + ' — ' + filterText + ' — ' + t.goal
-
-        var btnId = 'trial.' + t.key
-        widgets.push(UI.button(btnId, PAD, y, P.w, 58, {
-          label: label, action: 'start-trial', arg: t.key, sub: sub,
-          disabled: active && !isActive
+        var filterText = t.towerFilter ? t.towerFilter.join(', ') + ' only' : 'all towers'
+        widgets.push(UI.row('trial.' + t.key, PAD, 150 + i * (rowH + gap), CONTENT_W, rowH, {
+          label: t.name,
+          sub: (diffDef ? diffDef.name : t.difficulty) + ' · ' + filterText + ' · ' + t.goal,
+          note: t.active ? 'ACTIVE' : t.completed ? 'DONE' : '',
+          selected: !!t.active,
+          action: 'start-trial', arg: t.key,
+          disabled: active && !t.active
         }))
-        y += 72
       }
     }
 
-    // Back button
-    widgets.push(UI.button('trial.back', PAD, P.y + P.h - 50, 120, 38, {
-      label: '< BACK', action: 'back'
-    }))
-
+    footer(marks, 'ESC back · ENTER starts a trial')
+    if (trialState.notice) marks.push(UI.text(FIELD_W - PAD, 700, trialState.notice, { size: 11, colour: C.warn, align: 'right' }))
     return { screen: 'trials', backdrop: 'solid', marks: marks, widgets: widgets }
   }
 

@@ -214,7 +214,34 @@
     OP.Input.updateHover(S.io)
 
     draw()
+    matchEdges()
     clearBootOverlay()
+  }
+
+  /* The canvas is a 16:9 box and the page around it is CSS. A fixed page colour
+     showed as a mismatched band above and below every screen, so the page takes
+     the colours the current screen paints at its own top and bottom edge. */
+  let edgeKey = ''
+  function matchEdges () {
+    const S = App.state
+    let top, bottom
+    if (!S.sim || S.screen === 'menu') {
+      const name = OP.Menus && OP.Menus.state ? OP.Menus.state.screen : 'title'
+      if (name === 'title' || name === 'maps') { top = '#87ceeb'; bottom = '#5fb349' } else {
+        const C = (OP.Menus && OP.Menus.COLOURS) || {}
+        top = bottom = C.bg || '#163d5c'
+      }
+    } else {
+      top = '#5a3c22'; bottom = '#1a120b'
+    }
+    const key = top + bottom
+    if (key === edgeKey || typeof document === 'undefined' || !document.documentElement) return
+    edgeKey = key
+    const st = document.documentElement.style
+    if (st && st.setProperty) {
+      st.setProperty('--edge-top', top)
+      st.setProperty('--edge-bottom', bottom)
+    }
   }
 
   App.updateGame = function (dt) {
