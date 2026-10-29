@@ -52,7 +52,7 @@
     lineHi: '#3c4c3f',
     ink: '#e8efe6',
     dim: '#94a595',
-    faint: '#5d6d5f',
+    faint: '#7f9182',
     moss: '#6fae7f',
     mossDeep: '#3f6b4c',
     gold: '#c9a227',
@@ -67,6 +67,14 @@
   // build() has no ctx, and wrapping must not depend on one.
   const ADV = 0.6
 
+  /* The smallest text the interface will draw, in design units. The field is
+     scaled to the viewport, so on a 1280-wide window a size-8 caption landed at
+     8 CSS px and on a laptop or phone smaller still. Every size passes through
+     `fs`, in the metrics as well as the paint, so clipping and wrapping stay
+     exact: a caption that grows is clipped shorter, never drawn wider. */
+  const MIN_TEXT = 10
+  function fs (size) { return Math.max(MIN_TEXT, size || 0) }
+
   const PAD = 96                 // page margin
   const CONTENT_W = FIELD_W - PAD * 2
 
@@ -77,18 +85,19 @@
   const UI = {}
 
   UI.FONT = FONT
+  UI.MIN_TEXT = MIN_TEXT
   UI.ADV = ADV
   UI.COLOURS = C
 
   UI.textWidth = function (text, size) {
-    return String(text === undefined || text === null ? '' : text).length * size * ADV
+    return String(text === undefined || text === null ? '' : text).length * fs(size) * ADV
   }
 
   /** Truncate to fit, with an ellipsis. Never returns something wider than maxW. */
   UI.clipText = function (text, size, maxW) {
     const s = String(text === undefined || text === null ? '' : text)
     if (maxW <= 0) return ''
-    const room = Math.floor(maxW / (size * ADV))
+    const room = Math.floor(maxW / (fs(size) * ADV))
     if (s.length <= room) return s
     if (room <= 1) return s.slice(0, Math.max(0, room))
     return s.slice(0, room - 1) + '…'
@@ -102,7 +111,7 @@
     const s = String(text === undefined || text === null ? '' : text).trim()
     const out = []
     if (!s || maxW <= 0) return out
-    const room = Math.max(1, Math.floor(maxW / (size * ADV)))
+    const room = Math.max(1, Math.floor(maxW / (fs(size) * ADV)))
     const words = s.split(/\s+/)
     let line = ''
     for (let i = 0; i < words.length; i++) {
@@ -111,16 +120,28 @@
         if (line) { out.push(line); line = '' }
         out.push(word.slice(0, room))
         word = word.slice(room)
-        if (maxLines && out.length >= maxLines) return trimLast(out, maxLines)
+        if (maxLines && out.length >= maxLines) {
+          return (word || i < words.length - 1) ? elide(out, maxLines, room) : out
+        }
       }
       const next = line ? line + ' ' + word : word
       if (next.length <= room) { line = next; continue }
       out.push(line)
       line = word
-      if (maxLines && out.length >= maxLines) return trimLast(out, maxLines)
+      if (maxLines && out.length >= maxLines) return elide(out, maxLines, room)
     }
     if (line) out.push(line)
     return maxLines ? trimLast(out, maxLines) : out
+  }
+
+  /* Out of lines with words still to place: the last line has to SAY it was cut.
+     Returning the full lines as they stood made a blurb stop mid-sentence with
+     nothing to show there was more. */
+  function elide (lines, maxLines, room) {
+    const out = lines.slice(0, maxLines)
+    const last = out[maxLines - 1]
+    out[maxLines - 1] = (last.length + 1 > room ? last.slice(0, Math.max(0, room - 1)) : last) + '…'
+    return out
   }
 
   function trimLast (lines, maxLines) {
@@ -286,7 +307,7 @@
   /* ---------- painting ---------- */
 
   function setFont (ctx, size, weight) {
-    ctx.font = (weight ? weight + ' ' : '') + Math.round(size) + 'px ' + FONT
+    ctx.font = (weight ? weight + ' ' : '') + Math.round(fs(size)) + 'px ' + FONT
   }
 
   function drawText (ctx, x, y, text, size, colour, align, weight, alpha) {
@@ -301,7 +322,7 @@
   }
 
   function drawTracked (ctx, mark) {
-    const step = mark.size * (ADV + mark.track)
+    const step = fs(mark.size) * (ADV + mark.track)
     ctx.save()
     setFont(ctx, mark.size, mark.weight)
     ctx.fillStyle = mark.colour
@@ -313,7 +334,7 @@
   }
 
   UI.trackedWidth = function (mark) {
-    return mark.text.length * mark.size * (ADV + mark.track)
+    return mark.text.length * fs(mark.size) * (ADV + mark.track)
   }
 
   function drawBox (ctx, m) {
@@ -375,7 +396,7 @@
       // The sprite sizes itself off `def.footprint`; scale so any footprint lands
       // at the requested radius instead of large towers overflowing the card.
       const drawn = def.footprint || 14
-      const scale = (m.r / (drawn * 0.74)) * 0.92
+      const scale = (m.r / (drawn * (OP.TOWER_BODY || 0.74))) * 0.92
       ctx.translate(m.x, m.y)
       ctx.scale(scale, scale)
       try {
@@ -1195,17 +1216,17 @@
       }
     }
 
-    /* ----- the map, so the choice is never abstract ----- */
+    /* ----- the map, and the mode in full, so the choice is never abstract -----
+       The mode list on the right only has room for each mode's first sentence;
+       the whole description of the selected one lives here. The map was already
+       described on the screen before this one, so it gets its picture only. */
     const pvY = 508
     if (map) {
       marks.push(UI.preview(dx, pvY, 149, 84, pathsOf(map)))
-      marks.push(UI.text(dx + 165, pvY + 16, map.name || map.key, { size: 13, colour: C.ink, weight: '600' }))
-      const lanes = pathsOf(map).length
-      marks.push(UI.text(dx + 165, pvY + 34, lanes + (lanes === 1 ? ' lane' : ' lanes') +
-        (map.trackWidth ? ' · margin ' + map.trackWidth : ''), { size: 10, colour: C.faint }))
-      const blurb = UI.wrapText(map.blurb, 10, dw - 175, 2)
+      marks.push(UI.text(dx + 165, pvY + 14, (mode && mode.name) || state.mode, { size: 13, colour: C.ink, weight: '600' }))
+      const blurb = UI.wrapText((mode && mode.blurb) || '', 10, dw - 165, 4)
       for (let i = 0; i < blurb.length; i++) {
-        marks.push(UI.text(dx + 165, pvY + 54 + i * 13, blurb[i], { size: 10, colour: C.dim }))
+        marks.push(UI.text(dx + 165, pvY + 34 + i * 14, blurb[i], { size: 10, colour: C.dim }))
       }
     } else {
       marks.push(UI.text(dx, pvY + 20, 'No map selected — go back and pick one.', { size: 11, colour: C.warn }))
@@ -1240,7 +1261,7 @@
       const ok = modeAllowed(modes[i], state.difficulty)
       widgets.push(UI.row('mode.' + modes[i], mx, 190 + i * (rowH + 2), mw, rowH, {
         label: (m && m.name) || modes[i],
-        sub: UI.clipText((m && m.blurb) || '', 10, mw - 200),
+        sub: UI.clipText(firstSentence((m && m.blurb) || ''), 10, mw - 200),
         selected: modes[i] === state.mode,
         disabled: !ok,
         reason: ok ? '' : modeGateReason(modes[i]),
@@ -1252,6 +1273,12 @@
     footer(marks, 'ESC back · ENTER starts the run')
     noticeMark(marks)
     return { screen: 'setup', backdrop: 'solid', marks: marks, widgets: widgets, defaultId: 'setup.start' }
+  }
+
+  /** The opening sentence of a blurb, which is what fits on a one-line row. */
+  function firstSentence (text) {
+    const m = /^.*?[.!?](\s|$)/.exec(String(text || ''))
+    return m ? m[0].trim() : String(text || '')
   }
 
   function activateSetup (app, w) {

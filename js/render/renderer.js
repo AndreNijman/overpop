@@ -169,7 +169,9 @@
     const alpha = OP.Sim.alpha(sim)
 
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.fillStyle = '#070a08'
+    // The same colour as the page behind the canvas and the menu backdrop, so the
+    // margins round the board are one surface rather than a black band.
+    ctx.fillStyle = '#0e1410'
     ctx.fillRect(0, 0, view.cw, view.ch)
 
     /* Board content is drawn under the BOARD transform so the whole map fits

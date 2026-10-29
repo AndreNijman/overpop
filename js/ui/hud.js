@@ -55,7 +55,7 @@
   function colours () {
     return (OP.Menus && OP.Menus.COLOURS) || {
       bg: '#0e1410', deep: '#070a08', panel: '#141c17', panelHi: '#1d2720', panelSel: '#22301f',
-      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#5d6d5f',
+      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#7f9182',
       moss: '#6fae7f', mossDeep: '#3f6b4c', gold: '#c9a227', warn: '#e0b64a', bad: '#d0604f'
     }
   }
@@ -335,8 +335,8 @@
     // rounds, but a bar that fills as the board loads up reads immediately.
     if (pressure > 0 && rbe > 0) {
       const frac = M.clamp01(pressure / Math.max(1, rbe))
-      marks.push(U.box(668, 14, 92, 6, { fill: C.deep }))
-      marks.push(U.box(668, 14, Math.max(1, Math.round(92 * frac)), 6, { fill: C.warn, alpha: 0.9 }))
+      marks.push(U.box(690, 12, 92, 6, { fill: C.deep }))
+      marks.push(U.box(690, 12, Math.max(1, Math.round(92 * frac)), 6, { fill: C.warn, alpha: 0.9 }))
     }
 
     const diff = OP.DIFFICULTIES && OP.DIFFICULTIES[sim.difficulty]
@@ -383,10 +383,19 @@
       label: 'AUTOSTART', on: !!sim.autostart, action: 'hud-autostart'
     }))
 
-    marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 14,
-      'SPACE start · 1 2 3 speed · P pause', { size: 9, colour: C.faint, align: 'right' }))
-    marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 27,
-      'right-click a tower cycles its targeting', { size: 9, colour: C.faint, align: 'right' }))
+    // Keyboard and right-click hints mean nothing on a touchscreen, where they
+    // were the only help text on the bar; a touch player gets the gestures instead.
+    if (coarsePointer()) {
+      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 14,
+        'tap a card, then the board', { size: 9, colour: C.faint, align: 'right' }))
+      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 27,
+        'tap a tower to upgrade it', { size: 9, colour: C.faint, align: 'right' }))
+    } else {
+      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 14,
+        'SPACE start · 1 2 3 speed · P pause', { size: 9, colour: C.faint, align: 'right' }))
+      marks.push(U.text(L.bottom.x + L.bottom.w - 16, by + 27,
+        'right-click a tower cycles its targeting', { size: 9, colour: C.faint, align: 'right' }))
+    }
 
     if (sim.paused) {
       marks.push(U.text(FIELD_W / 2, 90, 'PAUSED', { size: 22, colour: C.warn, align: 'center', weight: '600' }))
@@ -396,6 +405,14 @@
     heroPanel(app, sim, marks, widgets, over)
 
     return model(marks, widgets, over, app)
+  }
+
+  /** True on a touch-first device. Read-only, so it is safe in a draw path. */
+  function coarsePointer () {
+    try {
+      return typeof window !== 'undefined' && !!window.matchMedia &&
+        window.matchMedia('(pointer: coarse)').matches
+    } catch (e) { return false }
   }
 
   function remainingInRound (r) {

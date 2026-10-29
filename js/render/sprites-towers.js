@@ -1579,13 +1579,19 @@
     return (Date.now() - T0) / 1000
   }
 
+  /* Body radius as a fraction of the footprint. Two footprints may touch but
+     never overlap, so a critter as wide as its footprint is as big as it can be
+     while neighbours still read as separate. At 0.74 every tower was a speck. */
+  const BODY = 1.0
+  OP.TOWER_BODY = BODY
+
   function makeTowerSprite (key, art) {
     const k = skinFor(key)
     return function (ctx, tower, x, y, frame) {
       const reduced = !!(frame && frame.reducedMotion)
       const t = reduced ? 0 : phaseOf(frame)
       const def = tower.def || OP.TOWERS[tower.key] || OP.HEROES[tower.key] || null
-      const r = (def ? def.footprint : 14) * 0.74
+      const r = (def ? def.footprint : 14) * BODY
       const ang = tower.angle || 0
       const dir = Math.cos(ang) < 0 ? -1 : 1
       const degree = tower.paragonDegree > 0 ? tower.paragonDegree : 0

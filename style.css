@@ -32,8 +32,9 @@ html, body {
   inset: 0;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(120% 90% at 50% 0%, #16211a 0%, var(--bg-deep) 70%);
+  /* The same colour the canvas clears to, so the letterbox and the field read as
+     one surface rather than a lighter band above and below the game. */
+  background: var(--bg);
 }
 
 /* The canvas keeps its 16:9 aspect and scales to fit — the renderer works in a
@@ -53,6 +54,48 @@ html, body {
 
 @media (min-aspect-ratio: 16/9) {
   #game { width: auto; height: 100%; }
+}
+
+/* Portrait phones: the field is a fixed 16:9 landscape layout, and fitted to a
+   portrait screen it shrinks to a strip a few centimetres tall. Ask for a turn
+   instead of pretending that is playable. */
+#rotate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 32px;
+  text-align: center;
+  background: var(--bg-deep);
+}
+#rotate .rotate-phone {
+  width: 44px;
+  height: 76px;
+  border: 3px solid var(--moss);
+  border-radius: 9px;
+  animation: rotate-hint 2.4s ease-in-out infinite;
+}
+#rotate .rotate-title {
+  font-size: 18px;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+#rotate .rotate-note {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #94a595;
+  max-width: 26ch;
+}
+@keyframes rotate-hint {
+  0%, 25% { transform: rotate(0deg); }
+  50%, 75% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (orientation: portrait) and (max-width: 820px) {
+  #rotate { display: grid; }
 }
 
 /* Real prose for crawlers and screen readers, visually removed. Not
@@ -114,4 +157,5 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   #boot { transition: none; }
+  #rotate .rotate-phone { animation: none; transform: rotate(-90deg); }
 }

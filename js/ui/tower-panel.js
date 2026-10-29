@@ -39,7 +39,7 @@
   function colours () {
     return (OP.Menus && OP.Menus.COLOURS) || {
       bg: '#0e1410', deep: '#070a08', panel: '#141c17', panelHi: '#1d2720', panelSel: '#22301f',
-      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#5d6d5f',
+      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#7f9182',
       moss: '#6fae7f', mossDeep: '#3f6b4c', gold: '#c9a227', warn: '#e0b64a', bad: '#d0604f'
     }
   }
@@ -206,7 +206,7 @@
       marks.push(U.text(cx, cy + 10, cells[i][0], { size: 8, colour: C.faint }))
       marks.push(U.text(cx, cy + 26, U.clipText(cells[i][1], 13, colW - 6), { size: 13, colour: C.ink, weight: '600' }))
     }
-    y += 72
+    y += 78
 
     marks.push(U.text(x0, y, 'earned ' + M.money(tower.earned || 0) +
       ' · invested ' + M.money(tower.invested || 0) +
@@ -267,8 +267,8 @@
     const paths = Array.isArray(tower.def.paths) ? tower.def.paths : []
 
     marks.push(U.tracked(x0, y, 'UPGRADES', { size: 9, colour: C.moss, track: 0.28 }))
-    marks.push(U.text(x0 + innerW, y, 'one branch past tier 2, two branches touched',
-      { size: 8, colour: C.faint, align: 'right' }))
+    marks.push(U.text(x0 + innerW, y, U.clipText('one path past tier 2 · two paths max', 10, innerW - 84),
+      { size: 10, colour: C.faint, align: 'right' }))
     y += 8
 
     if (!paths.length) {
@@ -276,7 +276,7 @@
       return y + 30
     }
 
-    const blockH = 84
+    const blockH = 86
     for (let p = 0; p < paths.length; p++) {
       const path = paths[p] || {}
       const st = branchState(sim, tower, p)
@@ -296,9 +296,9 @@
       // Owned tiers, as pips. Five small squares read faster than "3 / 5".
       const maxTier = OP.Upgrades.MAX_TIER || 5
       for (let i = 0; i < maxTier; i++) {
-        const px = x0 + innerW - (maxTier - i) * 11
+        const px = x0 + innerW - (maxTier - i) * 13
         const owned = i < tower.tiers[p]
-        over.push(U.box(px, by + 7, 7, 7, owned ? { fill: C.moss } : { stroke: C.line }))
+        over.push(U.box(px, by + 6, 9, 9, owned ? { fill: C.moss } : { stroke: C.lineHi }))
       }
 
       if (st.up) {
@@ -306,9 +306,9 @@
           { size: 11, colour: st.ok ? C.ink : C.dim }))
         over.push(U.text(x0 + innerW - 4, by + 32, M.money(st.cost),
           { size: 10, colour: st.ok ? C.gold : C.faint, align: 'right' }))
-        const desc = U.wrapText(st.up.desc, 9, innerW - 8, st.reason ? 2 : 3)
+        const desc = U.wrapText(st.up.desc, 10, innerW - 8, st.reason ? 2 : 3)
         for (let i = 0; i < desc.length; i++) {
-          over.push(U.text(x0 + 4, by + 47 + i * 11, desc[i], { size: 9, colour: C.faint }))
+          over.push(U.text(x0 + 4, by + 48 + i * 12, desc[i], { size: 10, colour: C.dim }))
         }
       } else {
         over.push(U.text(x0 + 4, by + 32, 'Fully upgraded', { size: 11, colour: C.gold }))
@@ -317,9 +317,9 @@
       /* The whole point of this panel: a lock says why, in the engine's own
          words, on screen, without a hover. */
       if (st.reason) {
-        const lines = U.wrapText(st.reason, 9, innerW - 8, 2)
+        const lines = U.wrapText(st.reason, 10, innerW - 8, 2)
         for (let i = 0; i < lines.length; i++) {
-          over.push(U.text(x0 + 4, by + blockH - 14 + i * 10 - (lines.length - 1) * 10, lines[i],
+          over.push(U.text(x0 + 4, by + blockH - 9 + i * 12 - (lines.length - 1) * 12, lines[i],
             { size: 9, colour: st.locked ? C.warn : C.bad }))
         }
       }
@@ -471,9 +471,10 @@
 
     // Keep the footer pinned to the bottom when the panel above it is short, but
     // never let it climb into the section above when it is tall.
-    let fy = Math.min(Math.max(y + info.length * 12 + 4, bottom - 40), S.y + S.h - 46)
+    const btnH = 42
+    let fy = Math.min(Math.max(y + info.length * 13 + 4, bottom - btnH - 8), S.y + S.h - btnH - 22)
     for (let i = 0; i < info.length; i++) {
-      marks.push(U.text(x0, fy - 6 - (info.length - 1 - i) * 12,
+      marks.push(U.text(x0, fy - 6 - (info.length - 1 - i) * 13,
         U.clipText(info[i].text, 9, innerW), { size: 9, colour: info[i].colour }))
     }
 
@@ -485,7 +486,7 @@
     if (canSell) {
       const value = OP.Economy.sellValue(sim, tower)
       const pending = state.confirmSell === tower.id
-      widgets.push(stamp(U.button('panel.sell', x0, fy, preview.ok ? sellW : innerW, 34, {
+      widgets.push(stamp(U.button('panel.sell', x0, fy, preview.ok ? sellW : innerW, btnH, {
         label: pending ? 'CONFIRM' : 'SELL',
         sub: pending ? 'press again' : 'returns ' + M.money(value),
         tone: 'danger', action: 'panel-sell'
@@ -496,7 +497,7 @@
 
     if (preview.ok) {
       const px = canSell ? x0 + sellW + 8 : x0
-      widgets.push(stamp(U.button('panel.paragon', px, fy, canSell ? sellW : innerW, 34, {
+      widgets.push(stamp(U.button('panel.paragon', px, fy, canSell ? sellW : innerW, btnH, {
         label: confirmingParagon ? 'CONFIRM' : 'PARAGON',
         sub: confirmingParagon
           ? 'consumes ' + preview.sacrifices.length
@@ -507,13 +508,11 @@
     } else if (preview.reason && OP.Paragon && OP.Paragon.exists && OP.Paragon.exists(tower.key)) {
       // A tower that HAS a paragon but cannot take it yet gets the reason; one that
       // has no paragon at all gets no line, because there is nothing to explain.
-      marks.push(U.text(x0, fy + 48, U.clipText('Paragon: ' + preview.reason, 8, innerW),
-        { size: 8, colour: C.faint }))
+      marks.push(U.text(x0, fy + btnH + 14, U.clipText('Paragon: ' + preview.reason, 10, innerW),
+        { size: 10, colour: C.faint }))
     }
 
-    marks.push(U.text(x0, S.y + S.h - 8, 'right-click cycles targeting · DEL sells',
-      { size: 8, colour: C.faint }))
-    return fy + 34
+    return fy + btnH
   }
 
   /* ============================================================================

@@ -31,14 +31,14 @@
   const FIELD_W = OP.FIELD_W
 
   /** Width of the upgrade-tree strip on the right of every card. */
-  const TREE_W = 26
+  const TREE_W = 36
 
   function ui () { return OP.Menus && OP.Menus.UI ? OP.Menus.UI : null }
 
   function colours () {
     return (OP.Menus && OP.Menus.COLOURS) || {
       bg: '#0e1410', deep: '#070a08', panel: '#141c17', panelHi: '#1d2720', panelSel: '#22301f',
-      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#5d6d5f',
+      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#7f9182',
       moss: '#6fae7f', mossDeep: '#3f6b4c', gold: '#c9a227', warn: '#e0b64a', bad: '#d0604f'
     }
   }
@@ -280,7 +280,7 @@
     const list = groups()
 
     /* ----- the detail strip, reserved before the grid so the grid can size to fit ----- */
-    const detailH = 96
+    const detailH = 132
     const detailY = S.y + S.h - detailH - 22
     const top = S.y + 40
     const bottom = detailY - 8
@@ -299,7 +299,7 @@
        which fits a clipped name and nothing else. A card has to carry the
        critter's portrait to be worth looking at, and a portrait needs real
        height. So the card size is FIXED and the list scrolls instead. */
-    const cardH = 44
+    const cardH = 56
     const rowGap = 4
     const headerH = 22
     const listMarks = []
@@ -310,9 +310,30 @@
 
     // Measure the whole list first — scroll clamping needs the full content
     // height, and the cull below needs to know where each card would land.
+    //
+    // A family the mode forbids says why on its own line under the header: at a
+    // legible size the sentence no longer fits beside the family name, and a
+    // clipped reason is one the player cannot act on.
+    const reasonLineH = 13
+    const groupStates = []
+    const groupReasons = []
+    for (let g = 0; g < list.length; g++) {
+      const states = []
+      let reason = ''
+      for (let i = 0; i < list[g].defs.length; i++) {
+        const st = entryState(sim, list[g].defs[i], list[g].hero)
+        states.push(st)
+        if (!reason && st.state === 'blocked') reason = st.reason
+      }
+      groupStates.push(states)
+      groupReasons.push(reason)
+    }
+    // Wrap width assumes the scrollbar is showing; it only ever narrows the column.
+    const reasonW = innerW - 9
+    const reasonLines = groupReasons.map(function (r) { return r ? U.wrapText(r, 10, reasonW, 3) : [] })
     let contentH = 0
     for (let g = 0; g < list.length; g++) {
-      contentH += headerH + list[g].defs.length * (cardH + rowGap)
+      contentH += headerH + reasonLines[g].length * reasonLineH + list[g].defs.length * (cardH + rowGap)
     }
     const viewH = bottom - top
     // The scrollbar only takes width when it is actually needed.
@@ -330,26 +351,23 @@
       // One reason per group, taken from the first blocked entry. That covers both
       // "this whole family is disabled" and "income towers are disabled", and it
       // keeps the sentence on screen instead of hiding it behind a hover.
-      let groupReason = ''
-      const states = []
-      for (let i = 0; i < group.defs.length; i++) {
-        const st = entryState(sim, group.defs[i], group.hero)
-        states.push(st)
-        if (!groupReason && st.state === 'blocked') groupReason = st.reason
-      }
+      const groupReason = groupReasons[g]
+      const states = groupStates[g]
+      const lines = reasonLines[g]
 
       if (y + headerH > top && y < bottom) {
         listMarks.push(U.tracked(x0, y + 13, group.label.toUpperCase(), { size: 9, colour: groupReason ? C.warn : C.moss, track: 0.28 }))
-        if (groupReason) {
-          listOver.push(U.text(x0 + cardW, y + 13, U.clipText(groupReason, 8, cardW - 84),
-            { size: 8, colour: C.warn, align: 'right' }))
-        } else {
-          listOver.push(U.text(x0 + cardW, y + 13, group.defs.length + (group.hero ? ' heroes' : ' towers'),
-            { size: 8, colour: C.faint, align: 'right' }))
-        }
+        listOver.push(U.text(x0 + cardW, y + 13, groupReason ? 'LOCKED' : group.defs.length + (group.hero ? ' heroes' : ' towers'),
+          { size: 8, colour: groupReason ? C.warn : C.faint, align: 'right' }))
         listMarks.push(U.rule(x0, y + 18, cardW, { colour: C.line, alpha: 0.6 }))
       }
       y += headerH
+      for (let i = 0; i < lines.length; i++) {
+        if (y + reasonLineH > top && y < bottom) {
+          listOver.push(U.text(x0, y + 8, lines[i], { size: 10, colour: C.warn }))
+        }
+        y += reasonLineH
+      }
 
       for (let i = 0; i < group.defs.length; i++) {
         const def = group.defs[i]
@@ -480,43 +498,46 @@
 
     out.push(U.portrait(px, y + h / 2, r, def.key, { dim: dim }))
 
-    out.push(U.text(tx, y + 15, U.clipText(def.name || def.key, 11, w - (tx - x) - 54),
-      { size: 11, colour: nameColour, weight: '600' }))
+    out.push(U.text(tx, y + 18, U.clipText(def.name || def.key, 12, w - (tx - x) - 62),
+      { size: 12, colour: nameColour, weight: '600' }))
 
     if (st.state === 'blocked') {
-      out.push(U.text(x + w - 8, y + 15, 'LOCKED', { size: 8, colour: C.warn, align: 'right' }))
+      out.push(U.text(x + w - 8, y + 18, 'LOCKED', { size: 10, colour: C.warn, align: 'right' }))
     } else {
-      out.push(U.text(x + w - 8, y + 15, M.money(st.price),
-        { size: 10, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right', weight: '600' }))
+      out.push(U.text(x + w - 8, y + 18, M.money(st.price),
+        { size: 12, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right', weight: '600' }))
     }
 
+    /* Rows two and three each get the full width. They used to share one row,
+       left and right, and at a legible size the two halves ran into each other. */
+    const textW = w - (tx - x) - 8
     const traits = OP.Upgrades && OP.Upgrades.traits ? OP.Upgrades.traits(def, sim) : null
     const bits = []
     if (isHero) bits.push('HERO')
     if (traits) {
       bits.push(String(traits.dmgType).toUpperCase())
-      if (traits.camoNow) bits.push('SEES CAMO')
-      else if (traits.camoLater) bits.push('CAMO VIA UPG')
+      if (traits.camoNow) bits.push('sees camo')
+      else if (traits.camoLater) bits.push('camo with upgrade')
     }
-    out.push(U.text(tx, y + 30, U.clipText(bits.join(' · '), 8, w - (tx - x) - 12),
-      { size: 8, colour: C.faint }))
+    out.push(U.text(tx, y + 33, U.clipText(bits.join(' · '), 10, textW),
+      { size: 10, colour: C.dim }))
 
     // A permanent blind spot is the one thing worth shouting on the card itself:
     // it is the difference between a tower that needs an upgrade and one that will
     // never answer a round no matter what you spend.
-    if (hasTree) {
-      // A quiet chevron: discoverable without competing with the price.
-      out.push(U.text(x + w + TREE_W / 2, y + h / 2 - 5, '\u25B8', { size: 11, colour: C.moss, align: 'center' }))
-      out.push(U.text(x + w + TREE_W / 2, y + h / 2 + 9, 'UPG', { size: 6, colour: C.faint, align: 'center' }))
-      out.push(U.rule(x + w, y + 6, 0, { colour: C.line }))
+    if (traits && traits.blindTo.length) {
+      out.push(U.text(tx, y + 47, U.clipText("can't pop " + traits.blindTo.join(', '), 10, textW),
+        { size: 10, colour: C.bad }))
+    } else if (traits && traits.fixable.length) {
+      out.push(U.text(tx, y + 47, U.clipText('upgrade to pop ' + traits.fixable.join(', '), 10, textW),
+        { size: 10, colour: C.warn }))
     }
 
-    if (traits && traits.blindTo.length) {
-      out.push(U.text(x + w - 8, y + 30, 'never: ' + U.clipText(traits.blindTo.join(','), 8, 70),
-        { size: 8, colour: C.bad, align: 'right' }))
-    } else if (traits && traits.fixable.length) {
-      out.push(U.text(x + w - 8, y + 30, 'upg: ' + U.clipText(traits.fixable.join(','), 8, 70),
-        { size: 8, colour: C.warn, align: 'right' }))
+    if (hasTree) {
+      // A quiet chevron: discoverable without competing with the price.
+      out.push(U.text(x + w + TREE_W / 2, y + h / 2 - 3, '\u25B8', { size: 12, colour: C.moss, align: 'center' }))
+      out.push(U.text(x + w + TREE_W / 2, y + h / 2 + 12, 'TREE', { size: 10, colour: C.dim, align: 'center' }))
+      out.push(U.rule(x + w, y + 6, 0, { colour: C.line }))
     }
   }
 
@@ -541,11 +562,11 @@
     const def = key ? ((isHero ? OP.HEROES : OP.TOWERS) || {})[key] : null
     const st = def ? entryState(sim, def, isHero) : null
     if (!def) {
-      over.push(U.text(x0 + 10, y + 20, 'Point at a critter', { size: 11, colour: C.dim }))
-      over.push(U.text(x0 + 10, y + 36, 'to see what it pops, what it', { size: 9, colour: C.faint }))
-      over.push(U.text(x0 + 10, y + 48, 'can never pop, and its whole', { size: 9, colour: C.faint }))
-      over.push(U.text(x0 + 10, y + 60, 'upgrade tree before you buy.', { size: 9, colour: C.faint }))
-      over.push(U.text(x0 + 10, y + 80, 'Tap to place · scroll the list', { size: 8, colour: C.faint }))
+      over.push(U.text(x0 + 10, y + 22, 'Point at a critter', { size: 12, colour: C.ink, weight: '600' }))
+      const intro = U.wrapText('to see what it pops, what it can never pop, and what it costs. Tap a card, then tap the board to place it.', 10, innerW - 20, 4)
+      for (let i = 0; i < intro.length; i++) {
+        over.push(U.text(x0 + 10, y + 42 + i * 14, intro[i], { size: 10, colour: C.dim }))
+      }
       return
     }
 
@@ -553,57 +574,44 @@
       ? 'HERO' + (def.title ? ' · ' + String(def.title).toUpperCase() : '')
       : String((OP.FAMILY_LABELS && OP.FAMILY_LABELS[def.family]) || def.family || '').toUpperCase()
 
-    over.push(U.text(x0 + 10, y + 18, U.clipText(def.name || def.key, 12, innerW - 80),
+    over.push(U.text(x0 + 10, y + 20, U.clipText(def.name || def.key, 12, innerW - 80),
       { size: 12, colour: C.ink, weight: '600' }))
-    over.push(U.text(x0 + innerW - 10, y + 18, M.money(st.price),
-      { size: 11, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right' }))
-    over.push(U.text(x0 + 10, y + 30, U.clipText(famLabel, 8, innerW - 20), { size: 8, colour: C.moss }))
+    over.push(U.text(x0 + innerW - 10, y + 20, M.money(st.price),
+      { size: 12, colour: st.state === 'ok' ? C.moss : C.bad, align: 'right', weight: '600' }))
+    over.push(U.text(x0 + 10, y + 34, U.clipText(famLabel, 10, innerW - 20), { size: 10, colour: C.moss }))
 
-    const blurb = U.wrapText(def.blurb, 9, innerW - 20, 2)
+    const blurb = U.wrapText(def.blurb, 10, innerW - 20, 2)
     for (let i = 0; i < blurb.length; i++) {
-      over.push(U.text(x0 + 10, y + 43 + i * 11, blurb[i], { size: 9, colour: C.dim }))
+      over.push(U.text(x0 + 10, y + 50 + i * 13, blurb[i], { size: 10, colour: C.dim }))
     }
 
     /* ----- the traits summary -----
-       Three lines at most, and only the ones that carry information: what it pops
-       now, what an upgrade would let it pop, and what it will never pop. Printing
-       "pops: red, blue, green…" for every tower would be noise; the interesting
+       What it pops now, the one gap that matters (never, or not yet), and camo.
+       Printing "pops: red, blue, green…" in full would be noise; the interesting
        set is exactly the tiers something is immune to. */
     const traits = OP.Upgrades && OP.Upgrades.traits ? OP.Upgrades.traits(def, sim) : null
-    let ty = y + 43 + blurb.length * 11 + 2
+    let ty = y + 50 + Math.max(1, blurb.length) * 13 + 2
+    const line = function (text, colour) {
+      over.push(U.text(x0 + 10, ty, U.clipText(text, 10, innerW - 20), { size: 10, colour: colour }))
+      ty += 13
+    }
     if (traits) {
       const canNow = traits.pops.filter(function (p) { return p.now }).map(function (p) { return p.label })
-      if (canNow.length) {
-        over.push(U.text(x0 + 10, ty, U.clipText('pops ' + canNow.join(', '), 8, innerW - 20),
-          { size: 8, colour: C.moss }))
-        ty += 10
-      }
-      if (traits.fixable.length) {
-        over.push(U.text(x0 + 10, ty, U.clipText('upgrades to pop ' + traits.fixable.join(', '), 8, innerW - 20),
-          { size: 8, colour: C.warn }))
-        ty += 10
-      }
-      if (traits.blindTo.length) {
-        over.push(U.text(x0 + 10, ty, U.clipText('never pops ' + traits.blindTo.join(', '), 8, innerW - 20),
-          { size: 8, colour: C.bad }))
-        ty += 10
-      }
+      if (canNow.length) line('pops ' + canNow.join(', '), C.moss)
+      if (traits.blindTo.length) line("can't pop " + traits.blindTo.join(', '), C.bad)
+      else if (traits.fixable.length) line('upgrade to pop ' + traits.fixable.join(', '), C.warn)
       const camo = traits.camoNow ? 'sees camo' : (traits.camoLater ? 'sees camo once upgraded' : 'cannot see camo')
-      over.push(U.text(x0 + 10, ty, camo, { size: 8, colour: traits.camoNow ? C.moss : (traits.camoLater ? C.warn : C.dim) }))
+      line(camo, traits.camoNow ? C.moss : (traits.camoLater ? C.warn : C.dim))
     }
 
-    /* No upgrade-tree button here any more — it lives on each card instead.
-       A duplicate would also collide on id, since the strip describes a card that
-       is usually still on screen. The strip just says how to get there. */
-    over.push(U.text(x0 + 10, y + h - 8, 'press \u25B8 UPG on a card for its full tree',
-      { size: 8, colour: C.faint }))
-
+    /* The footer is either why it cannot be bought right now, or how to reach
+       the full tree — never both stacked on one line. */
     if (st.reason) {
-      const lines = U.wrapText(st.reason, 9, innerW - 118, 2)
-      for (let i = 0; i < lines.length; i++) {
-        over.push(U.text(x0 + 10, y + h - 16 + i * 11 - (lines.length - 1) * 11, lines[i],
-          { size: 9, colour: st.state === 'blocked' ? C.warn : C.bad }))
-      }
+      over.push(U.text(x0 + 10, y + h - 8, U.clipText(st.reason, 10, innerW - 20),
+        { size: 10, colour: st.state === 'blocked' ? C.warn : C.bad }))
+    } else {
+      over.push(U.text(x0 + 10, y + h - 8, 'press \u25B8 TREE on a card for every upgrade',
+        { size: 10, colour: C.faint }))
     }
   }
 
