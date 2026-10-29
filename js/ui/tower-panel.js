@@ -267,7 +267,7 @@
     const paths = Array.isArray(tower.def.paths) ? tower.def.paths : []
 
     marks.push(U.tracked(x0, y, 'UPGRADES', { size: 9, colour: C.moss, track: 0.28 }))
-    marks.push(U.text(x0 + innerW, y, U.clipText('one path past tier 2 · two paths max', 10, innerW - 84),
+    marks.push(U.text(x0 + innerW, y, U.clipText('one past tier 2 · two paths max', 10, innerW - 84),
       { size: 10, colour: C.faint, align: 'right' }))
     y += 8
 
