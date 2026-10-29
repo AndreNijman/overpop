@@ -56,7 +56,7 @@
   function colours () {
     return (OP.Menus && OP.Menus.COLOURS) || {
       bg: '#0e1410', deep: '#070a08', panel: '#141c17', panelHi: '#1d2720', panelSel: '#22301f',
-      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#5d6d5f',
+      line: '#2a352c', lineHi: '#3c4c3f', ink: '#e8efe6', dim: '#94a595', faint: '#7f9182',
       moss: '#6fae7f', mossDeep: '#3f6b4c', gold: '#c9a227', warn: '#e0b64a', bad: '#d0604f'
     }
   }
@@ -504,8 +504,14 @@
         }))
       }
     }
-    marks.push(U.text(938, by + 19, 'SPACE: START', { size: 9, colour: C.dim, align: 'right' }))
-    marks.push(U.text(938, by + 35, 'P: PAUSE', { size: 9, colour: C.dim, align: 'right' }))
+    // Keyboard hints mean nothing on a touchscreen; a touch player gets the gesture.
+    if (coarsePointer()) {
+      marks.push(U.text(938, by + 19, 'TAP A CARD,', { size: 9, colour: C.dim, align: 'right' }))
+      marks.push(U.text(938, by + 35, 'THEN THE BOARD', { size: 9, colour: C.dim, align: 'right' }))
+    } else {
+      marks.push(U.text(938, by + 19, 'SPACE: START', { size: 9, colour: C.dim, align: 'right' }))
+      marks.push(U.text(938, by + 35, 'P: PAUSE', { size: 9, colour: C.dim, align: 'right' }))
+    }
 
     if (sim.paused) {
       marks.push(U.text(FIELD_W / 2, 90, 'PAUSED', { size: 22, colour: C.warn, align: 'center', weight: '600' }))
@@ -536,6 +542,14 @@
     }
 
     return model(marks, widgets, over, app)
+  }
+
+  /** True on a touch-first device. Read-only, so it is safe in a draw path. */
+  function coarsePointer () {
+    try {
+      return typeof window !== 'undefined' && !!window.matchMedia &&
+        window.matchMedia('(pointer: coarse)').matches
+    } catch (e) { return false }
   }
 
   function remainingInRound (r) {

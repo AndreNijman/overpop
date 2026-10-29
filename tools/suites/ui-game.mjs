@@ -714,9 +714,12 @@ continueFreeplay: function () { app.calls.push(['continueFreeplay']); return app
   if (heroKey) {
     const hs2 = sim({ cash: 100000 })
     const hApp2 = wireShell(makeApp(hs2))
-    t.eq(byId(Shop.build(hApp2), 'shop.' + heroKey).state, 'ok', 'before: available')
+    // Scrolled to explicitly: a locked family gains a reason line under its
+    // header, which moves the card, so a scroll offset left over from an earlier
+    // section is not evidence of anything.
+    t.eq(scrollToCard(hApp2, 'shop.' + heroKey).state, 'ok', 'before: available')
     place(hs2, heroKey, true)
-    const after = byId(Shop.build(hApp2), 'shop.' + heroKey)
+    const after = scrollToCard(hApp2, 'shop.' + heroKey)
     t.eq(after.state, 'blocked', 'after: blocked')
     t.ok(after.reason.length > 0, 'with the one-hero-per-map reason')
     t.eq(after.reason, OP.Heroes.canPlace(hs2, heroKey, -1, -1).reason, 'taken from the engine')
